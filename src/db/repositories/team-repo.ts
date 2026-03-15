@@ -76,10 +76,10 @@ export async function getPlayersForTeam(teamId: string): Promise<Player[]> {
   return rows.map(row => ({
     id: row.id,
     name: row.name,
-    battingStyle: row.batting_style as Player['battingStyle'],
-    bowlingStyle: row.bowling_style as BowlingStyle,
-    isWicketKeeper: row.is_wicket_keeper === 1,
-    isAllRounder: row.is_all_rounder === 1,
+    battingStyle: (row.batting_style ?? 'right') as Player['battingStyle'],
+    bowlingStyle: (row.bowling_style ?? 'none') as BowlingStyle,
+    isWicketKeeper: (row.is_wicket_keeper ?? 0) === 1,
+    isAllRounder: (row.is_all_rounder ?? 0) === 1,
   }));
 }
 

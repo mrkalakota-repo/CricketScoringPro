@@ -49,14 +49,35 @@ export default function RosterScreen() {
   const handleAdd = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) return;
-    await addPlayer(id, trimmedName, battingStyle, BOWLING_STYLES[bowlingStyleIndex], isKeeper, isAllRounder);
-    resetForm();
+    // Ensure id is always a plain string (useLocalSearchParams can return string[])
+    const teamId = Array.isArray(id) ? id[0] : id;
+    if (!teamId) return;
+    try {
+      await addPlayer(teamId, trimmedName, battingStyle, BOWLING_STYLES[bowlingStyleIndex], isKeeper, isAllRounder);
+      resetForm();
+    } catch (err) {
+      Alert.alert('Error', 'Could not add player. Please try again.');
+      console.error('[RosterScreen] addPlayer failed:', err);
+    }
   };
 
   const handleDelete = (playerId: string, playerName: string) => {
+    const teamId = Array.isArray(id) ? id[0] : id;
+    if (!teamId) return;
     Alert.alert('Remove Player', `Remove ${playerName} from the team?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => deletePlayer(playerId, id) },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deletePlayer(playerId, teamId);
+          } catch (err) {
+            Alert.alert('Error', 'Could not remove player. Please try again.');
+            console.error('[RosterScreen] deletePlayer failed:', err);
+          }
+        },
+      },
     ]);
   };
 
@@ -161,10 +182,10 @@ export default function RosterScreen() {
                     {item.battingStyle === 'right' ? 'RHB' : 'LHB'}
                     {item.bowlingStyle !== 'none' ? ` · ${item.bowlingStyle}` : ''}
                   </Text>
-                  {item.isWicketKeeper && (
+                  {!!item.isWicketKeeper && (
                     <Chip compact style={styles.badge} textStyle={{ fontSize: 10 }}>WK</Chip>
                   )}
-                  {item.isAllRounder && (
+                  {!!item.isAllRounder && (
                     <Chip compact style={[styles.badge, { backgroundColor: '#E8F5E9' }]} textStyle={{ fontSize: 10, color: '#2E7D32' }}>AR</Chip>
                   )}
                 </View>
