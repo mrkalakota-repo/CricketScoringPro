@@ -458,7 +458,7 @@ export default function ScoringScreen() {
                 onPress={() => { setSelectedOpener1(p.id); if (selectedOpener2 === p.id) setSelectedOpener2(null); }}
               >
                 <RadioButton value={p.id} status={selectedOpener1 === p.id ? 'checked' : 'unchecked'} onPress={() => { setSelectedOpener1(p.id); if (selectedOpener2 === p.id) setSelectedOpener2(null); }} />
-                <Text>{p.name}</Text>
+                <Text style={styles.modalName}>{p.name}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -471,7 +471,7 @@ export default function ScoringScreen() {
                 onPress={() => setSelectedOpener2(p.id)}
               >
                 <RadioButton value={p.id} status={selectedOpener2 === p.id ? 'checked' : 'unchecked'} onPress={() => setSelectedOpener2(p.id)} />
-                <Text>{p.name}</Text>
+                <Text style={styles.modalName}>{p.name}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -498,7 +498,9 @@ export default function ScoringScreen() {
                 >
                   <RadioButton value={p.id} status={selectedBowler === p.id ? 'checked' : 'unchecked'} onPress={() => !isSameAsPrev && setSelectedBowler(p.id)} disabled={isSameAsPrev} />
                   <View>
-                    <Text>{p.name}{isSameAsPrev ? ' (bowled last over)' : ''}</Text>
+                    <Text style={[styles.modalName, isSameAsPrev && { color: '#999' }]}>
+                      {p.name}{isSameAsPrev ? ' (bowled last over)' : ''}
+                    </Text>
                     {innings?.bowlers.find(b => b.playerId === p.id) && (
                       <Text variant="bodySmall" style={{ color: '#666' }}>
                         {(() => { const b = innings.bowlers.find(bw => bw.playerId === p.id)!; return `${b.overs}.${b.ballsBowled}-${b.maidens}-${b.runsConceded}-${b.wickets}`; })()}
@@ -526,13 +528,13 @@ export default function ScoringScreen() {
               style={[styles.selectionRow, { flex: 1 }, dismissedBatsmanId === innings?.currentStrikerId && styles.selectionActive]}
               onPress={() => setDismissedBatsmanId(innings?.currentStrikerId ?? null)}
             >
-              <Text variant="bodySmall">{getPlayerName(innings?.currentStrikerId ?? null)} (Striker)</Text>
+              <Text style={styles.modalName}>{getPlayerName(innings?.currentStrikerId ?? null)}{'\n'}<Text style={{ fontSize: 11, color: '#666', fontWeight: '400' }}>Striker</Text></Text>
             </Pressable>
             <Pressable
               style={[styles.selectionRow, { flex: 1 }, dismissedBatsmanId === innings?.currentNonStrikerId && styles.selectionActive]}
               onPress={() => setDismissedBatsmanId(innings?.currentNonStrikerId ?? null)}
             >
-              <Text variant="bodySmall">{getPlayerName(innings?.currentNonStrikerId ?? null)} (Non-str)</Text>
+              <Text style={styles.modalName}>{getPlayerName(innings?.currentNonStrikerId ?? null)}{'\n'}<Text style={{ fontSize: 11, color: '#666', fontWeight: '400' }}>Non-striker</Text></Text>
             </Pressable>
           </View>
 
@@ -561,7 +563,7 @@ export default function ScoringScreen() {
                     style={[styles.selectionRow, selectedFielder === p.id && styles.selectionActive]}
                     onPress={() => setSelectedFielder(p.id)}
                   >
-                    <Text variant="bodySmall">{p.name}</Text>
+                    <Text style={styles.modalName}>{p.name}</Text>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -587,7 +589,7 @@ export default function ScoringScreen() {
                 onPress={() => setSelectedNewBatter(p.id)}
               >
                 <RadioButton value={p.id} status={selectedNewBatter === p.id ? 'checked' : 'unchecked'} onPress={() => setSelectedNewBatter(p.id)} />
-                <Text>{p.name}</Text>
+                <Text style={styles.modalName}>{p.name}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -642,9 +644,9 @@ const styles = StyleSheet.create({
   playerInfo: { margin: 12, padding: 12, borderRadius: 12 },
   batterRow: { flexDirection: 'row', justifyContent: 'space-between' },
   batterInfo: { flex: 1 },
-  playerName: { fontSize: 14, fontWeight: '600' },
-  onStrike: { color: '#1B5E20' },
-  playerStats: { fontSize: 12, color: '#666' },
+  playerName: { fontSize: 14, fontWeight: '600', color: '#1A1A1A' },
+  onStrike: { color: '#00695C' },
+  playerStats: { fontSize: 12, color: '#555' },
   bowlerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   bowlerLabel: { fontSize: 12, color: '#999' },
   partnershipText: { fontSize: 11, color: '#999', marginTop: 4 },
@@ -703,6 +705,7 @@ const styles = StyleSheet.create({
     padding: 8, borderRadius: 8,
   },
   selectionActive: { backgroundColor: '#E8F5E9' },
+  modalName: { fontSize: 14, fontWeight: '600', color: '#1A1A1A' },
   dismissedRow: { flexDirection: 'row', gap: 8 },
   dismissalGrid: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8,
