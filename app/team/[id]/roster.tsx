@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { View, StyleSheet, FlatList, Alert } from 'react-native';
 import { TextInput, Button, Text, Card, useTheme, IconButton, SegmentedButtons, Switch, Chip } from 'react-native-paper';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTeamStore } from '../../../src/store/team-store';
 import { useAdminAuth } from '../../../src/hooks/useAdminAuth';
 import { AdminPinModal } from '../../../src/components/AdminPinModal';
+import { getPlayerCode } from '../../../src/utils/player-code';
 import type { BowlingStyle } from '../../../src/engine/types';
 
 const BOWLING_STYLES: BowlingStyle[] = [
@@ -22,6 +23,7 @@ const BOWLING_STYLES: BowlingStyle[] = [
 const MAX_NAME_LENGTH = 50;
 
 export default function RosterScreen() {
+  const router = useRouter();
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const teams = useTeamStore(s => s.teams);
@@ -194,7 +196,7 @@ export default function RosterScreen() {
           </View>
         }
         renderItem={({ item, index }) => (
-          <Card style={styles.playerCard}>
+          <Card style={styles.playerCard} onPress={() => router.push(`/player/${item.id}`)}>
             <Card.Content style={styles.playerRow}>
               <View style={styles.playerInfo}>
                 <Text variant="titleSmall">{index + 1}. {item.name}</Text>
@@ -213,6 +215,7 @@ export default function RosterScreen() {
                     <Chip compact style={[styles.badge, { backgroundColor: '#E8F5E9' }]} textStyle={{ fontSize: 10, color: '#2E7D32' }}>AR</Chip>
                   )}
                 </View>
+                <Text style={styles.playerCode}>Code: {getPlayerCode(item.id)}</Text>
               </View>
               {adminUnlocked && (
                 <IconButton
@@ -254,4 +257,5 @@ const styles = StyleSheet.create({
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, flexWrap: 'wrap' },
   badge: { height: 20, borderRadius: 4 },
   footer: { padding: 12, alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth },
+  playerCode: { fontSize: 10, color: '#AAA', marginTop: 2, letterSpacing: 0.5 },
 });

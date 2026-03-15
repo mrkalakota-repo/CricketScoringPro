@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { loadSeedData } from '../../src/utils/seed-data';
+import { loadSeedData, deleteSeedData } from '../../src/utils/seed-data';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -14,6 +14,7 @@ export default function HomeScreen() {
   const teams = useTeamStore(s => s.teams);
   const loadTeams = useTeamStore(s => s.loadTeams);
   const [seeding, setSeeding] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const liveMatches = matches.filter(m => m.status === 'in_progress' || m.status === 'toss');
   const recentMatches = matches.filter(m => m.status === 'completed').slice(0, 5);
@@ -27,6 +28,30 @@ export default function HomeScreen() {
     } finally {
       setSeeding(false);
     }
+  };
+
+  const handleDeleteSample = () => {
+    Alert.alert(
+      'Delete Sample Teams',
+      'This will delete Mumbai Blasters, Chennai Challengers and Delhi Dynamos. Your own teams will not be affected.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              const result = await deleteSeedData();
+              await loadTeams();
+              Alert.alert(result.deleted ? 'Deleted' : 'Not Found', result.message);
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -51,6 +76,18 @@ export default function HomeScreen() {
           New Match
         </Button>
       </Surface>
+
+      {/* Quick Actions Row */}
+      {(matches.length > 0 || teams.length > 0) && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, flexDirection: 'row', justifyContent: 'flex-end', gap: 4 }}>
+          <Button compact mode="text" icon="account-search" onPress={() => router.push('/profile')}>
+            Find My Profile
+          </Button>
+          <Button compact mode="text" icon="database-remove-outline" loading={deleting} onPress={handleDeleteSample}>
+            Delete Samples
+          </Button>
+        </View>
+      )}
 
       {/* Quick Stats */}
       <View style={styles.statsRow}>
@@ -133,6 +170,9 @@ export default function HomeScreen() {
             </Button>
             <Button mode="outlined" onPress={handleLoadSample} loading={seeding} icon="database-import-outline">
               Load Sample Data
+            </Button>
+            <Button mode="text" onPress={() => router.push('/profile')} icon="account-search">
+              Find My Profile
             </Button>
           </View>
         </View>

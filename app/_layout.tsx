@@ -37,6 +37,7 @@ export default function RootLayout() {
       <Stack.Screen name="match/[id]/toss" options={{ title: 'Toss', presentation: 'modal' }} />
       <Stack.Screen name="match/[id]/scoring" options={{ title: 'Scoring', headerShown: false }} />
       <Stack.Screen name="match/[id]/scorecard" options={{ title: 'Scorecard' }} />
+      <Stack.Screen name="profile" options={{ title: 'Find My Profile', presentation: 'modal' }} />
     </Stack>
   );
 

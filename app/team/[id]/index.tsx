@@ -163,7 +163,7 @@ export default function TeamDetailScreen() {
           </View>
         }
         renderItem={({ item, index }) => (
-          <Card style={styles.playerCard}>
+          <Card style={styles.playerCard} onPress={() => router.push(`/player/${item.id}`)}>
             <Card.Content style={styles.playerContent}>
               <Avatar.Text
                 size={40}

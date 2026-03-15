@@ -117,8 +117,8 @@ export function SetAdminPinModal({ visible, teamId, hasPinAlready, onDone, onDis
 
 const styles = StyleSheet.create({
   container: { margin: 24, borderRadius: 16, padding: 24 },
-  title: { fontWeight: 'bold', marginBottom: 4 },
-  subtitle: { color: '#666', marginBottom: 16 },
+  title: { fontWeight: 'bold', marginBottom: 4, color: '#1A1A1A' },
+  subtitle: { color: '#555', marginBottom: 16 },
   input: { marginBottom: 8 },
   error: { marginBottom: 8 },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8, flexWrap: 'wrap' },

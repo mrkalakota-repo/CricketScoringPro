@@ -448,7 +448,7 @@ export default function ScoringScreen() {
       {/* Opener Selection Modal */}
       <Portal>
         <Modal visible={openerModal} dismissable={false} contentContainerStyle={styles.modal}>
-          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16 }}>Select Opening Batters</Text>
+          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16, color: '#1A1A1A' }}>Select Opening Batters</Text>
           <Text variant="bodySmall" style={{ color: '#666', marginBottom: 8 }}>Striker</Text>
           <ScrollView style={{ maxHeight: 200 }}>
             {(battingTeamPlayers ?? []).map(p => (
@@ -484,7 +484,7 @@ export default function ScoringScreen() {
       {/* Bowler Selection Modal */}
       <Portal>
         <Modal visible={bowlerModal} dismissable={false} contentContainerStyle={styles.modal}>
-          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16 }}>Select Bowler</Text>
+          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16, color: '#1A1A1A' }}>Select Bowler</Text>
           <ScrollView style={{ maxHeight: 400 }}>
             {(bowlingTeamPlayers ?? []).map(p => {
               const prevBowler = innings?.overs.length ? innings.overs[innings.overs.length - 1].bowlerId : null;
@@ -520,7 +520,7 @@ export default function ScoringScreen() {
       {/* Wicket Modal */}
       <Portal>
         <Modal visible={wicketModal} onDismiss={() => setWicketModal(false)} contentContainerStyle={styles.modal}>
-          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16 }}>Wicket!</Text>
+          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16, color: '#1A1A1A' }}>Wicket!</Text>
 
           <Text variant="bodySmall" style={{ color: '#666', marginBottom: 8 }}>Dismissed Batter</Text>
           <View style={styles.dismissedRow}>
@@ -580,7 +580,7 @@ export default function ScoringScreen() {
       {/* New Batter Modal */}
       <Portal>
         <Modal visible={newBatterModal} dismissable={false} contentContainerStyle={styles.modal}>
-          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16 }}>Select New Batter</Text>
+          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16, color: '#1A1A1A' }}>Select New Batter</Text>
           <ScrollView style={{ maxHeight: 400 }}>
             {availableBatters.map(p => (
               <Pressable
@@ -602,7 +602,7 @@ export default function ScoringScreen() {
       {/* Innings Complete Modal */}
       <Portal>
         <Modal visible={inningsCompleteModal} dismissable={false} contentContainerStyle={styles.modal}>
-          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 8 }}>Innings Complete</Text>
+          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 8, color: '#1A1A1A' }}>Innings Complete</Text>
           <Text variant="bodyMedium" style={{ marginBottom: 16 }}>
             {battingTeamName}: {innings?.totalRuns}/{innings?.totalWickets} ({formatOvers(innings?.totalOvers ?? 0, innings?.totalBalls ?? 0)})
           </Text>
@@ -610,7 +610,7 @@ export default function ScoringScreen() {
             <Button mode="contained" onPress={handleNextInnings}>Start Next Innings</Button>
           ) : (
             <View>
-              <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 8 }}>{match.result}</Text>
+              <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 8, color: '#1A1A1A' }}>{match.result}</Text>
               <Button mode="contained" onPress={async () => { await saveMatch(); setInningsCompleteModal(false); router.replace('/'); }}>
                 Finish
               </Button>
