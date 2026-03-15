@@ -61,6 +61,7 @@ export interface Player {
   bowlingStyle: BowlingStyle;
   isWicketKeeper: boolean;
   isAllRounder: boolean;
+  isCaptain: boolean;
 }
 
 export interface Team {
@@ -68,6 +69,7 @@ export interface Team {
   name: string;
   shortName: string; // e.g., "IND", "AUS"
   players: Player[];
+  adminPinHash: string | null; // SHA-256 of the admin PIN; null = no PIN set (open access)
   createdAt: number;
   updatedAt: number;
 }

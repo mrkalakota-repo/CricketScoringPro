@@ -35,7 +35,7 @@ export default function HomeScreen() {
       <Surface style={[styles.hero, { backgroundColor: theme.colors.primary }]} elevation={2}>
         <MaterialCommunityIcons name="cricket" size={48} color="#FFFFFF" />
         <Text variant="headlineMedium" style={styles.heroTitle}>
-          Gully Cricket Scoring
+          Gully Cricket Scorer
         </Text>
         <Text variant="bodyMedium" style={styles.heroSubtitle}>
           Score matches like a pro
@@ -122,7 +122,7 @@ export default function HomeScreen() {
         <View style={styles.emptyState}>
           <MaterialCommunityIcons name="cricket" size={64} color="#CCC" />
           <Text variant="titleMedium" style={{ color: '#999', marginTop: 16 }}>
-            Welcome to Gully Cricket Scoring
+            Welcome to Gully Cricket Scorer
           </Text>
           <Text variant="bodyMedium" style={{ color: '#BBB', textAlign: 'center', marginTop: 8 }}>
             Start by creating teams, then set up your first match

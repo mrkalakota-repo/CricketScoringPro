@@ -3,7 +3,7 @@ import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const APP_NAME = 'Gully Cricket';
+const APP_NAME = 'Gully Cricket Scorer';
 
 export default function TabsLayout() {
   const theme = useTheme();

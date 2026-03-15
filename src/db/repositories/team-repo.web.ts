@@ -29,7 +29,11 @@ function setPlayers(players: StoredPlayer[]): void {
 }
 
 function toPlayer({ teamId: _t, ...p }: StoredPlayer): Player {
-  return { ...p, isAllRounder: p.isAllRounder ?? false };
+  return {
+    ...p,
+    isAllRounder: p.isAllRounder ?? false,
+    isCaptain: p.isCaptain ?? false,
+  };
 }
 
 export async function getAllTeams(): Promise<Team[]> {
@@ -37,6 +41,7 @@ export async function getAllTeams(): Promise<Team[]> {
   const allPlayers = getPlayers();
   return teams.map(team => ({
     ...team,
+    adminPinHash: team.adminPinHash ?? null,
     players: allPlayers.filter(p => p.teamId === team.id).map(toPlayer),
   }));
 }
@@ -46,6 +51,7 @@ export async function getTeamById(id: string): Promise<Team | null> {
   if (!team) return null;
   return {
     ...team,
+    adminPinHash: team.adminPinHash ?? null,
     players: getPlayers().filter(p => p.teamId === id).map(toPlayer),
   };
 }
@@ -53,7 +59,7 @@ export async function getTeamById(id: string): Promise<Team | null> {
 export async function createTeam(name: string, shortName: string): Promise<Team> {
   const teams = getTeams();
   const now = Date.now();
-  const team: Team = { id: uuidv4(), name, shortName, players: [], createdAt: now, updatedAt: now };
+  const team: Team = { id: uuidv4(), name, shortName, adminPinHash: null, players: [], createdAt: now, updatedAt: now };
   teams.push(team);
   setTeams(teams);
   return team;
@@ -61,6 +67,10 @@ export async function createTeam(name: string, shortName: string): Promise<Team>
 
 export async function updateTeam(id: string, name: string, shortName: string): Promise<void> {
   setTeams(getTeams().map(t => t.id === id ? { ...t, name, shortName, updatedAt: Date.now() } : t));
+}
+
+export async function setTeamAdminPin(id: string, pinHash: string | null): Promise<void> {
+  setTeams(getTeams().map(t => t.id === id ? { ...t, adminPinHash: pinHash, updatedAt: Date.now() } : t));
 }
 
 export async function deleteTeam(id: string): Promise<void> {
@@ -79,6 +89,7 @@ export async function addPlayer(
   bowlingStyle: string = 'none',
   isWicketKeeper: boolean = false,
   isAllRounder: boolean = false,
+  isCaptain: boolean = false,
 ): Promise<Player> {
   const players = getPlayers();
   const stored: StoredPlayer = {
@@ -88,6 +99,7 @@ export async function addPlayer(
     bowlingStyle: bowlingStyle as BowlingStyle,
     isWicketKeeper,
     isAllRounder,
+    isCaptain,
     teamId,
   };
   players.push(stored);
@@ -102,10 +114,11 @@ export async function updatePlayer(
   bowlingStyle: string,
   isWicketKeeper: boolean,
   isAllRounder: boolean,
+  isCaptain: boolean,
 ): Promise<void> {
   setPlayers(getPlayers().map(p =>
     p.id === id
-      ? { ...p, name, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle: bowlingStyle as BowlingStyle, isWicketKeeper, isAllRounder }
+      ? { ...p, name, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle: bowlingStyle as BowlingStyle, isWicketKeeper, isAllRounder, isCaptain }
       : p
   ));
 }

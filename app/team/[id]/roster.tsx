@@ -3,6 +3,8 @@ import { View, StyleSheet, FlatList, Alert } from 'react-native';
 import { TextInput, Button, Text, Card, useTheme, IconButton, SegmentedButtons, Switch, Chip } from 'react-native-paper';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useTeamStore } from '../../../src/store/team-store';
+import { useAdminAuth } from '../../../src/hooks/useAdminAuth';
+import { AdminPinModal } from '../../../src/components/AdminPinModal';
 import type { BowlingStyle } from '../../../src/engine/types';
 
 const BOWLING_STYLES: BowlingStyle[] = [
@@ -27,12 +29,18 @@ export default function RosterScreen() {
   const deletePlayer = useTeamStore(s => s.deletePlayer);
 
   const team = teams.find(t => t.id === id);
+  const isAdmin = useAdminAuth(s => s.isAdmin);
+  const [showPinModal, setShowPinModal] = useState(false);
+
+  const teamId = Array.isArray(id) ? id[0] : id;
+  const adminUnlocked = team ? isAdmin(team.id, team.adminPinHash) : false;
 
   const [name, setName] = useState('');
   const [battingStyle, setBattingStyle] = useState('right');
   const [bowlingStyleIndex, setBowlingStyleIndex] = useState(0);
   const [isKeeper, setIsKeeper] = useState(false);
   const [isAllRounder, setIsAllRounder] = useState(false);
+  const [isCaptain, setIsCaptain] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
   if (!team) return <View style={styles.container}><Text>Team not found</Text></View>;
@@ -43,17 +51,16 @@ export default function RosterScreen() {
     setBowlingStyleIndex(0);
     setIsKeeper(false);
     setIsAllRounder(false);
+    setIsCaptain(false);
     setShowForm(false);
   };
 
   const handleAdd = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) return;
-    // Ensure id is always a plain string (useLocalSearchParams can return string[])
-    const teamId = Array.isArray(id) ? id[0] : id;
     if (!teamId) return;
     try {
-      await addPlayer(teamId, trimmedName, battingStyle, BOWLING_STYLES[bowlingStyleIndex], isKeeper, isAllRounder);
+      await addPlayer(teamId, trimmedName, battingStyle, BOWLING_STYLES[bowlingStyleIndex], isKeeper, isAllRounder, isCaptain);
       resetForm();
     } catch (err) {
       Alert.alert('Error', 'Could not add player. Please try again.');
@@ -62,7 +69,6 @@ export default function RosterScreen() {
   };
 
   const handleDelete = (playerId: string, playerName: string) => {
-    const teamId = Array.isArray(id) ? id[0] : id;
     if (!teamId) return;
     Alert.alert('Remove Player', `Remove ${playerName} from the team?`, [
       { text: 'Cancel', style: 'cancel' },
@@ -85,12 +91,22 @@ export default function RosterScreen() {
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen options={{ title: `${team.name} — Roster` }} />
 
+      {team.adminPinHash && (
+        <AdminPinModal
+          visible={showPinModal}
+          teamId={team.id}
+          adminPinHash={team.adminPinHash}
+          onSuccess={() => setShowPinModal(false)}
+          onDismiss={() => setShowPinModal(false)}
+        />
+      )}
+
       {/* Add Player Section */}
       {!showForm ? (
         <Button
           mode="contained"
           icon="account-plus"
-          onPress={() => setShowForm(true)}
+          onPress={() => adminUnlocked ? setShowForm(true) : setShowPinModal(true)}
           style={{ margin: 16, borderRadius: 20 }}
         >
           Add Player
@@ -142,6 +158,11 @@ export default function RosterScreen() {
             />
 
             <View style={styles.toggleRow}>
+              <Text variant="bodyMedium">Captain</Text>
+              <Switch value={isCaptain} onValueChange={setIsCaptain} />
+            </View>
+
+            <View style={styles.toggleRow}>
               <Text variant="bodyMedium">Wicket Keeper</Text>
               <Switch value={isKeeper} onValueChange={setIsKeeper} />
             </View>
@@ -182,6 +203,9 @@ export default function RosterScreen() {
                     {item.battingStyle === 'right' ? 'RHB' : 'LHB'}
                     {item.bowlingStyle !== 'none' ? ` · ${item.bowlingStyle}` : ''}
                   </Text>
+                  {!!item.isCaptain && (
+                    <Chip compact style={[styles.badge, { backgroundColor: '#FFF3E0' }]} textStyle={{ fontSize: 10, color: '#E65100' }}>C</Chip>
+                  )}
                   {!!item.isWicketKeeper && (
                     <Chip compact style={styles.badge} textStyle={{ fontSize: 10 }}>WK</Chip>
                   )}
@@ -190,12 +214,14 @@ export default function RosterScreen() {
                   )}
                 </View>
               </View>
-              <IconButton
-                icon="delete-outline"
-                iconColor={theme.colors.error}
-                size={20}
-                onPress={() => handleDelete(item.id, item.name)}
-              />
+              {adminUnlocked && (
+                <IconButton
+                  icon="delete-outline"
+                  iconColor={theme.colors.error}
+                  size={20}
+                  onPress={() => handleDelete(item.id, item.name)}
+                />
+              )}
             </Card.Content>
           </Card>
         )}

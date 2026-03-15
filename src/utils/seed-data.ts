@@ -11,34 +11,35 @@ type PlayerDef = {
   bowlingStyle: string;
   isWicketKeeper: boolean;
   isAllRounder: boolean;
+  isCaptain: boolean;
 };
 
 const TEAM_A_PLAYERS: PlayerDef[] = [
-  { name: 'Ravi Sharma',    battingStyle: 'right', bowlingStyle: 'Right-arm off-break',  isWicketKeeper: false, isAllRounder: false },
-  { name: 'Priya Singh',    battingStyle: 'right', bowlingStyle: 'none',                  isWicketKeeper: true,  isAllRounder: false },
-  { name: 'Arjun Patel',   battingStyle: 'left',  bowlingStyle: 'Left-arm orthodox',     isWicketKeeper: false, isAllRounder: true  },
-  { name: 'Dev Mehta',      battingStyle: 'right', bowlingStyle: 'Right-arm fast',        isWicketKeeper: false, isAllRounder: false },
-  { name: 'Sana Rao',       battingStyle: 'right', bowlingStyle: 'Right-arm leg-break',   isWicketKeeper: false, isAllRounder: true  },
-  { name: 'Kabir Khan',     battingStyle: 'left',  bowlingStyle: 'Left-arm fast',         isWicketKeeper: false, isAllRounder: false },
-  { name: 'Ananya Iyer',    battingStyle: 'right', bowlingStyle: 'none',                  isWicketKeeper: false, isAllRounder: false },
-  { name: 'Rohan Das',      battingStyle: 'right', bowlingStyle: 'Right-arm medium',      isWicketKeeper: false, isAllRounder: true  },
-  { name: 'Meera Nair',     battingStyle: 'left',  bowlingStyle: 'Left-arm chinaman',     isWicketKeeper: false, isAllRounder: false },
-  { name: 'Varun Gupta',    battingStyle: 'right', bowlingStyle: 'Right-arm fast',        isWicketKeeper: false, isAllRounder: false },
-  { name: 'Divya Reddy',    battingStyle: 'right', bowlingStyle: 'Right-arm off-break',   isWicketKeeper: false, isAllRounder: false },
+  { name: 'Ravi Sharma',    battingStyle: 'right', bowlingStyle: 'Right-arm off-break',  isWicketKeeper: false, isAllRounder: false, isCaptain: true  },
+  { name: 'Priya Singh',    battingStyle: 'right', bowlingStyle: 'none',                  isWicketKeeper: true,  isAllRounder: false, isCaptain: false },
+  { name: 'Arjun Patel',   battingStyle: 'left',  bowlingStyle: 'Left-arm orthodox',     isWicketKeeper: false, isAllRounder: true,  isCaptain: false },
+  { name: 'Dev Mehta',      battingStyle: 'right', bowlingStyle: 'Right-arm fast',        isWicketKeeper: false, isAllRounder: false, isCaptain: false },
+  { name: 'Sana Rao',       battingStyle: 'right', bowlingStyle: 'Right-arm leg-break',   isWicketKeeper: false, isAllRounder: true,  isCaptain: false },
+  { name: 'Kabir Khan',     battingStyle: 'left',  bowlingStyle: 'Left-arm fast',         isWicketKeeper: false, isAllRounder: false, isCaptain: false },
+  { name: 'Ananya Iyer',    battingStyle: 'right', bowlingStyle: 'none',                  isWicketKeeper: false, isAllRounder: false, isCaptain: false },
+  { name: 'Rohan Das',      battingStyle: 'right', bowlingStyle: 'Right-arm medium',      isWicketKeeper: false, isAllRounder: true,  isCaptain: false },
+  { name: 'Meera Nair',     battingStyle: 'left',  bowlingStyle: 'Left-arm chinaman',     isWicketKeeper: false, isAllRounder: false, isCaptain: false },
+  { name: 'Varun Gupta',    battingStyle: 'right', bowlingStyle: 'Right-arm fast',        isWicketKeeper: false, isAllRounder: false, isCaptain: false },
+  { name: 'Divya Reddy',    battingStyle: 'right', bowlingStyle: 'Right-arm off-break',   isWicketKeeper: false, isAllRounder: false, isCaptain: false },
 ];
 
 const TEAM_B_PLAYERS: PlayerDef[] = [
-  { name: 'James Carter',   battingStyle: 'right', bowlingStyle: 'Right-arm fast',        isWicketKeeper: false, isAllRounder: false },
-  { name: 'Sam Wilson',     battingStyle: 'left',  bowlingStyle: 'none',                  isWicketKeeper: true,  isAllRounder: false },
-  { name: 'Alex Morgan',    battingStyle: 'right', bowlingStyle: 'Right-arm medium',      isWicketKeeper: false, isAllRounder: true  },
-  { name: 'Chris Lee',      battingStyle: 'right', bowlingStyle: 'Right-arm leg-break',   isWicketKeeper: false, isAllRounder: false },
-  { name: 'Jordan Taylor',  battingStyle: 'left',  bowlingStyle: 'Left-arm orthodox',     isWicketKeeper: false, isAllRounder: true  },
-  { name: 'Riley Brown',    battingStyle: 'right', bowlingStyle: 'none',                  isWicketKeeper: false, isAllRounder: false },
-  { name: 'Morgan Smith',   battingStyle: 'right', bowlingStyle: 'Right-arm off-break',   isWicketKeeper: false, isAllRounder: false },
-  { name: 'Casey Jones',    battingStyle: 'left',  bowlingStyle: 'Left-arm fast',         isWicketKeeper: false, isAllRounder: true  },
-  { name: 'Dana White',     battingStyle: 'right', bowlingStyle: 'Right-arm medium',      isWicketKeeper: false, isAllRounder: false },
-  { name: 'Blake Evans',    battingStyle: 'right', bowlingStyle: 'Right-arm fast',        isWicketKeeper: false, isAllRounder: false },
-  { name: 'Quinn Adams',    battingStyle: 'left',  bowlingStyle: 'Left-arm chinaman',     isWicketKeeper: false, isAllRounder: false },
+  { name: 'James Carter',   battingStyle: 'right', bowlingStyle: 'Right-arm fast',        isWicketKeeper: false, isAllRounder: false, isCaptain: true  },
+  { name: 'Sam Wilson',     battingStyle: 'left',  bowlingStyle: 'none',                  isWicketKeeper: true,  isAllRounder: false, isCaptain: false },
+  { name: 'Alex Morgan',    battingStyle: 'right', bowlingStyle: 'Right-arm medium',      isWicketKeeper: false, isAllRounder: true,  isCaptain: false },
+  { name: 'Chris Lee',      battingStyle: 'right', bowlingStyle: 'Right-arm leg-break',   isWicketKeeper: false, isAllRounder: false, isCaptain: false },
+  { name: 'Jordan Taylor',  battingStyle: 'left',  bowlingStyle: 'Left-arm orthodox',     isWicketKeeper: false, isAllRounder: true,  isCaptain: false },
+  { name: 'Riley Brown',    battingStyle: 'right', bowlingStyle: 'none',                  isWicketKeeper: false, isAllRounder: false, isCaptain: false },
+  { name: 'Morgan Smith',   battingStyle: 'right', bowlingStyle: 'Right-arm off-break',   isWicketKeeper: false, isAllRounder: false, isCaptain: false },
+  { name: 'Casey Jones',    battingStyle: 'left',  bowlingStyle: 'Left-arm fast',         isWicketKeeper: false, isAllRounder: true,  isCaptain: false },
+  { name: 'Dana White',     battingStyle: 'right', bowlingStyle: 'Right-arm medium',      isWicketKeeper: false, isAllRounder: false, isCaptain: false },
+  { name: 'Blake Evans',    battingStyle: 'right', bowlingStyle: 'Right-arm fast',        isWicketKeeper: false, isAllRounder: false, isCaptain: false },
+  { name: 'Quinn Adams',    battingStyle: 'left',  bowlingStyle: 'Left-arm chinaman',     isWicketKeeper: false, isAllRounder: false, isCaptain: false },
 ];
 
 export async function loadSeedData(): Promise<{ created: boolean; message: string }> {
@@ -49,12 +50,12 @@ export async function loadSeedData(): Promise<{ created: boolean; message: strin
 
   const teamA = await teamRepo.createTeam('Thunderbolts', 'TBT');
   for (const p of TEAM_A_PLAYERS) {
-    await teamRepo.addPlayer(teamA.id, p.name, p.battingStyle, p.bowlingStyle, p.isWicketKeeper, p.isAllRounder);
+    await teamRepo.addPlayer(teamA.id, p.name, p.battingStyle, p.bowlingStyle, p.isWicketKeeper, p.isAllRounder, p.isCaptain);
   }
 
   const teamB = await teamRepo.createTeam('Royal Strikers', 'RST');
   for (const p of TEAM_B_PLAYERS) {
-    await teamRepo.addPlayer(teamB.id, p.name, p.battingStyle, p.bowlingStyle, p.isWicketKeeper, p.isAllRounder);
+    await teamRepo.addPlayer(teamB.id, p.name, p.battingStyle, p.bowlingStyle, p.isWicketKeeper, p.isAllRounder, p.isCaptain);
   }
 
   return { created: true, message: 'Thunderbolts and Royal Strikers loaded with 11 players each.' };

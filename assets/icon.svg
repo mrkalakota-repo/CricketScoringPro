@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Background circle -->
+  <circle cx="512" cy="512" r="512" fill="#00695C"/>
+
+  <!-- Cricket bat (rotated 45°) -->
+  <g transform="translate(512,512) rotate(-35)">
+    <!-- Bat blade -->
+    <rect x="-48" y="-280" width="96" height="320" rx="20" ry="20" fill="#F5F5DC" />
+    <!-- Bat toe (rounded) -->
+    <ellipse cx="0" cy="52" rx="48" ry="20" fill="#E8E0C8"/>
+    <!-- Bat handle -->
+    <rect x="-14" y="-400" width="28" height="140" rx="14" ry="14" fill="#8D6E63"/>
+    <!-- Grip lines -->
+    <rect x="-14" y="-390" width="28" height="8" rx="4" fill="#5D4037" opacity="0.6"/>
+    <rect x="-14" y="-370" width="28" height="8" rx="4" fill="#5D4037" opacity="0.6"/>
+    <rect x="-14" y="-350" width="28" height="8" rx="4" fill="#5D4037" opacity="0.6"/>
+    <rect x="-14" y="-330" width="28" height="8" rx="4" fill="#5D4037" opacity="0.6"/>
+    <!-- Bat grain lines -->
+    <line x1="-24" y1="-240" x2="-24" y2="40" stroke="#D4C9A8" stroke-width="3" opacity="0.5"/>
+    <line x1="0" y1="-260" x2="0" y2="50" stroke="#D4C9A8" stroke-width="3" opacity="0.5"/>
+    <line x1="24" y1="-240" x2="24" y2="40" stroke="#D4C9A8" stroke-width="3" opacity="0.5"/>
+  </g>
+
+  <!-- Cricket ball -->
+  <circle cx="640" cy="360" r="110" fill="#CC0000"/>
+  <!-- Ball seam (horizontal) -->
+  <path d="M 530 360 Q 570 310 640 310 Q 710 310 750 360" stroke="#F5F5F5" stroke-width="6" fill="none"/>
+  <path d="M 530 360 Q 570 410 640 410 Q 710 410 750 360" stroke="#F5F5F5" stroke-width="6" fill="none"/>
+  <!-- Ball seam stitches on top -->
+  <line x1="572" y1="325" x2="580" y2="335" stroke="#F5F5F5" stroke-width="4"/>
+  <line x1="596" y1="311" x2="602" y2="322" stroke="#F5F5F5" stroke-width="4"/>
+  <line x1="622" y1="308" x2="626" y2="320" stroke="#F5F5F5" stroke-width="4"/>
+  <line x1="648" y1="310" x2="650" y2="322" stroke="#F5F5F5" stroke-width="4"/>
+  <line x1="672" y1="317" x2="672" y2="329" stroke="#F5F5F5" stroke-width="4"/>
+  <line x1="694" y1="327" x2="692" y2="339" stroke="#F5F5F5" stroke-width="4"/>
+  <!-- Ball seam stitches on bottom -->
+  <line x1="572" y1="395" x2="580" y2="385" stroke="#F5F5F5" stroke-width="4"/>
+  <line x1="596" y1="409" x2="602" y2="398" stroke="#F5F5F5" stroke-width="4"/>
+  <line x1="622" y1="412" x2="626" y2="400" stroke="#F5F5F5" stroke-width="4"/>
+  <line x1="648" y1="410" x2="650" y2="398" stroke="#F5F5F5" stroke-width="4"/>
+  <line x1="672" y1="403" x2="672" y2="391" stroke="#F5F5F5" stroke-width="4"/>
+  <line x1="694" y1="393" x2="692" y2="381" stroke="#F5F5F5" stroke-width="4"/>
+  <!-- Ball shine -->
+  <ellipse cx="608" cy="328" rx="22" ry="14" fill="white" opacity="0.25" transform="rotate(-20,608,328)"/>
+
+  <!-- Stumps at bottom -->
+  <rect x="370" y="700" width="24" height="160" rx="6" fill="#F5F5DC"/>
+  <rect x="420" y="700" width="24" height="160" rx="6" fill="#F5F5DC"/>
+  <rect x="470" y="700" width="24" height="160" rx="6" fill="#F5F5DC"/>
+  <!-- Bails -->
+  <rect x="362" y="693" width="48" height="14" rx="7" fill="#E8C96B"/>
+  <rect x="412" y="693" width="48" height="14" rx="7" fill="#E8C96B"/>
+</svg>

@@ -45,15 +45,18 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
     );
   `);
 
-  // Migration: add is_all_rounder column for existing databases.
-  // Use nullable DEFAULT (no NOT NULL) — required for ALTER TABLE ADD COLUMN
-  // to work on Android SQLite < 3.37.0 (API level < 32 / Android 11).
-  // Reads use `?? 0` to treat NULL as false.
+  // Migrations — each wrapped in try/catch so re-runs are safe (column already exists = ignore).
+  // NO NOT NULL in ALTER TABLE ADD COLUMN: required for Android SQLite < 3.37.0.
+
   try {
-    await db.execAsync(
-      `ALTER TABLE players ADD COLUMN is_all_rounder INTEGER DEFAULT 0;`
-    );
-  } catch {
-    // Column already exists — safe to ignore
-  }
+    await db.execAsync(`ALTER TABLE players ADD COLUMN is_all_rounder INTEGER DEFAULT 0;`);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE players ADD COLUMN is_captain INTEGER DEFAULT 0;`);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE teams ADD COLUMN admin_pin_hash TEXT;`);
+  } catch { /* already exists */ }
 }
