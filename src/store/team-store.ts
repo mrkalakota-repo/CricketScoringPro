@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Team, Player } from '../engine/types';
+import type { Team, Player, BowlingStyle } from '../engine/types';
 import * as teamRepo from '../db/repositories/team-repo';
 
 interface TeamStore {
@@ -10,7 +10,7 @@ interface TeamStore {
   updateTeam: (id: string, name: string, shortName: string) => Promise<void>;
   deleteTeam: (id: string) => Promise<void>;
   addPlayer: (teamId: string, name: string, battingStyle?: string, bowlingStyle?: string, isWicketKeeper?: boolean, isAllRounder?: boolean) => Promise<Player>;
-  updatePlayer: (id: string, name: string, battingStyle: string, bowlingStyle: string, isWicketKeeper: boolean, isAllRounder: boolean) => Promise<void>;
+  updatePlayer: (id: string, name: string, battingStyle: string, bowlingStyle: BowlingStyle, isWicketKeeper: boolean, isAllRounder: boolean) => Promise<void>;
   deletePlayer: (playerId: string, teamId: string) => Promise<void>;
 }
 
@@ -61,7 +61,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
         ...t,
         players: t.players.map(p =>
           p.id === id
-            ? { ...p, name, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle, isWicketKeeper, isAllRounder }
+            ? { ...p, name, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle: bowlingStyle as BowlingStyle, isWicketKeeper, isAllRounder }
             : p
         ),
       })),
