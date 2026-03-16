@@ -7,16 +7,20 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { lightTheme, darkTheme } from '../src/theme';
 import { useTeamStore } from '../src/store/team-store';
 import { useMatchStore } from '../src/store/match-store';
+import { usePrefsStore } from '../src/store/prefs-store';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const loadTeams = useTeamStore(s => s.loadTeams);
   const loadMatches = useMatchStore(s => s.loadMatches);
+  const loadPrefs = usePrefsStore(s => s.loadPrefs);
 
   useEffect(() => {
     loadTeams();
     loadMatches();
+    loadPrefs();
   }, []);
 
   const screenOptions = {
@@ -37,6 +41,7 @@ export default function RootLayout() {
       <Stack.Screen name="match/[id]/toss" options={{ title: 'Toss', presentation: 'modal' }} />
       <Stack.Screen name="match/[id]/scoring" options={{ title: 'Scoring', headerShown: false }} />
       <Stack.Screen name="match/[id]/scorecard" options={{ title: 'Scorecard' }} />
+      <Stack.Screen name="profile" options={{ title: 'Find My Profile', presentation: 'modal' }} />
     </Stack>
   );
 
@@ -44,11 +49,12 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <PaperProvider theme={theme}>
+          <ErrorBoundary>
           {Platform.OS === 'web' ? (
             <View style={{
               flex: 1,
               alignItems: 'center',
-              backgroundColor: '#E8EDEC',
+              backgroundColor: '#C8E8CA',
             }}>
               <View style={{
                 flex: 1,
@@ -64,6 +70,7 @@ export default function RootLayout() {
               </View>
             </View>
           ) : nav}
+          </ErrorBoundary>
         </PaperProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

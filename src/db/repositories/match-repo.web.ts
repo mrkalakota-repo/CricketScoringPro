@@ -44,6 +44,7 @@ export async function getMatchById(id: string): Promise<MatchRow | null> {
 }
 
 export async function createMatch(
+  id: string,
   config: MatchConfig,
   team1Id: string,
   team2Id: string,
@@ -53,7 +54,6 @@ export async function createMatch(
   matchDate: number
 ): Promise<string> {
   const matches = getMatches();
-  const id = uuidv4();
   const now = Date.now();
   matches.push({
     id,
