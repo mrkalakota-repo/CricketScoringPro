@@ -4,6 +4,7 @@ import { Text, Card, Button, Avatar, useTheme, Divider, Chip, Portal, Dialog } f
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTeamStore } from '../../../src/store/team-store';
+import { usePrefsStore } from '../../../src/store/prefs-store';
 import { useAdminAuth } from '../../../src/hooks/useAdminAuth';
 import { AdminPinModal } from '../../../src/components/AdminPinModal';
 import { SetAdminPinModal } from '../../../src/components/SetAdminPinModal';
@@ -39,6 +40,7 @@ export default function TeamDetailScreen() {
   const teamId = Array.isArray(id) ? id[0] : id;
   const team = teams.find(t => t.id === teamId);
 
+  const myTeamIds = usePrefsStore(s => s.myTeamIds);
   const isAdmin = useAdminAuth(s => s.isAdmin);
   const revoke = useAdminAuth(s => s.revoke);
 
@@ -56,7 +58,9 @@ export default function TeamDetailScreen() {
     );
   }
 
-  const adminUnlocked = isAdmin(team.id, team.adminPinHash);
+  // Only the creating device can edit — cloud-imported teams are read-only
+  const isMyTeam = myTeamIds.includes(team.id);
+  const adminUnlocked = isMyTeam && isAdmin(team.id, team.adminPinHash);
 
   const requireAdmin = (action: PendingAction, callback: () => void) => {
     if (adminUnlocked) {
@@ -131,7 +135,16 @@ export default function TeamDetailScreen() {
         />
         <Text variant="headlineSmall" style={styles.teamName}>{team.name}</Text>
         <Text variant="bodyMedium" style={styles.shortName}>{team.shortName}</Text>
-        {team.adminPinHash ? (
+        {!isMyTeam ? (
+          <Chip
+            compact
+            icon="eye-outline"
+            textStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.9)' }}
+            style={{ marginTop: 8, backgroundColor: 'rgba(255,255,255,0.2)' }}
+          >
+            View Only
+          </Chip>
+        ) : team.adminPinHash ? (
           <Chip
             compact
             icon={adminUnlocked ? 'lock-open' : 'lock'}
@@ -144,25 +157,27 @@ export default function TeamDetailScreen() {
         ) : null}
       </View>
 
-      {/* Actions */}
-      <View style={styles.actions}>
-        <Button
-          mode="contained"
-          icon="account-plus"
-          onPress={() => requireAdmin('roster', () => router.push(`/team/${teamId}/roster`))}
-          style={styles.actionButton}
-        >
-          Manage Roster
-        </Button>
-        <Button
-          mode="outlined"
-          icon="pencil"
-          onPress={() => requireAdmin('edit', () => router.push(`/team/${teamId}/edit`))}
-          style={styles.actionButton}
-        >
-          Edit Team
-        </Button>
-      </View>
+      {/* Actions — only shown for owned teams */}
+      {isMyTeam && (
+        <View style={styles.actions}>
+          <Button
+            mode="contained"
+            icon="account-plus"
+            onPress={() => requireAdmin('roster', () => router.push(`/team/${teamId}/roster`))}
+            style={styles.actionButton}
+          >
+            Manage Roster
+          </Button>
+          <Button
+            mode="outlined"
+            icon="pencil"
+            onPress={() => requireAdmin('edit', () => router.push(`/team/${teamId}/edit`))}
+            style={styles.actionButton}
+          >
+            Edit Team
+          </Button>
+        </View>
+      )}
 
       <Divider style={{ marginHorizontal: 16 }} />
 
@@ -180,14 +195,16 @@ export default function TeamDetailScreen() {
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>
               No players added yet
             </Text>
-            <Button
-              mode="contained"
-              icon="account-plus"
-              onPress={() => requireAdmin('roster', () => router.push(`/team/${teamId}/roster`))}
-              style={{ marginTop: 12 }}
-            >
-              Add Players
-            </Button>
+            {isMyTeam && (
+              <Button
+                mode="contained"
+                icon="account-plus"
+                onPress={() => requireAdmin('roster', () => router.push(`/team/${teamId}/roster`))}
+                style={{ marginTop: 12 }}
+              >
+                Add Players
+              </Button>
+            )}
           </View>
         }
         renderItem={({ item, index }) => {
@@ -206,13 +223,22 @@ export default function TeamDetailScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>{item.name}</Text>
                     {!!item.isCaptain && (
-                      <Chip compact icon="crown" style={{ height: 22, backgroundColor: '#FFF3E0' }} textStyle={{ fontSize: 9, color: '#E65100' }}>C</Chip>
+                      <View style={[styles.roleBadge, { backgroundColor: '#FFF3E0' }]}>
+                        <MaterialCommunityIcons name="crown" size={11} color="#E65100" />
+                        <Text style={[styles.roleBadgeText, { color: '#E65100' }]}>C</Text>
+                      </View>
                     )}
                     {!!item.isWicketKeeper && (
-                      <Chip compact icon="shield-account" style={{ height: 22 }} textStyle={{ fontSize: 9 }}>WK</Chip>
+                      <View style={[styles.roleBadge, { backgroundColor: theme.colors.surfaceVariant }]}>
+                        <MaterialCommunityIcons name="shield-account" size={11} color={theme.colors.onSurfaceVariant} />
+                        <Text style={[styles.roleBadgeText, { color: theme.colors.onSurfaceVariant }]}>WK</Text>
+                      </View>
                     )}
                     {!!item.isAllRounder && (
-                      <Chip compact icon="star-four-points" style={{ height: 22, backgroundColor: '#E8F5E9' }} textStyle={{ fontSize: 9, color: '#2E7D32' }}>AR</Chip>
+                      <View style={[styles.roleBadge, { backgroundColor: '#E8F5E9' }]}>
+                        <MaterialCommunityIcons name="star-four-points" size={11} color="#2E7D32" />
+                        <Text style={[styles.roleBadgeText, { color: '#2E7D32' }]}>AR</Text>
+                      </View>
                     )}
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 }}>
@@ -239,24 +265,26 @@ export default function TeamDetailScreen() {
         }}
       />
 
-      {/* Admin Footer */}
-      <View style={[styles.adminSection, { borderTopColor: theme.colors.outlineVariant }]}>
-        <Button
-          mode="text"
-          icon={team.adminPinHash ? 'shield-edit' : 'shield-plus'}
-          onPress={() => requireAdmin('setPin', () => setShowSetPinModal(true))}
-        >
-          {team.adminPinHash ? 'Change PIN' : 'Set PIN'}
-        </Button>
-        <Button
-          mode="text"
-          textColor={theme.colors.error}
-          icon="delete"
-          onPress={() => requireAdmin('delete', () => setShowDeleteDialog(true))}
-        >
-          Delete Team
-        </Button>
-      </View>
+      {/* Admin Footer — only shown for owned teams */}
+      {isMyTeam && (
+        <View style={[styles.adminSection, { borderTopColor: theme.colors.outlineVariant }]}>
+          <Button
+            mode="text"
+            icon={team.adminPinHash ? 'shield-edit' : 'shield-plus'}
+            onPress={() => requireAdmin('setPin', () => setShowSetPinModal(true))}
+          >
+            {team.adminPinHash ? 'Change PIN' : 'Set PIN'}
+          </Button>
+          <Button
+            mode="text"
+            textColor={theme.colors.error}
+            icon="delete"
+            onPress={() => requireAdmin('delete', () => setShowDeleteDialog(true))}
+          >
+            Delete Team
+          </Button>
+        </View>
+      )}
     </View>
   );
 }
@@ -279,6 +307,11 @@ const styles = StyleSheet.create({
   playerContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   playerInfo: { flex: 1 },
   emptyPlayers: { alignItems: 'center', padding: 32 },
+  roleBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3,
+  },
+  roleBadgeText: { fontSize: 10, fontWeight: '700' },
   adminSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',

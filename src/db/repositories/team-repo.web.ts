@@ -135,3 +135,29 @@ export async function updatePlayer(
 export async function deletePlayer(id: string): Promise<void> {
   setPlayers(getPlayers().filter(p => p.id !== id));
 }
+
+// Import a cloud-discovered team without overwriting any locally-owned team.
+export async function importCloudTeam(team: Team): Promise<void> {
+  const teams = getTeams();
+  const existing = teams.find(t => t.id === team.id);
+  if (!existing) {
+    // New team from cloud — save without players (players added below)
+    setTeams([...teams, { ...team, adminPinHash: null, players: [] }]);
+  } else if (existing.adminPinHash === null) {
+    // We don't own it — update name/location from cloud
+    setTeams(teams.map(t =>
+      t.id === team.id
+        ? { ...t, name: team.name, shortName: team.shortName, latitude: team.latitude, longitude: team.longitude }
+        : t
+    ));
+  }
+  // Merge in players we don't already have
+  const players = getPlayers();
+  const existingPlayerIds = new Set(players.map(p => p.id));
+  const newPlayers = team.players
+    .filter(p => !existingPlayerIds.has(p.id))
+    .map(p => ({ ...p, teamId: team.id }));
+  if (newPlayers.length > 0) {
+    setPlayers([...players, ...newPlayers]);
+  }
+}

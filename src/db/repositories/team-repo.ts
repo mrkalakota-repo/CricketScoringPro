@@ -144,3 +144,32 @@ export async function deletePlayer(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM players WHERE id = ?', id);
 }
+
+// Import a cloud-discovered team without overwriting any locally-owned team.
+export async function importCloudTeam(team: Team): Promise<void> {
+  const db = await getDatabase();
+  const now = Date.now();
+  // INSERT OR IGNORE keeps the local row untouched if it already exists
+  await db.runAsync(
+    `INSERT OR IGNORE INTO teams
+       (id, name, short_name, admin_pin_hash, latitude, longitude, created_at, updated_at)
+     VALUES (?, ?, ?, NULL, ?, ?, ?, ?)`,
+    team.id, team.name, team.shortName, team.latitude, team.longitude, now, now,
+  );
+  // Update non-sensitive fields for teams we don't own (no adminPinHash row)
+  await db.runAsync(
+    `UPDATE teams
+     SET name = ?, short_name = ?, latitude = ?, longitude = ?, updated_at = ?
+     WHERE id = ? AND admin_pin_hash IS NULL`,
+    team.name, team.shortName, team.latitude, team.longitude, now, team.id,
+  );
+  for (const p of team.players) {
+    await db.runAsync(
+      `INSERT OR IGNORE INTO players
+         (id, team_id, name, batting_style, bowling_style, is_wicket_keeper, is_all_rounder, is_captain)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      p.id, team.id, p.name, p.battingStyle, p.bowlingStyle,
+      p.isWicketKeeper ? 1 : 0, p.isAllRounder ? 1 : 0, p.isCaptain ? 1 : 0,
+    );
+  }
+}

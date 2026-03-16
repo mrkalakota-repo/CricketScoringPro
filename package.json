@@ -12,6 +12,7 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@hookform/resolvers": "^3.9.0",
+    "@supabase/supabase-js": "^2.99.2",
     "expo": "~54.0.0",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.8",

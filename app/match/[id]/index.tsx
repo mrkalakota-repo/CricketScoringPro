@@ -23,7 +23,7 @@ export default function MatchDetailScreen() {
     }
   }, [matchId]);
 
-  const match = engine?.getMatch().id === matchId ? engine.getMatch() : null;
+  const match = engine != null && engine.getMatch().id === matchId ? engine.getMatch() : null;
   const row = matches.find(m => m.id === matchId);
 
   const doDelete = async () => {

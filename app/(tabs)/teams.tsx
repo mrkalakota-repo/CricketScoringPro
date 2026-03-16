@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, Card, FAB, useTheme, Searchbar, Chip } from 'react-native-paper';
+import { Text, Card, FAB, useTheme, Searchbar, Chip, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTeamStore } from '../../src/store/team-store';
@@ -8,9 +8,11 @@ import { usePrefsStore } from '../../src/store/prefs-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Team } from '../../src/engine/types';
 import * as Location from 'expo-location';
+import * as cloudRepo from '../../src/db/repositories/cloud-team-repo';
+import { isCloudEnabled } from '../../src/config/supabase';
 
 const NEARBY_LIMIT = 10;
-const RADIUS_KM = 80.47; // 50 miles in km
+const RADIUS_KM = 80.47; // 50 miles
 
 const AVATAR_COLORS = [
   '#1B5E20', '#0D47A1', '#4A148C', '#BF360C',
@@ -73,7 +75,8 @@ function TeamCard({ team, distance, isMyTeam }: { team: Team; distance?: number;
             {isMyTeam && (
               <Chip
                 compact
-                style={{ backgroundColor: theme.colors.primary, height: 22 }}
+                icon="star-circle"
+                style={{ backgroundColor: theme.colors.primary }}
                 textStyle={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800' }}
               >
                 MY TEAM
@@ -95,11 +98,18 @@ function TeamCard({ team, distance, isMyTeam }: { team: Team; distance?: number;
                 <MaterialCommunityIcons name="shield-lock" size={12} color={theme.colors.onSurfaceVariant} />
               </>
             )}
-            {distance !== undefined && distance < RADIUS_KM && !isMyTeam && (
+            {distance !== undefined && isFinite(distance) && (
               <>
-                <Text style={[styles.dot, { color: theme.colors.outlineVariant }]}>·</Text>
-                <MaterialCommunityIcons name="map-marker" size={12} color={theme.colors.primary} />
-                <Text variant="bodySmall" style={{ color: theme.colors.primary, fontSize: 12, fontWeight: '600' }}>
+                <Text style={[styles.dot, { color: isMyTeam ? 'rgba(255,255,255,0.4)' : theme.colors.outlineVariant }]}>·</Text>
+                <MaterialCommunityIcons
+                  name="map-marker"
+                  size={12}
+                  color={isMyTeam ? 'rgba(255,255,255,0.85)' : theme.colors.primary}
+                />
+                <Text variant="bodySmall" style={{
+                  color: isMyTeam ? 'rgba(255,255,255,0.85)' : theme.colors.primary,
+                  fontSize: 12, fontWeight: '600',
+                }}>
                   {formatDistance(distance)}
                 </Text>
               </>
@@ -113,6 +123,7 @@ function TeamCard({ team, distance, isMyTeam }: { team: Team; distance?: number;
 }
 
 type LocationState = 'loading' | 'granted' | 'denied';
+type CloudState = 'idle' | 'syncing' | 'done' | 'error';
 
 type ListItem =
   | { type: 'sectionHeader'; label: string; icon: string }
@@ -122,14 +133,17 @@ export default function TeamsScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { teams, loading, loadTeams } = useTeamStore();
+  const { teams, loading, loadTeams, importCloudTeams } = useTeamStore();
   const myTeamIds = usePrefsStore(s => s.myTeamIds);
   const [query, setQuery] = useState('');
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [locState, setLocState] = useState<LocationState>('loading');
+  const [cloudState, setCloudState] = useState<CloudState>('idle');
+  const syncedRef = useRef(false); // prevent re-sync on every focus
 
   useFocusEffect(useCallback(() => { loadTeams(); }, []));
 
+  // Request location once on mount
   useEffect(() => {
     (async () => {
       try {
@@ -144,6 +158,45 @@ export default function TeamsScreen() {
     })();
   }, []);
 
+  // Fetch nearby teams from cloud when location becomes available
+  useEffect(() => {
+    if (!userLoc || syncedRef.current || !isCloudEnabled) return;
+    syncedRef.current = true;
+
+    (async () => {
+      setCloudState('syncing');
+      try {
+        const cloudTeams = await cloudRepo.fetchNearbyTeams(
+          userLoc.lat, userLoc.lng, RADIUS_KM, myTeamIds
+        );
+        await importCloudTeams(cloudTeams, myTeamIds);
+        setCloudState('done');
+      } catch {
+        setCloudState('error');
+      }
+    })();
+  }, [userLoc]);
+
+  // Cloud search: when user types, also search cloud for teams not in local store
+  useEffect(() => {
+    if (!isCloudEnabled) return;
+    if (query.trim().length < 2) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        const localIds = teams.map(t => t.id);
+        const cloudResults = await cloudRepo.searchCloudTeams(query.trim(), localIds);
+        if (cloudResults.length > 0) {
+          await importCloudTeams(cloudResults, myTeamIds);
+        }
+      } catch {
+        // silent — local search still works
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const fabBottom = Math.max(insets.bottom, 8) + 16;
   const isSearching = query.trim().length > 0;
 
@@ -157,18 +210,16 @@ export default function TeamsScreen() {
 
   const myTeams = teamsWithDist.filter(t => t.isMyTeam);
 
-  // Nearby teams: within radius, not "my team", capped at NEARBY_LIMIT
   const nearbyOthers = teamsWithDist
     .filter(t => !t.isMyTeam && t.distance <= RADIUS_KM)
     .sort((a, b) => a.distance - b.distance)
     .slice(0, NEARBY_LIMIT);
 
-  // Search: all teams matching query
   const searchResults = teamsWithDist
     .filter(({ team }) => team.name.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => a.team.name.localeCompare(b.team.name));
 
-  // Build sectioned list items
+  // Build sectioned list
   const listItems: ListItem[] = [];
 
   if (isSearching) {
@@ -183,7 +234,6 @@ export default function TeamsScreen() {
       );
     }
   } else {
-    // My Teams section
     if (myTeams.length > 0) {
       listItems.push({ type: 'sectionHeader', label: 'My Teams', icon: 'star-circle' });
       myTeams.forEach(({ team, distance, isMyTeam }) =>
@@ -191,7 +241,6 @@ export default function TeamsScreen() {
       );
     }
 
-    // Nearby section (or all teams if location denied)
     if (locState === 'granted') {
       if (nearbyOthers.length > 0) {
         listItems.push({
@@ -202,8 +251,6 @@ export default function TeamsScreen() {
         nearbyOthers.forEach(({ team, distance, isMyTeam }) =>
           listItems.push({ type: 'team', team, distance, isMyTeam })
         );
-      } else if (myTeams.length === 0) {
-        // No my teams and no nearby — show empty state via empty list
       }
     } else if (locState === 'denied') {
       const others = teamsWithDist
@@ -234,14 +281,49 @@ export default function TeamsScreen() {
         elevation={0}
       />
 
+      {/* Cloud sync status banner */}
+      {isCloudEnabled && cloudState === 'syncing' && (
+        <View style={[styles.syncBanner, { backgroundColor: theme.colors.primaryContainer }]}>
+          <ActivityIndicator size={12} color={theme.colors.primary} />
+          <Text variant="bodySmall" style={{ color: theme.colors.onPrimaryContainer, marginLeft: 6 }}>
+            Finding nearby teams…
+          </Text>
+        </View>
+      )}
+      {isCloudEnabled && !userLoc && locState === 'loading' && (
+        <View style={[styles.syncBanner, { backgroundColor: theme.colors.surfaceVariant }]}>
+          <ActivityIndicator size={12} color={theme.colors.onSurfaceVariant} />
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 6 }}>
+            Getting location…
+          </Text>
+        </View>
+      )}
+
       <FlatList
         data={listItems}
         keyExtractor={(item, index) =>
           item.type === 'team' ? item.team.id : `header-${index}`
         }
         contentContainerStyle={[styles.list, { paddingBottom: fabBottom + 56 }]}
-        onRefresh={loadTeams}
-        refreshing={loading}
+        onRefresh={async () => {
+          syncedRef.current = false;
+          await loadTeams();
+          if (userLoc) {
+            // Re-trigger cloud sync on pull-to-refresh
+            setCloudState('syncing');
+            try {
+              const cloudTeams = await cloudRepo.fetchNearbyTeams(
+                userLoc.lat, userLoc.lng, RADIUS_KM, myTeamIds
+              );
+              await importCloudTeams(cloudTeams, myTeamIds);
+              setCloudState('done');
+            } catch {
+              setCloudState('error');
+            }
+            syncedRef.current = true;
+          }
+        }}
+        refreshing={loading || cloudState === 'syncing'}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <MaterialCommunityIcons
@@ -291,7 +373,7 @@ export default function TeamsScreen() {
                 <MaterialCommunityIcons
                   name={item.icon as any}
                   size={14}
-                  color={item.label === 'My Teams' ? theme.colors.primary : theme.colors.primary}
+                  color={theme.colors.primary}
                 />
                 <Text variant="labelMedium" style={{ color: theme.colors.primary, fontWeight: '700', letterSpacing: 0.3 }}>
                   {item.label}
@@ -316,6 +398,10 @@ export default function TeamsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   searchbar: { margin: 12, borderRadius: 12 },
+  syncBanner: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 6,
+  },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingBottom: 8, paddingTop: 4 },
   list: { padding: 16, paddingTop: 4 },
   card: { marginBottom: 12, borderRadius: 16, overflow: 'hidden' },

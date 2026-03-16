@@ -282,7 +282,7 @@ export class MatchEngine {
         } else {
           partnership.batter2Runs += runsOffBat;
         }
-        if (isWide || input.isBye || input.isLegBye) {
+        if (isWide || isNoBall || input.isBye || input.isLegBye) {
           partnership.extras += totalExtras;
         }
       }
@@ -317,7 +317,7 @@ export class MatchEngine {
             balls: overBalls,
             runs: overRuns,
             wickets: overWickets,
-            isMaiden: overRuns === 0 && overWickets === 0,
+            isMaiden: overRuns === 0,
           });
 
           inn.totalOvers += 1;

@@ -89,7 +89,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     // Auto-save after each ball
     const state = get();
     if (state.matchId) {
-      matchRepo.saveMatchState(state.matchId, newEngine.getMatch());
+      matchRepo.saveMatchState(state.matchId, newEngine.getMatch()).catch(err => {
+        console.error('[match-store] auto-save after recordBall failed:', err);
+      });
     }
   },
 
@@ -100,7 +102,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     set({ engine: newEngine });
     const state = get();
     if (state.matchId) {
-      matchRepo.saveMatchState(state.matchId, newEngine.getMatch());
+      matchRepo.saveMatchState(state.matchId, newEngine.getMatch()).catch(err => {
+        console.error('[match-store] auto-save after undoLastBall failed:', err);
+      });
     }
   },
 

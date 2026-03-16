@@ -23,7 +23,7 @@ function createTestTeam(id: string, name: string, shortName: string): Team {
     players.push(createTestPlayer(`${id}_p${i}`, `${name} Player ${i}`));
   }
   players[0].isWicketKeeper = true;
-  return { id, name, shortName, adminPinHash: null, players, createdAt: Date.now(), updatedAt: Date.now() };
+  return { id, name, shortName, adminPinHash: null, latitude: null, longitude: null, players, createdAt: Date.now(), updatedAt: Date.now() };
 }
 
 function setupT20Match(): { engine: MatchEngine; team1: Team; team2: Team } {
@@ -662,7 +662,7 @@ describe('Synthetic Data — Full Match Simulation', () => {
       createTestPlayer(`${id}_p10`, 'Bowler Three', { battingStyle: 'right', bowlingStyle: 'Left-arm orthodox' }),
       createTestPlayer(`${id}_p11`, 'Tail Ender', { battingStyle: 'right', bowlingStyle: 'Right-arm fast' }),
     ];
-    return { id, name, shortName, adminPinHash: null, players, createdAt: Date.now(), updatedAt: Date.now() };
+    return { id, name, shortName, adminPinHash: null, latitude: null, longitude: null, players, createdAt: Date.now(), updatedAt: Date.now() };
   }
 
   test('simulates a full T20 over with mixed deliveries', () => {
