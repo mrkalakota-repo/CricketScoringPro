@@ -38,3 +38,39 @@ export async function removeMyTeamId(teamId: string): Promise<void> {
   const ids = await getMyTeamIds();
   await setStringPref(MY_TEAM_IDS_KEY, JSON.stringify(ids.filter(id => id !== teamId)));
 }
+
+// ── Delegate Team IDs ─────────────────────────────────────────────────────────
+
+const DELEGATE_TEAM_IDS_KEY = 'delegate_team_ids';
+
+export async function getDelegateTeamIds(): Promise<string[]> {
+  try {
+    const raw = await getStringPref(DELEGATE_TEAM_IDS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+export async function addDelegateTeamId(teamId: string): Promise<void> {
+  const ids = await getDelegateTeamIds();
+  if (!ids.includes(teamId)) {
+    await setStringPref(DELEGATE_TEAM_IDS_KEY, JSON.stringify([...ids, teamId]));
+  }
+}
+
+export async function removeDelegateTeamId(teamId: string): Promise<void> {
+  const ids = await getDelegateTeamIds();
+  await setStringPref(DELEGATE_TEAM_IDS_KEY, JSON.stringify(ids.filter(id => id !== teamId)));
+}
+
+// ── Chat Identity ─────────────────────────────────────────────────────────────
+
+export async function getChatIdentity(teamId: string): Promise<{ playerId: string; playerName: string } | null> {
+  try {
+    const raw = await getStringPref(`chat_identity_${teamId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+export async function setChatIdentity(teamId: string, playerId: string, playerName: string): Promise<void> {
+  await setStringPref(`chat_identity_${teamId}`, JSON.stringify({ playerId, playerName }));
+}

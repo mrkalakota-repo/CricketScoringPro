@@ -11,8 +11,8 @@ interface TeamStore {
   updateTeam: (id: string, name: string, shortName: string) => Promise<void>;
   setTeamAdminPin: (id: string, pinHash: string | null) => Promise<void>;
   deleteTeam: (id: string) => Promise<void>;
-  addPlayer: (teamId: string, name: string, battingStyle?: string, bowlingStyle?: string, isWicketKeeper?: boolean, isAllRounder?: boolean, isCaptain?: boolean) => Promise<Player>;
-  updatePlayer: (id: string, name: string, battingStyle: string, bowlingStyle: BowlingStyle, isWicketKeeper: boolean, isAllRounder: boolean, isCaptain: boolean) => Promise<void>;
+  addPlayer: (teamId: string, name: string, battingStyle?: string, bowlingStyle?: string, isWicketKeeper?: boolean, isAllRounder?: boolean, isCaptain?: boolean, isViceCaptain?: boolean) => Promise<Player>;
+  updatePlayer: (id: string, name: string, battingStyle: string, bowlingStyle: BowlingStyle, isWicketKeeper: boolean, isAllRounder: boolean, isCaptain: boolean, isViceCaptain?: boolean) => Promise<void>;
   deletePlayer: (playerId: string, teamId: string) => Promise<void>;
   // Cloud sync
   importCloudTeams: (cloudTeams: Team[], myTeamIds: string[]) => Promise<void>;
@@ -63,8 +63,8 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     cloudRepo.deleteCloudTeam(id);
   },
 
-  addPlayer: async (teamId, name, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain) => {
-    const player = await teamRepo.addPlayer(teamId, name, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain);
+  addPlayer: async (teamId, name, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain) => {
+    const player = await teamRepo.addPlayer(teamId, name, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain);
     const updatedTeams = get().teams.map(t =>
       t.id === teamId ? { ...t, players: [...t.players, player] } : t
     );
@@ -75,13 +75,13 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     return player;
   },
 
-  updatePlayer: async (id, name, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain) => {
-    await teamRepo.updatePlayer(id, name, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain);
+  updatePlayer: async (id, name, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain = false) => {
+    await teamRepo.updatePlayer(id, name, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain);
     const updatedTeams = get().teams.map(t => ({
       ...t,
       players: t.players.map(p =>
         p.id === id
-          ? { ...p, name, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle: bowlingStyle as BowlingStyle, isWicketKeeper, isAllRounder, isCaptain }
+          ? { ...p, name, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle: bowlingStyle as BowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain }
           : p
       ),
     }));

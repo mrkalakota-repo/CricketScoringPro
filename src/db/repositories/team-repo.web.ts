@@ -33,6 +33,7 @@ function toPlayer({ teamId: _t, ...p }: StoredPlayer): Player {
     ...p,
     isAllRounder: p.isAllRounder ?? false,
     isCaptain: p.isCaptain ?? false,
+    isViceCaptain: p.isViceCaptain ?? false,
   };
 }
 
@@ -99,16 +100,14 @@ export async function addPlayer(
   isWicketKeeper: boolean = false,
   isAllRounder: boolean = false,
   isCaptain: boolean = false,
+  isViceCaptain: boolean = false,
 ): Promise<Player> {
   const players = getPlayers();
   const stored: StoredPlayer = {
-    id: uuidv4(),
-    name,
+    id: uuidv4(), name,
     battingStyle: battingStyle as Player['battingStyle'],
     bowlingStyle: bowlingStyle as BowlingStyle,
-    isWicketKeeper,
-    isAllRounder,
-    isCaptain,
+    isWicketKeeper, isAllRounder, isCaptain, isViceCaptain,
     teamId,
   };
   players.push(stored);
@@ -124,10 +123,11 @@ export async function updatePlayer(
   isWicketKeeper: boolean,
   isAllRounder: boolean,
   isCaptain: boolean,
+  isViceCaptain: boolean = false,
 ): Promise<void> {
   setPlayers(getPlayers().map(p =>
     p.id === id
-      ? { ...p, name, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle: bowlingStyle as BowlingStyle, isWicketKeeper, isAllRounder, isCaptain }
+      ? { ...p, name, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle: bowlingStyle as BowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain }
       : p
   ));
 }

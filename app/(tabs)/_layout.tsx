@@ -72,6 +72,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="leagues"
+        options={{
+          title: 'Leagues',
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="tournament" activeName="tournament" color={color} size={size} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="stats"
         options={{
           title: 'Stats',

@@ -13,6 +13,7 @@ function createTestPlayer(id: string, name: string, overrides: Partial<Player> =
     isWicketKeeper: false,
     isAllRounder: false,
     isCaptain: false,
+    isViceCaptain: false,
     ...overrides,
   };
 }

@@ -62,6 +62,7 @@ export interface Player {
   isWicketKeeper: boolean;
   isAllRounder: boolean;
   isCaptain: boolean;
+  isViceCaptain: boolean;
 }
 
 export interface Team {
@@ -246,6 +247,62 @@ export interface BallInput {
     batsmanId?: string; // For run outs (could be non-striker)
   } | null;
   isBoundary: boolean;
+}
+
+// ===== League Models =====
+
+export type LeagueFixtureStatus = 'scheduled' | 'completed' | 'abandoned';
+
+export interface LeagueFixture {
+  id: string;
+  leagueId: string;
+  team1Id: string;
+  team2Id: string;
+  matchId: string | null;
+  venue: string;
+  scheduledDate: number;
+  status: LeagueFixtureStatus;
+  result: string | null;
+  team1Score: string | null;
+  team2Score: string | null;
+  winnerTeamId: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface League {
+  id: string;
+  name: string;
+  shortName: string;
+  teamIds: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface LeagueStandingRow {
+  teamId: string;
+  played: number;
+  won: number;
+  lost: number;
+  tied: number;
+  abandoned: number;
+  points: number;
+}
+
+// ===== Chat Models =====
+
+export interface ChatMessage {
+  id: string;
+  teamId: string;
+  playerId: string;
+  playerName: string;
+  text: string;
+  createdAt: number;
+}
+
+export interface ChatIdentity {
+  playerId: string;
+  playerName: string;
 }
 
 // ===== Undo =====

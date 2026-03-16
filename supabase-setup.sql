@@ -64,3 +64,39 @@ CREATE POLICY "public_update_players"
 
 CREATE POLICY "public_delete_players"
   ON public.cloud_players FOR DELETE USING (true);
+
+-- ── Vice Captain column ───────────────────────────────────────────────────────
+
+ALTER TABLE public.cloud_players ADD COLUMN IF NOT EXISTS is_vice_captain BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- ── Delegate Codes ────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.delegate_codes (
+  team_id    TEXT   PRIMARY KEY,
+  code       TEXT   NOT NULL,
+  expires_at BIGINT NOT NULL
+);
+
+ALTER TABLE public.delegate_codes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_select_delegate_codes" ON public.delegate_codes FOR SELECT USING (true);
+CREATE POLICY "public_insert_delegate_codes" ON public.delegate_codes FOR INSERT WITH CHECK (true);
+CREATE POLICY "public_update_delegate_codes" ON public.delegate_codes FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "public_delete_delegate_codes" ON public.delegate_codes FOR DELETE USING (true);
+
+-- ── Chat Messages ─────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.chat_messages (
+  id          UUID   PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id     TEXT   NOT NULL,
+  player_id   TEXT   NOT NULL,
+  player_name TEXT   NOT NULL,
+  text        TEXT   NOT NULL,
+  created_at  BIGINT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_team_created
+  ON public.chat_messages (team_id, created_at DESC);
+
+ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_select_chat" ON public.chat_messages FOR SELECT USING (true);
+CREATE POLICY "public_insert_chat" ON public.chat_messages FOR INSERT WITH CHECK (true);
