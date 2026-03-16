@@ -4,57 +4,57 @@ import * as Crypto from 'expo-crypto';
 
 const uuidv4 = () => Crypto.randomUUID();
 
-export async function getAllTeams(): Promise<Team[]> {
-  const db = await getDatabase();
-  const teamRows = await db.getAllAsync<{
-    id: string; name: string; short_name: string; admin_pin_hash: string | null;
-    created_at: number; updated_at: number;
-  }>('SELECT * FROM teams ORDER BY name');
+type TeamRow = {
+  id: string; name: string; short_name: string; admin_pin_hash: string | null;
+  latitude: number | null; longitude: number | null;
+  created_at: number; updated_at: number;
+};
 
-  const teams: Team[] = [];
-  for (const row of teamRows) {
-    const players = await getPlayersForTeam(row.id);
-    teams.push({
-      id: row.id,
-      name: row.name,
-      shortName: row.short_name,
-      adminPinHash: row.admin_pin_hash ?? null,
-      players,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    });
-  }
-  return teams;
-}
-
-export async function getTeamById(id: string): Promise<Team | null> {
-  const db = await getDatabase();
-  const row = await db.getFirstAsync<{
-    id: string; name: string; short_name: string; admin_pin_hash: string | null;
-    created_at: number; updated_at: number;
-  }>('SELECT * FROM teams WHERE id = ?', id);
-  if (!row) return null;
-  const players = await getPlayersForTeam(row.id);
+function rowToTeam(row: TeamRow, players: Player[]): Team {
   return {
     id: row.id,
     name: row.name,
     shortName: row.short_name,
     adminPinHash: row.admin_pin_hash ?? null,
+    latitude: row.latitude ?? null,
+    longitude: row.longitude ?? null,
     players,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
-export async function createTeam(name: string, shortName: string): Promise<Team> {
+export async function getAllTeams(): Promise<Team[]> {
+  const db = await getDatabase();
+  const teamRows = await db.getAllAsync<TeamRow>('SELECT * FROM teams ORDER BY name');
+  const teams: Team[] = [];
+  for (const row of teamRows) {
+    teams.push(rowToTeam(row, await getPlayersForTeam(row.id)));
+  }
+  return teams;
+}
+
+export async function getTeamById(id: string): Promise<Team | null> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<TeamRow>('SELECT * FROM teams WHERE id = ?', id);
+  if (!row) return null;
+  return rowToTeam(row, await getPlayersForTeam(row.id));
+}
+
+export async function createTeam(
+  name: string,
+  shortName: string,
+  latitude: number | null = null,
+  longitude: number | null = null,
+): Promise<Team> {
   const db = await getDatabase();
   const id = uuidv4();
   const now = Date.now();
   await db.runAsync(
-    'INSERT INTO teams (id, name, short_name, admin_pin_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-    id, name, shortName, null, now, now
+    'INSERT INTO teams (id, name, short_name, admin_pin_hash, latitude, longitude, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    id, name, shortName, null, latitude, longitude, now, now
   );
-  return { id, name, shortName, adminPinHash: null, players: [], createdAt: now, updatedAt: now };
+  return { id, name, shortName, adminPinHash: null, latitude, longitude, players: [], createdAt: now, updatedAt: now };
 }
 
 export async function updateTeam(id: string, name: string, shortName: string): Promise<void> {

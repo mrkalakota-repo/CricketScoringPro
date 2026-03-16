@@ -42,6 +42,8 @@ export async function getAllTeams(): Promise<Team[]> {
   return teams.map(team => ({
     ...team,
     adminPinHash: team.adminPinHash ?? null,
+    latitude: team.latitude ?? null,
+    longitude: team.longitude ?? null,
     players: allPlayers.filter(p => p.teamId === team.id).map(toPlayer),
   }));
 }
@@ -52,14 +54,21 @@ export async function getTeamById(id: string): Promise<Team | null> {
   return {
     ...team,
     adminPinHash: team.adminPinHash ?? null,
+    latitude: team.latitude ?? null,
+    longitude: team.longitude ?? null,
     players: getPlayers().filter(p => p.teamId === id).map(toPlayer),
   };
 }
 
-export async function createTeam(name: string, shortName: string): Promise<Team> {
+export async function createTeam(
+  name: string,
+  shortName: string,
+  latitude: number | null = null,
+  longitude: number | null = null,
+): Promise<Team> {
   const teams = getTeams();
   const now = Date.now();
-  const team: Team = { id: uuidv4(), name, shortName, adminPinHash: null, players: [], createdAt: now, updatedAt: now };
+  const team: Team = { id: uuidv4(), name, shortName, adminPinHash: null, latitude, longitude, players: [], createdAt: now, updatedAt: now };
   teams.push(team);
   setTeams(teams);
   return team;

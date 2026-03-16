@@ -1,22 +1,23 @@
 export const colors = {
-  // Primary — deep teal (cricket outfield / turf)
-  primary: '#00695C',      // Teal 700
-  primaryLight: '#00897B', // Teal 600
-  primaryDark: '#004D40',  // Teal 900
+  // Primary — vivid cricket outfield green
+  primary: '#1B6B28',       // Rich cricket green
+  primaryLight: '#2EA83A',  // Vibrant mid-green
+  primaryDark: '#0A4215',   // Deep forest
+
   onPrimary: '#FFFFFF',
 
-  // Secondary — warm amber (cricket ball / leather)
-  secondary: '#E65100',      // Deep Orange 900
-  secondaryLight: '#FF6D00', // Deep Orange A700
-  secondaryDark: '#BF360C',  // Deep Orange 900 dark
+  // Secondary — vivid cricket ball orange
+  secondary: '#E65100',       // Deep orange (ball seam)
+  secondaryLight: '#FF6D00',  // Vivid orange
+  secondaryDark: '#BF360C',   // Burnt orange
   onSecondary: '#FFFFFF',
 
   // Scoring event colors (vivid and distinct)
   dot: '#9E9E9E',    // Grey — quiet
-  single: '#0288D1', // Blue — running
+  single: '#1976D2', // Blue — running
   two: '#0097A7',    // Cyan — running hard
-  three: '#00796B',  // Teal — great running
-  four: '#2E7D32',   // Green — boundary!
+  three: '#388E3C',  // Green — great running
+  four: '#1B5E20',   // Dark Green — boundary!
   six: '#F57F17',    // Amber — maximum!
   wicket: '#C62828', // Red — fallen!
   wide: '#6A1B9A',   // Purple — extra
@@ -24,28 +25,30 @@ export const colors = {
   bye: '#4E342E',    // Brown — bye
   legBye: '#5D4037', // Brown — leg bye
 
-  // Backgrounds & surfaces
-  background: '#F4F6F5',
+  // Light mode surfaces
+  background: '#EAF7EB',       // Vivid light green tint
   surface: '#FFFFFF',
-  surfaceVariant: '#E0EFEC',
+  surfaceVariant: '#C8E8CA',   // Green 200 — clearly tinted
+  surfaceElevated: '#F5FFF6',
 
-  // Text
-  text: '#1A1A1A',
-  textSecondary: '#616161',
-  textLight: '#BDBDBD',
+  // Light mode text (greenish dark)
+  text: '#1A2B1B',
+  textSecondary: '#4A6B4C',
+  textLight: '#9ECBA2',
 
   // Status
-  success: '#2E7D32',
-  error: '#C62828',
+  live: '#D32F2F',
+  success: '#1B6B28',
+  error: '#B71C1C',
   warning: '#E65100',
-  info: '#0277BD',
+  info: '#1565C0',
 
   // Dark theme
   dark: {
-    background: '#0D1F1C',
-    surface: '#1A2E2A',
-    surfaceVariant: '#1F3B36',
-    text: '#E8F5E9',
-    textSecondary: '#A5D6A7',
+    background: '#091409',
+    surface: '#0F2210',
+    surfaceVariant: '#172E18',
+    text: '#E3F5E4',
+    textSecondary: '#9ECBA2',
   },
 };

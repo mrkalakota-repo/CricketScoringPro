@@ -6,7 +6,7 @@ interface TeamStore {
   teams: Team[];
   loading: boolean;
   loadTeams: () => Promise<void>;
-  createTeam: (name: string, shortName: string) => Promise<Team>;
+  createTeam: (name: string, shortName: string, latitude?: number | null, longitude?: number | null) => Promise<Team>;
   updateTeam: (id: string, name: string, shortName: string) => Promise<void>;
   setTeamAdminPin: (id: string, pinHash: string | null) => Promise<void>;
   deleteTeam: (id: string) => Promise<void>;
@@ -25,8 +25,8 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     set({ teams, loading: false });
   },
 
-  createTeam: async (name, shortName) => {
-    const team = await teamRepo.createTeam(name, shortName);
+  createTeam: async (name, shortName, latitude = null, longitude = null) => {
+    const team = await teamRepo.createTeam(name, shortName, latitude, longitude);
     set({ teams: [...get().teams, team] });
     return team;
   },

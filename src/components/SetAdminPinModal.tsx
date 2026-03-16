@@ -23,11 +23,7 @@ export function SetAdminPinModal({ visible, teamId, hasPinAlready, onDone, onDis
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const reset = () => {
-    setPin('');
-    setConfirm('');
-    setError('');
-  };
+  const reset = () => { setPin(''); setConfirm(''); setError(''); };
 
   const handleSave = async () => {
     if (pin.length < 4) { setError('PIN must be at least 4 digits.'); return; }
@@ -57,12 +53,15 @@ export function SetAdminPinModal({ visible, teamId, hasPinAlready, onDone, onDis
         onDismiss={handleDismiss}
         contentContainerStyle={[styles.container, { backgroundColor: theme.colors.surface }]}
       >
-        <Text variant="titleMedium" style={styles.title}>
+        <View style={[styles.iconRow, { backgroundColor: theme.colors.primary + '18' }]}>
+          <Text style={styles.lockIcon}>{hasPinAlready ? '🔑' : '🛡️'}</Text>
+        </View>
+        <Text variant="titleMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
           {hasPinAlready ? 'Change Admin PIN' : 'Set Admin PIN'}
         </Text>
-        <Text variant="bodySmall" style={styles.subtitle}>
+        <Text variant="bodySmall" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
           Anyone who knows this PIN can manage the team roster and settings.
-          {!hasPinAlready ? ' Leave blank to keep the team open (no PIN required).' : ''}
+          {!hasPinAlready ? ' Skip to keep the team open (no PIN).' : ''}
         </Text>
 
         <TextInput
@@ -89,7 +88,7 @@ export function SetAdminPinModal({ visible, teamId, hasPinAlready, onDone, onDis
         />
 
         {!!error && (
-          <Text variant="bodySmall" style={[styles.error, { color: theme.colors.error }]}>
+          <Text variant="bodySmall" style={{ color: theme.colors.error, marginBottom: 8 }}>
             {error}
           </Text>
         )}
@@ -100,7 +99,9 @@ export function SetAdminPinModal({ visible, teamId, hasPinAlready, onDone, onDis
               Remove PIN
             </Button>
           )}
-          <Button mode="text" onPress={handleDismiss}>Cancel</Button>
+          <Button mode="text" onPress={handleDismiss} textColor={theme.colors.onSurfaceVariant}>
+            Cancel
+          </Button>
           <Button
             mode="contained"
             onPress={handleSave}
@@ -116,10 +117,11 @@ export function SetAdminPinModal({ visible, teamId, hasPinAlready, onDone, onDis
 }
 
 const styles = StyleSheet.create({
-  container: { margin: 24, borderRadius: 16, padding: 24 },
-  title: { fontWeight: 'bold', marginBottom: 4, color: '#1A1A1A' },
-  subtitle: { color: '#555', marginBottom: 16 },
-  input: { marginBottom: 8 },
-  error: { marginBottom: 8 },
+  container: { margin: 24, borderRadius: 20, padding: 24 },
+  iconRow: { width: 52, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 14, alignSelf: 'center' },
+  lockIcon: { fontSize: 24 },
+  title: { fontWeight: '700', marginBottom: 6, textAlign: 'center' },
+  subtitle: { marginBottom: 20, textAlign: 'center', lineHeight: 18 },
+  input: { marginBottom: 10 },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8, flexWrap: 'wrap' },
 });

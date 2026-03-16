@@ -4,6 +4,7 @@
  * deleteSeedData() removes only teams whose names match the seeded team names.
  */
 import * as teamRepo from '../db/repositories/team-repo';
+import * as matchRepo from '../db/repositories/match-repo';
 
 type PlayerDef = {
   name: string;
@@ -71,7 +72,9 @@ const TEAM_C: { name: string; shortName: string; players: PlayerDef[] } = {
   ],
 };
 
-const SEED_TEAM_NAMES = [TEAM_A.name, TEAM_B.name, TEAM_C.name];
+const ALL_SEED_TEAMS = [TEAM_A, TEAM_B, TEAM_C] as const;
+export const SEED_TEAM_NAMES = [TEAM_A.name, TEAM_B.name, TEAM_C.name] as const;
+export type SeedTeamName = typeof SEED_TEAM_NAMES[number];
 
 async function seedTeam(def: typeof TEAM_A): Promise<void> {
   const team = await teamRepo.createTeam(def.name, def.shortName);
@@ -80,28 +83,37 @@ async function seedTeam(def: typeof TEAM_A): Promise<void> {
   }
 }
 
-export async function loadSeedData(): Promise<{ created: boolean; message: string }> {
+export async function loadSingleSeedTeam(teamName: SeedTeamName): Promise<{ created: boolean; message: string }> {
   const existing = await teamRepo.getAllTeams();
-  if (existing.length > 0) {
-    return { created: false, message: 'Teams already exist — sample data not loaded.' };
+  if (existing.some(t => t.name === teamName)) {
+    return { created: false, message: `${teamName} already exists.` };
   }
-  await seedTeam(TEAM_A);
-  await seedTeam(TEAM_B);
-  await seedTeam(TEAM_C);
-  return {
-    created: true,
-    message: 'Mumbai Blasters, Chennai Challengers and Delhi Dynamos loaded with 11 players each.',
-  };
+  const def = ALL_SEED_TEAMS.find(t => t.name === teamName)!;
+  await seedTeam(def);
+  return { created: true, message: `${teamName} loaded with ${def.players.length} players.` };
 }
 
-export async function deleteSeedData(): Promise<{ deleted: boolean; message: string }> {
+export async function deleteSeedData(): Promise<{ deleted: boolean; message: string; matchesDeleted: number }> {
   const existing = await teamRepo.getAllTeams();
-  const seedTeams = existing.filter(t => SEED_TEAM_NAMES.includes(t.name));
+  const seedTeams = existing.filter(t => (SEED_TEAM_NAMES as readonly string[]).includes(t.name));
   if (seedTeams.length === 0) {
-    return { deleted: false, message: 'No sample teams found to delete.' };
+    return { deleted: false, message: 'No sample teams found to delete.', matchesDeleted: 0 };
   }
+  const seedTeamIds = new Set(seedTeams.map(t => t.id));
+
+  // Delete any matches involving seed teams
+  const allMatches = await matchRepo.getAllMatches();
+  const matchesToDelete = allMatches.filter(m => seedTeamIds.has(m.team1_id) || seedTeamIds.has(m.team2_id));
+  for (const m of matchesToDelete) {
+    await matchRepo.deleteMatch(m.id);
+  }
+
   for (const t of seedTeams) {
     await teamRepo.deleteTeam(t.id);
   }
-  return { deleted: true, message: `Deleted ${seedTeams.length} sample team${seedTeams.length > 1 ? 's' : ''}.` };
+  return {
+    deleted: true,
+    message: `Deleted ${seedTeams.length} sample team${seedTeams.length > 1 ? 's' : ''}${matchesToDelete.length > 0 ? ` and ${matchesToDelete.length} associated match${matchesToDelete.length !== 1 ? 'es' : ''}` : ''}.`,
+    matchesDeleted: matchesToDelete.length,
+  };
 }

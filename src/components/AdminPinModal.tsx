@@ -1,14 +1,5 @@
 /**
  * AdminPinModal — prompts the user to enter the team admin PIN.
- *
- * Usage:
- *   <AdminPinModal
- *     visible={showPin}
- *     teamId={team.id}
- *     adminPinHash={team.adminPinHash}
- *     onSuccess={() => setShowPin(false)}
- *     onDismiss={() => setShowPin(false)}
- *   />
  */
 import { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
@@ -57,8 +48,13 @@ export function AdminPinModal({ visible, teamId, adminPinHash, onSuccess, onDism
         onDismiss={handleDismiss}
         contentContainerStyle={[styles.container, { backgroundColor: theme.colors.surface }]}
       >
-        <Text variant="titleMedium" style={styles.title}>Admin Access Required</Text>
-        <Text variant="bodySmall" style={styles.subtitle}>
+        <View style={[styles.iconRow, { backgroundColor: theme.colors.primary + '18' }]}>
+          <Text style={[styles.lockIcon]}>🔒</Text>
+        </View>
+        <Text variant="titleMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
+          Admin Access Required
+        </Text>
+        <Text variant="bodySmall" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
           Enter the team admin PIN to continue.
         </Text>
 
@@ -82,7 +78,9 @@ export function AdminPinModal({ visible, teamId, adminPinHash, onSuccess, onDism
         )}
 
         <View style={styles.actions}>
-          <Button mode="text" onPress={handleDismiss}>Cancel</Button>
+          <Button mode="text" onPress={handleDismiss} textColor={theme.colors.onSurfaceVariant}>
+            Cancel
+          </Button>
           <Button
             mode="contained"
             onPress={handleSubmit}
@@ -98,9 +96,11 @@ export function AdminPinModal({ visible, teamId, adminPinHash, onSuccess, onDism
 }
 
 const styles = StyleSheet.create({
-  container: { margin: 24, borderRadius: 16, padding: 24 },
-  title: { fontWeight: 'bold', marginBottom: 4, color: '#1A1A1A' },
-  subtitle: { color: '#555', marginBottom: 16 },
+  container: { margin: 24, borderRadius: 20, padding: 24 },
+  iconRow: { width: 52, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 14, alignSelf: 'center' },
+  lockIcon: { fontSize: 24 },
+  title: { fontWeight: '700', marginBottom: 6, textAlign: 'center' },
+  subtitle: { marginBottom: 20, textAlign: 'center', lineHeight: 18 },
   input: { marginBottom: 8 },
   error: { marginBottom: 8 },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },

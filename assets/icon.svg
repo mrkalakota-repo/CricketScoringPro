@@ -2,6 +2,28 @@
   <!-- Teal background circle -->
   <circle cx="512" cy="512" r="512" fill="#00695C"/>
 
+  <!-- ── Cricket Stumps (behind bat) ── -->
+  <!-- Stump shadows -->
+  <rect x="451" y="670" width="14" height="200" rx="5" fill="rgba(0,0,0,0.18)"/>
+  <rect x="505" y="670" width="14" height="200" rx="5" fill="rgba(0,0,0,0.18)"/>
+  <rect x="559" y="670" width="14" height="200" rx="5" fill="rgba(0,0,0,0.18)"/>
+  <!-- Stumps -->
+  <rect x="448" y="665" width="14" height="198" rx="5" fill="#E8D8A0"/>
+  <rect x="502" y="665" width="14" height="198" rx="5" fill="#E8D8A0"/>
+  <rect x="556" y="665" width="14" height="198" rx="5" fill="#E8D8A0"/>
+  <!-- Stump grain lines -->
+  <line x1="455" y1="680" x2="455" y2="855" stroke="#D4C070" stroke-width="2" opacity="0.6"/>
+  <line x1="509" y1="680" x2="509" y2="855" stroke="#D4C070" stroke-width="2" opacity="0.6"/>
+  <line x1="563" y1="680" x2="563" y2="855" stroke="#D4C070" stroke-width="2" opacity="0.6"/>
+  <!-- Bail 1 (off to middle) -->
+  <rect x="448" y="656" width="68" height="16" rx="6" fill="#C8B060"/>
+  <!-- Bail 2 (middle to leg) -->
+  <rect x="502" y="656" width="68" height="16" rx="6" fill="#C8B060"/>
+  <!-- Stump tops highlight -->
+  <rect x="448" y="656" width="14" height="8" rx="4" fill="#F0E0B0"/>
+  <rect x="502" y="656" width="14" height="8" rx="4" fill="#F0E0B0"/>
+  <rect x="556" y="656" width="14" height="8" rx="4" fill="#F0E0B0"/>
+
   <!-- ── Cricket Bat ── -->
   <!-- Handle grip (dark brown) -->
   <rect x="468" y="148" width="56" height="168" rx="18" fill="#5D4037"/>

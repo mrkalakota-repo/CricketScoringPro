@@ -9,7 +9,7 @@
  * the team has been set up).
  */
 import { useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Text, TextInput, Button, useTheme, Surface } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Share, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Share } from 'react-native';
 import { Text, useTheme, Chip, Button, Card, SegmentedButtons, Switch } from 'react-native-paper';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,13 +7,31 @@ import { useTeamStore } from '../../src/store/team-store';
 import { useMatchStore } from '../../src/store/match-store';
 import { computePlayerStats, formatBestFigures, formatBowlingOvers } from '../../src/utils/player-stats';
 import { getPlayerCode } from '../../src/utils/player-code';
-import type { Match, BowlingStyle } from '../../src/engine/types';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import type { Match, BowlingStyle, BattingStyle } from '../../src/engine/types';
 
 const BOWLING_STYLES: BowlingStyle[] = [
   'none', 'Right-arm fast', 'Right-arm medium', 'Right-arm off-break',
   'Right-arm leg-break', 'Left-arm fast', 'Left-arm medium',
   'Left-arm orthodox', 'Left-arm chinaman',
 ];
+
+type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+
+function bowlingIcon(style: BowlingStyle): { icon: IconName; color: string } {
+  if (style === 'none') return { icon: 'minus-circle-outline', color: '#9E9E9E' };
+  if (style.includes('fast')) return { icon: 'lightning-bolt', color: '#E65100' };
+  if (style.includes('medium')) return { icon: 'weather-windy', color: '#1565C0' };
+  if (style.includes('off-break') || style.includes('orthodox')) return { icon: 'rotate-right', color: '#6A1B9A' };
+  if (style.includes('leg-break') || style.includes('chinaman')) return { icon: 'rotate-left', color: '#00695C' };
+  return { icon: 'cricket', color: '#9E9E9E' };
+}
+
+function battingIcon(style: BattingStyle): { icon: IconName; color: string } {
+  return style === 'right'
+    ? { icon: 'alpha-r-circle', color: '#1B6B28' }
+    : { icon: 'alpha-l-circle', color: '#E65100' };
+}
 
 export default function PlayerProfileScreen() {
   const theme = useTheme();
@@ -29,6 +47,7 @@ export default function PlayerProfileScreen() {
   const [editIsKeeper, setEditIsKeeper] = useState(false);
   const [editIsAllRounder, setEditIsAllRounder] = useState(false);
   const [editIsCaptain, setEditIsCaptain] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   let player = null as (typeof teams)[0]['players'][0] | null;
   let team = null as (typeof teams)[0] | null;
@@ -44,11 +63,13 @@ export default function PlayerProfileScreen() {
     setEditIsKeeper(player.isWicketKeeper);
     setEditIsAllRounder(player.isAllRounder);
     setEditIsCaptain(player.isCaptain);
+    setSaveError('');
     setEditing(true);
   };
 
   const saveEdit = async () => {
     if (!player) return;
+    setSaveError('');
     try {
       await updatePlayer(
         player.id, player.name, editBatStyle,
@@ -57,7 +78,7 @@ export default function PlayerProfileScreen() {
       );
       setEditing(false);
     } catch {
-      Alert.alert('Error', 'Could not save changes. Please try again.');
+      setSaveError('Could not save changes. Please try again.');
     }
   };
 
@@ -73,12 +94,15 @@ export default function PlayerProfileScreen() {
   if (!player || !team) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
-        <Text style={{ color: '#1A1A1A' }}>Player not found</Text>
+        <MaterialCommunityIcons name="account-off-outline" size={48} color={theme.colors.outlineVariant} />
+        <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>Player not found</Text>
       </View>
     );
   }
 
   const playerCode = getPlayerCode(player.id);
+  const batIconInfo = battingIcon(player.battingStyle);
+  const bowlIconInfo = bowlingIcon(player.bowlingStyle);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -92,14 +116,30 @@ export default function PlayerProfileScreen() {
           <Text style={styles.headerTeam}>{team.name}</Text>
           <View style={styles.badges}>
             {player.isCaptain && (
-              <Chip compact style={{ backgroundColor: '#FFF3E0' }} textStyle={{ color: '#E65100', fontSize: 11 }}>Captain</Chip>
+              <Chip compact icon="crown" style={{ backgroundColor: '#FFF3E0' }} textStyle={{ color: '#E65100', fontSize: 11 }}>Captain</Chip>
             )}
             {player.isWicketKeeper && (
-              <Chip compact style={{ backgroundColor: 'rgba(255,255,255,0.25)' }} textStyle={{ color: '#FFF', fontSize: 11 }}>Wicket Keeper</Chip>
+              <Chip compact icon="shield-account" style={{ backgroundColor: 'rgba(255,255,255,0.25)' }} textStyle={{ color: '#FFF', fontSize: 11 }}>Wicket Keeper</Chip>
             )}
             {player.isAllRounder && (
-              <Chip compact style={{ backgroundColor: '#A5D6A7' }} textStyle={{ color: '#1B5E20', fontSize: 11 }}>All-Rounder</Chip>
+              <Chip compact icon="star-four-points" style={{ backgroundColor: '#A5D6A7' }} textStyle={{ color: '#1B5E20', fontSize: 11 }}>All-Rounder</Chip>
             )}
+          </View>
+
+          {/* Skill chips */}
+          <View style={styles.skillRow}>
+            <View style={[styles.skillChip, { backgroundColor: 'rgba(0,0,0,0.2)' }]}>
+              <MaterialCommunityIcons name={batIconInfo.icon} size={14} color="#FFFFFF" />
+              <Text style={styles.skillText}>
+                {player.battingStyle === 'right' ? 'Right-hand bat' : 'Left-hand bat'}
+              </Text>
+            </View>
+            <View style={[styles.skillChip, { backgroundColor: 'rgba(0,0,0,0.2)' }]}>
+              <MaterialCommunityIcons name={bowlIconInfo.icon} size={14} color="#FFFFFF" />
+              <Text style={styles.skillText}>
+                {player.bowlingStyle === 'none' ? 'Does not bowl' : player.bowlingStyle}
+              </Text>
+            </View>
           </View>
 
           {/* Player Code */}
@@ -125,7 +165,7 @@ export default function PlayerProfileScreen() {
         <Card style={styles.card}>
           <Card.Content>
             <View style={styles.cardHeader}>
-              <Text variant="titleSmall" style={styles.cardTitle}>Profile</Text>
+              <Text variant="titleSmall" style={[styles.cardTitle, { color: theme.colors.onSurface }]}>Profile</Text>
               {!editing ? (
                 <Button compact mode="text" onPress={startEdit} icon="pencil">Edit</Button>
               ) : (
@@ -138,53 +178,79 @@ export default function PlayerProfileScreen() {
 
             {editing ? (
               <View>
-                <Text variant="bodySmall" style={styles.fieldLabel}>Batting Style</Text>
+                <Text variant="bodySmall" style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant }]}>Batting Style</Text>
                 <SegmentedButtons
                   value={editBatStyle}
                   onValueChange={setEditBatStyle}
                   buttons={[
-                    { value: 'right', label: 'Right Hand' },
-                    { value: 'left', label: 'Left Hand' },
+                    { value: 'right', label: 'Right Hand', icon: 'alpha-r-circle' },
+                    { value: 'left', label: 'Left Hand', icon: 'alpha-l-circle' },
                   ]}
                   style={{ marginBottom: 12 }}
                 />
-                <Text variant="bodySmall" style={styles.fieldLabel}>Bowling Style</Text>
+                <Text variant="bodySmall" style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant }]}>Bowling Style</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                  {BOWLING_STYLES.map((style, idx) => (
-                    <Button
-                      key={style}
-                      mode={idx === editBowlIndex ? 'contained' : 'outlined'}
-                      compact
-                      onPress={() => setEditBowlIndex(idx)}
-                      style={{ marginRight: 8, borderRadius: 16 }}
-                      labelStyle={{ fontSize: 11 }}
-                    >
-                      {style === 'none' ? 'None' : style}
-                    </Button>
-                  ))}
+                  {BOWLING_STYLES.map((style, idx) => {
+                    const bIcon = bowlingIcon(style);
+                    return (
+                      <Button
+                        key={style}
+                        mode={idx === editBowlIndex ? 'contained' : 'outlined'}
+                        compact
+                        icon={bIcon.icon}
+                        onPress={() => setEditBowlIndex(idx)}
+                        style={{ marginRight: 8, borderRadius: 16 }}
+                        labelStyle={{ fontSize: 11 }}
+                      >
+                        {style === 'none' ? 'None' : style.split(' ').slice(-1)[0]}
+                      </Button>
+                    );
+                  })}
                 </ScrollView>
                 <View style={styles.toggleRow}>
-                  <Text variant="bodyMedium" style={{ color: '#1A1A1A' }}>Captain</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <MaterialCommunityIcons name="crown" size={16} color={theme.colors.secondary} />
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Captain</Text>
+                  </View>
                   <Switch value={editIsCaptain} onValueChange={setEditIsCaptain} />
                 </View>
                 <View style={styles.toggleRow}>
-                  <Text variant="bodyMedium" style={{ color: '#1A1A1A' }}>Wicket Keeper</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <MaterialCommunityIcons name="shield-account" size={16} color={theme.colors.primary} />
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Wicket Keeper</Text>
+                  </View>
                   <Switch value={editIsKeeper} onValueChange={setEditIsKeeper} />
                 </View>
                 <View style={styles.toggleRow}>
-                  <Text variant="bodyMedium" style={{ color: '#1A1A1A' }}>All-Rounder</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <MaterialCommunityIcons name="star-four-points" size={16} color="#6A1B9A" />
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>All-Rounder</Text>
+                  </View>
                   <Switch value={editIsAllRounder} onValueChange={setEditIsAllRounder} />
                 </View>
+                {!!saveError && (
+                  <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4 }}>{saveError}</Text>
+                )}
               </View>
             ) : (
               <View style={{ gap: 12 }}>
                 <View style={styles.profileRow}>
-                  <Text style={styles.fieldLabel}>BATTING</Text>
-                  <Text style={styles.fieldValue}>{player.battingStyle === 'right' ? 'Right Hand' : 'Left Hand'}</Text>
+                  <Text style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant }]}>BATTING</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <MaterialCommunityIcons name={batIconInfo.icon} size={16} color={batIconInfo.color} />
+                    <Text style={[styles.fieldValue, { color: theme.colors.onSurface }]}>
+                      {player.battingStyle === 'right' ? 'Right Hand' : 'Left Hand'}
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.profileRow}>
-                  <Text style={styles.fieldLabel}>BOWLING</Text>
-                  <Text style={styles.fieldValue}>{player.bowlingStyle === 'none' ? 'Does not bowl' : player.bowlingStyle}</Text>
+                  <Text style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant }]}>BOWLING</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <MaterialCommunityIcons name={bowlIconInfo.icon} size={16} color={bowlIconInfo.color} />
+                    <Text style={[styles.fieldValue, { color: theme.colors.onSurface }]}>
+                      {player.bowlingStyle === 'none' ? 'Does not bowl' : player.bowlingStyle}
+                    </Text>
+                  </View>
                 </View>
               </View>
             )}
@@ -197,7 +263,10 @@ export default function PlayerProfileScreen() {
             {stats.batting.innings > 0 && (
               <Card style={styles.card}>
                 <Card.Content>
-                  <Text variant="titleSmall" style={[styles.cardTitle, { marginBottom: 12 }]}>Batting</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <MaterialCommunityIcons name="cricket" size={18} color={theme.colors.primary} />
+                    <Text variant="titleSmall" style={[styles.cardTitle, { color: theme.colors.onSurface }]}>Batting</Text>
+                  </View>
                   <View style={styles.statsGrid}>
                     <StatBox label="Mat" value={String(stats.matchesPlayed)} />
                     <StatBox label="Inn" value={String(stats.batting.innings)} />
@@ -218,7 +287,10 @@ export default function PlayerProfileScreen() {
             {stats.bowling.innings > 0 && (
               <Card style={styles.card}>
                 <Card.Content>
-                  <Text variant="titleSmall" style={[styles.cardTitle, { marginBottom: 12 }]}>Bowling</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <MaterialCommunityIcons name={bowlIconInfo.icon} size={18} color={bowlIconInfo.color} />
+                    <Text variant="titleSmall" style={[styles.cardTitle, { color: theme.colors.onSurface }]}>Bowling</Text>
+                  </View>
                   <View style={styles.statsGrid}>
                     <StatBox label="Mat" value={String(stats.matchesPlayed)} />
                     <StatBox label="Inn" value={String(stats.bowling.innings)} />
@@ -237,9 +309,12 @@ export default function PlayerProfileScreen() {
         ) : (
           <Card style={styles.card}>
             <Card.Content style={{ alignItems: 'center', padding: 24 }}>
-              <Text variant="bodyMedium" style={{ color: '#888' }}>No match statistics yet</Text>
-              <Text variant="bodySmall" style={{ color: '#BBB', marginTop: 4, textAlign: 'center' }}>
-                Stats appear once this player has participated in completed matches
+              <MaterialCommunityIcons name="chart-bar" size={40} color={theme.colors.outlineVariant} />
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>
+                No match statistics yet
+              </Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4, textAlign: 'center' }}>
+                Stats appear once this player participates in completed matches
               </Text>
             </Card.Content>
           </Card>
@@ -253,16 +328,16 @@ function StatBox({ label, value, highlight }: { label: string; value: string; hi
   const theme = useTheme();
   return (
     <View style={statStyles.box}>
-      <Text style={[statStyles.value, highlight && { color: theme.colors.primary }]}>{value}</Text>
-      <Text style={statStyles.label}>{label}</Text>
+      <Text style={[statStyles.value, { color: highlight ? theme.colors.primary : theme.colors.onSurface }]}>{value}</Text>
+      <Text style={[statStyles.label, { color: theme.colors.onSurfaceVariant }]}>{label}</Text>
     </View>
   );
 }
 
 const statStyles = StyleSheet.create({
   box: { alignItems: 'center', minWidth: 56, padding: 8 },
-  value: { fontSize: 18, fontWeight: 'bold', color: '#1A1A1A' },
-  label: { fontSize: 10, color: '#888', marginTop: 2, letterSpacing: 0.5 },
+  value: { fontSize: 18, fontWeight: 'bold' },
+  label: { fontSize: 10, marginTop: 2, letterSpacing: 0.5 },
 });
 
 const styles = StyleSheet.create({
@@ -274,9 +349,12 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
-  headerName: { color: '#FFF', fontWeight: 'bold' },
+  headerName: { color: '#FFFFFF', fontWeight: 'bold' },
   headerTeam: { color: 'rgba(255,255,255,0.8)', marginTop: 4 },
   badges: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' },
+  skillRow: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap', justifyContent: 'center' },
+  skillChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
+  skillText: { color: '#FFFFFF', fontSize: 11, fontWeight: '600' },
   codeRow: {
     flexDirection: 'row', alignItems: 'center',
     marginTop: 16, gap: 8,
@@ -284,13 +362,13 @@ const styles = StyleSheet.create({
     borderRadius: 12, paddingLeft: 16, paddingRight: 4, paddingVertical: 6,
   },
   codeLabel: { fontSize: 9, color: 'rgba(255,255,255,0.7)', letterSpacing: 1.5 },
-  codeValue: { fontSize: 22, fontWeight: 'bold', color: '#FFF', letterSpacing: 4 },
+  codeValue: { fontSize: 22, fontWeight: 'bold', color: '#FFFFFF', letterSpacing: 4 },
   card: { margin: 16, marginBottom: 0, borderRadius: 12 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  cardTitle: { fontWeight: 'bold', color: '#1A1A1A' },
+  cardTitle: { fontWeight: 'bold' },
   profileRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  fieldLabel: { color: '#888', letterSpacing: 0.8, fontSize: 11 },
-  fieldValue: { color: '#1A1A1A', fontWeight: '500', fontSize: 14 },
+  fieldLabel: { letterSpacing: 0.8, fontSize: 11, fontWeight: '600' },
+  fieldValue: { fontWeight: '500', fontSize: 14 },
   toggleRow: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: 10,

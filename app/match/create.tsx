@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Button, Card, useTheme, SegmentedButtons, TextInput, RadioButton, Checkbox, Divider } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useTeamStore } from '../../src/store/team-store';
@@ -59,6 +59,7 @@ export default function CreateMatchScreen() {
       : { format, ...FORMAT_CONFIGS[format] };
 
     const matchId = uuidv4();
+    const now = Date.now();
     const match = createNewMatch(
       matchId,
       config,
@@ -67,14 +68,16 @@ export default function CreateMatchScreen() {
       Array.from(team1XI),
       Array.from(team2XI),
       venue.trim() || 'Unknown Venue',
-      Date.now()
+      now
     );
 
     await matchRepo.createMatch(
-      config, team1.id, team2.id,
+      matchId, config, team1.id, team2.id,
       Array.from(team1XI), Array.from(team2XI),
-      venue.trim() || 'Unknown Venue', Date.now()
+      venue.trim() || 'Unknown Venue', now
     );
+    // Save initial match state so it can be restored if user navigates away
+    await matchRepo.saveMatchState(matchId, match);
 
     createAndStartMatch(match);
     router.replace(`/match/${matchId}/toss`);

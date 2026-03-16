@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { Text, Button, Card, useTheme, RadioButton } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -10,7 +10,14 @@ export default function TossScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { engine, recordToss, startMatch, setOpeners, saveMatch } = useMatchStore();
+  const { engine, loadMatch, recordToss, startMatch, setOpeners, saveMatch } = useMatchStore();
+  const matchId = Array.isArray(id) ? id[0] : id;
+
+  useEffect(() => {
+    if (matchId && (!engine || engine.getMatch().id !== matchId)) {
+      loadMatch(matchId);
+    }
+  }, [matchId]);
 
   const match = engine?.getMatch();
 

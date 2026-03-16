@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gullycricket.scorer"
+      "bundleIdentifier": "com.gullycricket.scorer",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Used to show nearby cricket teams first."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -36,6 +39,12 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Used to show nearby cricket teams first."
+        }
+      ],
       [
         "expo-system-ui",
         {

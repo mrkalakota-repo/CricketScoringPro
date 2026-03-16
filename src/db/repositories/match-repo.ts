@@ -32,6 +32,7 @@ export async function getMatchById(id: string): Promise<MatchRow | null> {
 }
 
 export async function createMatch(
+  id: string,
   config: MatchConfig,
   team1Id: string,
   team2Id: string,
@@ -41,7 +42,6 @@ export async function createMatch(
   matchDate: number
 ): Promise<string> {
   const db = await getDatabase();
-  const id = uuidv4();
   const now = Date.now();
   await db.runAsync(
     `INSERT INTO matches (id, format, config_json, status, team1_id, team2_id, team1_playing_xi, team2_playing_xi, venue, match_date, created_at, updated_at)

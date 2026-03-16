@@ -59,4 +59,21 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
   try {
     await db.execAsync(`ALTER TABLE teams ADD COLUMN admin_pin_hash TEXT;`);
   } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE teams ADD COLUMN latitude REAL;`);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE teams ADD COLUMN longitude REAL;`);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS user_prefs (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+  } catch { /* already exists */ }
 }

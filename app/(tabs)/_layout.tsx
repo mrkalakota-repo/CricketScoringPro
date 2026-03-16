@@ -5,35 +5,42 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const APP_NAME = 'Gully Cricket Scorer';
 
+type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+
+function TabIcon({ name, activeName, color, size, focused }: {
+  name: IconName; activeName: IconName; color: string; size: number; focused: boolean;
+}) {
+  return <MaterialCommunityIcons name={focused ? activeName : name} size={size} color={color} />;
+}
+
 export default function TabsLayout() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
-  // Ensure the tab bar clears the Android gesture navigation bar / home indicator
-  const tabBarHeight = 56 + Math.max(insets.bottom, 4);
+  const tabBarHeight = 60 + Math.max(insets.bottom, 4);
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: '#888',
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
         headerStyle: { backgroundColor: theme.colors.primary },
         headerTintColor: '#FFFFFF',
-        headerTitleStyle: { fontWeight: 'bold', fontSize: 17 },
+        headerTitleStyle: { fontWeight: '800', fontSize: 17, letterSpacing: 0.3 },
         tabBarStyle: {
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: theme.colors.outlineVariant,
-          paddingTop: 4,
-          paddingBottom: Math.max(insets.bottom, 4),
+          borderTopWidth: 0,
+          paddingTop: 6,
+          paddingBottom: Math.max(insets.bottom, 6),
           height: tabBarHeight,
           backgroundColor: theme.colors.surface,
-          elevation: 8,
+          elevation: 16,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 4,
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.10,
+          shadowRadius: 8,
         },
+        tabBarItemStyle: { paddingTop: 2 },
       }}
     >
       <Tabs.Screen
@@ -41,8 +48,8 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           headerTitle: APP_NAME,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="home" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="home-outline" activeName="home" color={color} size={size} focused={focused} />
           ),
         }}
       />
@@ -50,17 +57,17 @@ export default function TabsLayout() {
         name="matches"
         options={{
           title: 'Matches',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="cricket" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="trophy-outline" activeName="trophy" color={color} size={size} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="teams"
         options={{
-          title: 'My Teams',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="account-group" size={size} color={color} />
+          title: 'Teams',
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="shield-account-outline" activeName="shield-account" color={color} size={size} focused={focused} />
           ),
         }}
       />
@@ -68,13 +75,11 @@ export default function TabsLayout() {
         name="stats"
         options={{
           title: 'Stats',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="chart-bar" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="chart-bar" activeName="chart-bar" color={color} size={size} focused={focused} />
           ),
         }}
       />
     </Tabs>
   );
 }
-
-import { StyleSheet } from 'react-native';

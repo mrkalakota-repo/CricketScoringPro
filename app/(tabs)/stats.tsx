@@ -14,6 +14,13 @@ export default function StatsScreen() {
   const completedMatches = matches.filter(m => m.status === 'completed').length;
   const totalPlayers = teams.reduce((sum, t) => sum + t.players.length, 0);
 
+  const stats = [
+    { icon: 'cricket' as const, value: completedMatches, label: 'Matches Played' },
+    { icon: 'shield-account' as const, value: teams.length, label: 'Teams' },
+    { icon: 'account-group' as const, value: totalPlayers, label: 'Players' },
+    { icon: 'trophy' as const, value: matches.length, label: 'Total Matches' },
+  ];
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -25,50 +32,22 @@ export default function StatsScreen() {
         </Text>
 
         <View style={styles.grid}>
-          <Card style={styles.statCard}>
-            <Card.Content style={styles.statContent}>
-              <MaterialCommunityIcons name="cricket" size={32} color={theme.colors.primary} />
-              <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
-                {completedMatches}
-              </Text>
-              <Text variant="bodySmall" style={{ color: '#666' }}>Matches Played</Text>
-            </Card.Content>
-          </Card>
-
-          <Card style={styles.statCard}>
-            <Card.Content style={styles.statContent}>
-              <MaterialCommunityIcons name="account-group" size={32} color={theme.colors.primary} />
-              <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
-                {teams.length}
-              </Text>
-              <Text variant="bodySmall" style={{ color: '#666' }}>Teams</Text>
-            </Card.Content>
-          </Card>
-
-          <Card style={styles.statCard}>
-            <Card.Content style={styles.statContent}>
-              <MaterialCommunityIcons name="account" size={32} color={theme.colors.primary} />
-              <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
-                {totalPlayers}
-              </Text>
-              <Text variant="bodySmall" style={{ color: '#666' }}>Players</Text>
-            </Card.Content>
-          </Card>
-
-          <Card style={styles.statCard}>
-            <Card.Content style={styles.statContent}>
-              <MaterialCommunityIcons name="trophy" size={32} color={theme.colors.primary} />
-              <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
-                {matches.length}
-              </Text>
-              <Text variant="bodySmall" style={{ color: '#666' }}>Total Matches</Text>
-            </Card.Content>
-          </Card>
+          {stats.map(({ icon, value, label }) => (
+            <Card key={label} style={styles.statCard}>
+              <Card.Content style={styles.statContent}>
+                <MaterialCommunityIcons name={icon} size={32} color={theme.colors.primary} />
+                <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
+                  {value}
+                </Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{label}</Text>
+              </Card.Content>
+            </Card>
+          ))}
         </View>
 
         {completedMatches === 0 && (
           <View style={styles.emptyState}>
-            <Text variant="bodyMedium" style={{ color: '#999', textAlign: 'center' }}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
               Complete matches to see detailed player and team statistics here
             </Text>
           </View>
