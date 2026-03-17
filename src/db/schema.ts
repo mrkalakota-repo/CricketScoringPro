@@ -1,10 +1,13 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
-  await db.execAsync(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA foreign_keys = ON;
+  // Run PRAGMAs separately — Android SQLite may skip subsequent statements in
+  // a multi-statement block when the first statement returns a result (like
+  // "PRAGMA journal_mode = WAL" does).
+  await db.execAsync('PRAGMA journal_mode = WAL;');
+  await db.execAsync('PRAGMA foreign_keys = ON;');
 
+  await db.execAsync(`
     CREATE TABLE IF NOT EXISTS teams (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -12,7 +15,9 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
+  `);
 
+  await db.execAsync(`
     CREATE TABLE IF NOT EXISTS players (
       id TEXT PRIMARY KEY,
       team_id TEXT NOT NULL,
@@ -23,7 +28,9 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
       is_all_rounder INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
     );
+  `);
 
+  await db.execAsync(`
     CREATE TABLE IF NOT EXISTS matches (
       id TEXT PRIMARY KEY,
       format TEXT NOT NULL,

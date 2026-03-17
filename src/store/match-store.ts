@@ -72,13 +72,27 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   setOpeners: (strikerId, nonStrikerId) => {
     const { engine } = get();
     if (!engine) return;
-    set({ engine: engine.setOpeners(strikerId, nonStrikerId) });
+    const newEngine = engine.setOpeners(strikerId, nonStrikerId);
+    set({ engine: newEngine });
+    const { matchId } = get();
+    if (matchId) {
+      matchRepo.saveMatchState(matchId, newEngine.getMatch()).catch(err => {
+        console.error('[match-store] auto-save after setOpeners failed:', err);
+      });
+    }
   },
 
   setBowler: (bowlerId) => {
     const { engine } = get();
     if (!engine) return;
-    set({ engine: engine.setBowler(bowlerId) });
+    const newEngine = engine.setBowler(bowlerId);
+    set({ engine: newEngine });
+    const { matchId } = get();
+    if (matchId) {
+      matchRepo.saveMatchState(matchId, newEngine.getMatch()).catch(err => {
+        console.error('[match-store] auto-save after setBowler failed:', err);
+      });
+    }
   },
 
   recordBall: (input) => {
@@ -111,7 +125,14 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   setNewBatter: (batterId) => {
     const { engine } = get();
     if (!engine) return;
-    set({ engine: engine.setNewBatter(batterId) });
+    const newEngine = engine.setNewBatter(batterId);
+    set({ engine: newEngine });
+    const { matchId } = get();
+    if (matchId) {
+      matchRepo.saveMatchState(matchId, newEngine.getMatch()).catch(err => {
+        console.error('[match-store] auto-save after setNewBatter failed:', err);
+      });
+    }
   },
 
   startNextInnings: () => {
