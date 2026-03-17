@@ -77,6 +77,10 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 ALTER TABLE public.cloud_players ADD COLUMN IF NOT EXISTS is_vice_captain BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- ── Player phone number (cross-team identity key) ─────────────────────────────
+
+ALTER TABLE public.cloud_players ADD COLUMN IF NOT EXISTS phone_number TEXT;
+
 -- ── Delegate Codes ────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS public.delegate_codes (
