@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useTeamStore } from '../../src/store/team-store';
 import { useAdminAuth, hashAdminPin } from '../../src/hooks/useAdminAuth';
 import { usePrefsStore } from '../../src/store/prefs-store';
+import * as teamRepo from '../../src/db/repositories/team-repo';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 
@@ -12,9 +13,11 @@ export default function CreateTeamScreen() {
   const router = useRouter();
   const theme = useTheme();
   const createTeam = useTeamStore(s => s.createTeam);
+  const teams = useTeamStore(s => s.teams);
   const setTeamAdminPin = useTeamStore(s => s.setTeamAdminPin);
   const authenticate = useAdminAuth(s => s.authenticate);
   const addMyTeam = usePrefsStore(s => s.addMyTeam);
+  const myTeamIds = usePrefsStore(s => s.myTeamIds);
 
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
@@ -53,6 +56,9 @@ export default function CreateTeamScreen() {
 
     setBusy(true);
     try {
+      // Check for duplicate team name
+      const nameTaken = await teamRepo.isTeamNameTaken(name.trim());
+      if (nameTaken) { setError('A team with this name already exists'); setBusy(false); return; }
       const team = await createTeam(
         name.trim(), shortName.trim().toUpperCase(),
         teamLocation?.latitude ?? null, teamLocation?.longitude ?? null,
@@ -69,6 +75,33 @@ export default function CreateTeamScreen() {
       setBusy(false);
     }
   };
+
+  const ownedTeam = myTeamIds.length > 0 ? teams.find(t => t.id === myTeamIds[0]) : null;
+
+  if (ownedTeam) {
+    return (
+      <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.form}>
+          <View style={styles.header}>
+            <View style={[styles.headerIcon, { backgroundColor: theme.colors.primary + '18' }]}>
+              <MaterialCommunityIcons name="shield-account" size={32} color={theme.colors.primary} />
+            </View>
+            <Text variant="headlineSmall" style={[styles.title, { color: theme.colors.primary }]}>
+              One Team Per Player
+            </Text>
+            <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
+              You already manage <Text style={{ fontWeight: '700' }}>{ownedTeam.name}</Text>.
+              Each player can only create one team.
+            </Text>
+          </View>
+          <Button mode="contained" icon="shield-account" onPress={() => router.replace(`/team/${ownedTeam.id}`)}>
+            Go to My Team
+          </Button>
+          <Button mode="text" onPress={() => router.back()} style={styles.button}>Cancel</Button>
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} keyboardShouldPersistTaps="handled">

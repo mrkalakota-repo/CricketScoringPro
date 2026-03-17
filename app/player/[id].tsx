@@ -74,7 +74,7 @@ export default function PlayerProfileScreen() {
     setSaveError('');
     try {
       await updatePlayer(
-        player.id, player.name, editBatStyle,
+        player.id, player.name, player.phoneNumber ?? null, editBatStyle,
         BOWLING_STYLES[editBowlIndex],
         editIsKeeper, editIsAllRounder, editIsCaptain, editIsViceCaptain
       );

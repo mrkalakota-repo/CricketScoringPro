@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
-import { TextInput, Button, Text, Card, useTheme, IconButton, SegmentedButtons, Switch, Chip, Portal, Dialog } from 'react-native-paper';
+import { TextInput, Button, Text, Card, useTheme, IconButton, SegmentedButtons, Switch, Portal, Dialog, HelperText } from 'react-native-paper';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTeamStore } from '../../../src/store/team-store';
@@ -8,6 +8,7 @@ import { usePrefsStore } from '../../../src/store/prefs-store';
 import { useAdminAuth } from '../../../src/hooks/useAdminAuth';
 import { AdminPinModal } from '../../../src/components/AdminPinModal';
 import { getPlayerCode } from '../../../src/utils/player-code';
+import * as teamRepo from '../../../src/db/repositories/team-repo';
 import type { BowlingStyle } from '../../../src/engine/types';
 
 const BOWLING_STYLES: BowlingStyle[] = [
@@ -38,11 +39,12 @@ export default function RosterScreen() {
   const [showPinModal, setShowPinModal] = useState(false);
 
   const teamId = Array.isArray(id) ? id[0] : id;
-  // Only the creating device can add/remove players
   const isMyTeam = team ? myTeamIds.includes(team.id) : false;
   const adminUnlocked = isMyTeam && (team ? isAdmin(team.id, team.adminPinHash) : false);
 
+  // Add player form state
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [battingStyle, setBattingStyle] = useState('right');
   const [bowlingStyleIndex, setBowlingStyleIndex] = useState(0);
   const [isKeeper, setIsKeeper] = useState(false);
@@ -51,8 +53,9 @@ export default function RosterScreen() {
   const [isViceCaptain, setIsViceCaptain] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [addBusy, setAddBusy] = useState(false);
 
-  // Delete confirmation dialog
+  // Delete confirmation
   const [deleteDialogPlayer, setDeleteDialogPlayer] = useState<{ id: string; name: string } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -60,6 +63,7 @@ export default function RosterScreen() {
 
   const resetForm = () => {
     setName('');
+    setPhone('');
     setBattingStyle('right');
     setBowlingStyleIndex(0);
     setIsKeeper(false);
@@ -70,24 +74,51 @@ export default function RosterScreen() {
     setAddError(null);
   };
 
+  // Captain and Vice-Captain are mutually exclusive
+  const handleCaptainToggle = (val: boolean) => {
+    setIsCaptain(val);
+    if (val) setIsViceCaptain(false);
+  };
+  const handleViceCaptainToggle = (val: boolean) => {
+    setIsViceCaptain(val);
+    if (val) setIsCaptain(false);
+  };
+
   const handleAdd = async () => {
     const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
     if (!trimmedName) return;
     if (!teamId) return;
+
     setAddError(null);
+    setAddBusy(true);
     try {
-      await addPlayer(teamId, trimmedName, battingStyle, BOWLING_STYLES[bowlingStyleIndex], isKeeper, isAllRounder, isCaptain, isViceCaptain);
+      // Validate phone uniqueness inside try so any DB error is caught
+      if (trimmedPhone) {
+        if (!/^\+?[0-9]{7,15}$/.test(trimmedPhone.replace(/\s/g, ''))) {
+          setAddError('Enter a valid phone number or leave it blank.');
+          setAddBusy(false);
+          return;
+        }
+        const taken = await teamRepo.isPhoneNumberTaken(trimmedPhone);
+        if (taken) {
+          setAddError('This phone number is already linked to another player.');
+          setAddBusy(false);
+          return;
+        }
+      }
+      await addPlayer(
+        teamId, trimmedName, trimmedPhone || null,
+        battingStyle, BOWLING_STYLES[bowlingStyleIndex],
+        isKeeper, isAllRounder, isCaptain, isViceCaptain,
+      );
       resetForm();
     } catch (err) {
       setAddError('Could not add player. Please try again.');
       console.error('[RosterScreen] addPlayer failed:', err);
+    } finally {
+      setAddBusy(false);
     }
-  };
-
-  const handleDelete = (playerId: string, playerName: string) => {
-    if (!teamId) return;
-    setDeleteDialogPlayer({ id: playerId, name: playerName });
-    setDeleteError(null);
   };
 
   const confirmDelete = async () => {
@@ -115,7 +146,7 @@ export default function RosterScreen() {
         />
       )}
 
-      {/* Add Player Section */}
+      {/* Add Player */}
       {!showForm ? (
         <Button
           mode="contained"
@@ -128,7 +159,9 @@ export default function RosterScreen() {
       ) : (
         <Card style={styles.formCard}>
           <Card.Content>
-            <Text variant="titleSmall" style={{ fontWeight: 'bold', marginBottom: 12, color: theme.colors.onSurface }}>New Player</Text>
+            <Text variant="titleSmall" style={{ fontWeight: 'bold', marginBottom: 12, color: theme.colors.onSurface }}>
+              New Player
+            </Text>
 
             <TextInput
               label="Player Name"
@@ -140,9 +173,18 @@ export default function RosterScreen() {
               maxLength={MAX_NAME_LENGTH}
             />
 
-            {addError && (
-              <Text variant="bodySmall" style={{ color: theme.colors.error, marginBottom: 8 }}>{addError}</Text>
-            )}
+            <TextInput
+              label="Phone Number (optional)"
+              value={phone}
+              onChangeText={t => { setPhone(t); setAddError(null); }}
+              mode="outlined"
+              style={styles.input}
+              keyboardType="phone-pad"
+              placeholder="+91 98765 43210"
+              left={<TextInput.Icon icon="phone" />}
+            />
+
+            {addError && <HelperText type="error" style={{ marginBottom: 4 }}>{addError}</HelperText>}
 
             <Text variant="bodySmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>Batting Style</Text>
             <SegmentedButtons
@@ -175,21 +217,19 @@ export default function RosterScreen() {
               )}
             />
 
+            {/* Captain / VC — mutually exclusive */}
             <View style={styles.toggleRow}>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Captain</Text>
-              <Switch value={isCaptain} onValueChange={setIsCaptain} />
+              <Switch value={isCaptain} onValueChange={handleCaptainToggle} />
             </View>
-
             <View style={styles.toggleRow}>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Vice Captain</Text>
-              <Switch value={isViceCaptain} onValueChange={setIsViceCaptain} />
+              <Switch value={isViceCaptain} onValueChange={handleViceCaptainToggle} />
             </View>
-
             <View style={styles.toggleRow}>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Wicket Keeper</Text>
               <Switch value={isKeeper} onValueChange={setIsKeeper} />
             </View>
-
             <View style={styles.toggleRow}>
               <View>
                 <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>All-Rounder</Text>
@@ -200,7 +240,9 @@ export default function RosterScreen() {
 
             <View style={styles.formActions}>
               <Button mode="text" onPress={resetForm}>Cancel</Button>
-              <Button mode="contained" onPress={handleAdd} disabled={!name.trim()}>Add</Button>
+              <Button mode="contained" onPress={handleAdd} disabled={!name.trim() || addBusy} loading={addBusy}>
+                Add
+              </Button>
             </View>
           </Card.Content>
         </Card>
@@ -213,14 +255,23 @@ export default function RosterScreen() {
         contentContainerStyle={{ padding: 16, paddingTop: 0 }}
         ListEmptyComponent={
           <View style={{ alignItems: 'center', padding: 32 }}>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>No players yet. Add some above.</Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+              No players yet. Add some above.
+            </Text>
           </View>
         }
         renderItem={({ item, index }) => (
           <Card style={styles.playerCard} onPress={() => router.push(`/player/${item.id}`)}>
             <Card.Content style={styles.playerRow}>
               <View style={styles.playerInfo}>
-                <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>{index + 1}. {item.name}</Text>
+                <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>
+                  {index + 1}. {item.name}
+                </Text>
+                {item.phoneNumber ? (
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 1 }}>
+                    {item.phoneNumber}
+                  </Text>
+                ) : null}
                 <View style={styles.badgeRow}>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                     {item.battingStyle === 'right' ? 'RHB' : 'LHB'}
@@ -251,14 +302,19 @@ export default function RosterScreen() {
                     </View>
                   )}
                 </View>
-                <Text style={[styles.playerCode, { color: theme.colors.outlineVariant }]}>Code: {getPlayerCode(item.id)}</Text>
+                <Text style={[styles.playerCode, { color: theme.colors.outlineVariant }]}>
+                  Code: {getPlayerCode(item.id)}
+                </Text>
               </View>
               {adminUnlocked && (
                 <IconButton
                   icon="delete-outline"
                   iconColor={theme.colors.error}
                   size={20}
-                  onPress={() => handleDelete(item.id, item.name)}
+                  onPress={() => {
+                    setDeleteError(null);
+                    setDeleteDialogPlayer({ id: item.id, name: item.name });
+                  }}
                 />
               )}
             </Card.Content>
@@ -272,14 +328,12 @@ export default function RosterScreen() {
         </Text>
       </View>
 
-      {/* Delete Player Dialog */}
+      {/* Delete Dialog */}
       <Portal>
         <Dialog visible={!!deleteDialogPlayer} onDismiss={() => { setDeleteDialogPlayer(null); setDeleteError(null); }}>
           <Dialog.Title>Remove Player</Dialog.Title>
           <Dialog.Content>
-            <Text variant="bodyMedium">
-              Remove {deleteDialogPlayer?.name} from the team?
-            </Text>
+            <Text variant="bodyMedium">Remove {deleteDialogPlayer?.name} from the team?</Text>
             {deleteError && (
               <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 8 }}>{deleteError}</Text>
             )}
@@ -300,10 +354,8 @@ const styles = StyleSheet.create({
   input: { marginBottom: 12 },
   label: { marginBottom: 4 },
   toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 12,
   },
   formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 4 },
   playerCard: { marginBottom: 8, borderRadius: 12 },

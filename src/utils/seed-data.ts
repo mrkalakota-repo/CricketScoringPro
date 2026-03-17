@@ -79,7 +79,7 @@ export type SeedTeamName = typeof SEED_TEAM_NAMES[number];
 async function seedTeam(def: typeof TEAM_A): Promise<void> {
   const team = await teamRepo.createTeam(def.name, def.shortName);
   for (const p of def.players) {
-    await teamRepo.addPlayer(team.id, p.name, p.battingStyle, p.bowlingStyle, p.isWicketKeeper, p.isAllRounder, p.isCaptain);
+    await teamRepo.addPlayer(team.id, p.name, null, p.battingStyle, p.bowlingStyle, p.isWicketKeeper, p.isAllRounder, p.isCaptain);
   }
 }
 

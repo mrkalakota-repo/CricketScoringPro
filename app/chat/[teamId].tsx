@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTeamStore } from '../../src/store/team-store';
 import { useChatStore } from '../../src/store/chat-store';
+import { useUserAuth } from '../../src/hooks/useUserAuth';
 import { isCloudEnabled } from '../../src/config/supabase';
 import * as chatRepo from '../../src/db/repositories/cloud-chat-repo';
 import type { ChatMessage } from '../../src/engine/types';
@@ -41,6 +42,7 @@ export default function ChatScreen() {
   const team = teams.find(t => t.id === teamId);
   const teamMessages = messages[teamId ?? ''] ?? [];
   const myIdentity = identity[teamId ?? ''];
+  const { profile: userProfile } = useUserAuth();
 
   const [text, setText] = useState('');
   const [showPicker, setShowPicker] = useState(false);
@@ -52,6 +54,16 @@ export default function ChatScreen() {
     loadMessages(teamId);
     loadIdentity(teamId);
   }, [teamId]);
+
+  // Auto-identify: if logged-in user's phone matches a player in this team,
+  // set their identity automatically so the chat works without the picker.
+  useEffect(() => {
+    if (!teamId || !isCloudEnabled || !team || !userProfile?.phone || myIdentity) return;
+    const matchedPlayer = team.players.find(p => p.phoneNumber === userProfile.phone);
+    if (matchedPlayer) {
+      setIdentity(teamId, matchedPlayer.id, matchedPlayer.name);
+    }
+  }, [teamId, team, userProfile, myIdentity]);
 
   useEffect(() => {
     if (!teamId || !isCloudEnabled) return;
@@ -67,7 +79,7 @@ export default function ChatScreen() {
     }
   }, [teamMessages.length]);
 
-  // Show identity picker when no identity is set
+  // Show identity picker only if auto-identification didn't work
   useEffect(() => {
     if (isCloudEnabled && team && !myIdentity) {
       setShowPicker(true);

@@ -36,7 +36,6 @@ export default function CreateMatchScreen() {
     if (newSet.has(playerId)) {
       newSet.delete(playerId);
     } else {
-      if (newSet.size >= 11) return;
       newSet.add(playerId);
     }
     setTeamSet(newSet);
@@ -45,18 +44,20 @@ export default function CreateMatchScreen() {
   const handleCreate = async () => {
     if (!team1 || !team2) return;
 
+    // Use actual squad size so the engine knows when "all out" happens correctly
+    const playersPerSide = Math.max(team1XI.size, team2XI.size);
     const config: MatchConfig = format === 'custom'
       ? {
           format: 'custom',
           oversPerInnings: parseInt(customOvers) || 20,
           maxInnings: 2,
-          playersPerSide: Math.max(team1XI.size, team2XI.size, 2),
+          playersPerSide,
           powerplays: [],
           followOnMinimum: null,
           wideRuns: 1,
           noBallRuns: 1,
         }
-      : { format, ...FORMAT_CONFIGS[format] };
+      : { format, ...FORMAT_CONFIGS[format], playersPerSide };
 
     const matchId = uuidv4();
     const now = Date.now();
@@ -84,7 +85,8 @@ export default function CreateMatchScreen() {
   };
 
   const canProceedTeams = team1Id && team2Id && team1Id !== team2Id;
-  const canProceedXI = team1XI.size >= 2 && team2XI.size >= 2;
+  // Allow any squad size ≥ 1 — gully cricket doesn't always have 11 players
+  const canProceedXI = team1XI.size >= 1 && team2XI.size >= 1;
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -223,7 +225,7 @@ export default function CreateMatchScreen() {
             <Text variant="titleLarge" style={styles.stepTitle}>Select Playing XI</Text>
 
             <Text variant="titleSmall" style={{ marginBottom: 8 }}>
-              {team1.name} ({team1XI.size}/11)
+              {team1.name} ({team1XI.size}/{team1.players.length})
             </Text>
             {team1.players.map(p => (
               <Card key={p.id} style={[styles.optionCard, { padding: 0 }]}>
@@ -241,7 +243,7 @@ export default function CreateMatchScreen() {
             <Divider style={{ marginVertical: 16 }} />
 
             <Text variant="titleSmall" style={{ marginBottom: 8 }}>
-              {team2.name} ({team2XI.size}/11)
+              {team2.name} ({team2XI.size}/{team2.players.length})
             </Text>
             {team2.players.map(p => (
               <Card key={p.id} style={[styles.optionCard, { padding: 0 }]}>

@@ -1,14 +1,16 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { PaperProvider } from 'react-native-paper';
-import { useColorScheme, Platform, View } from 'react-native';
+import { useColorScheme, Platform, View, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { lightTheme, darkTheme } from '../src/theme';
 import { useTeamStore } from '../src/store/team-store';
 import { useMatchStore } from '../src/store/match-store';
 import { usePrefsStore } from '../src/store/prefs-store';
+import { useUserAuth } from '../src/hooks/useUserAuth';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import LoginScreen from './login';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -16,8 +18,10 @@ export default function RootLayout() {
   const loadTeams = useTeamStore(s => s.loadTeams);
   const loadMatches = useMatchStore(s => s.loadMatches);
   const loadPrefs = usePrefsStore(s => s.loadPrefs);
+  const { loadProfile, isLoading, isAuthenticated } = useUserAuth();
 
   useEffect(() => {
+    loadProfile();
     loadTeams();
     loadMatches();
     loadPrefs();
@@ -44,6 +48,38 @@ export default function RootLayout() {
       <Stack.Screen name="profile" options={{ title: 'Find My Profile', presentation: 'modal' }} />
     </Stack>
   );
+
+  if (isLoading) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <PaperProvider theme={theme}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          </View>
+        </PaperProvider>
+      </GestureHandlerRootView>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <PaperProvider theme={theme}>
+            {Platform.OS === 'web' ? (
+              <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#C8E8CA' }}>
+                <View style={{ flex: 1, width: '100%', maxWidth: 480, backgroundColor: theme.colors.background }}>
+                  <LoginScreen />
+                </View>
+              </View>
+            ) : (
+              <LoginScreen />
+            )}
+          </PaperProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

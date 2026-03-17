@@ -41,6 +41,15 @@ export async function getTeamById(id: string): Promise<Team | null> {
   return rowToTeam(row, await getPlayersForTeam(row.id));
 }
 
+export async function isTeamNameTaken(name: string, excludeTeamId?: string): Promise<boolean> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ id: string }>(
+    'SELECT id FROM teams WHERE LOWER(name) = LOWER(?) AND id != ?',
+    name, excludeTeamId ?? '',
+  );
+  return !!row;
+}
+
 export async function createTeam(
   name: string,
   shortName: string,
@@ -81,13 +90,14 @@ export async function deleteTeam(id: string): Promise<void> {
 export async function getPlayersForTeam(teamId: string): Promise<Player[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{
-    id: string; name: string; batting_style: string; bowling_style: string;
+    id: string; name: string; phone_number: string | null; batting_style: string; bowling_style: string;
     is_wicket_keeper: number; is_all_rounder: number; is_captain: number; is_vice_captain: number;
   }>('SELECT * FROM players WHERE team_id = ? ORDER BY name', teamId);
 
   return rows.map(row => ({
     id: row.id,
     name: row.name,
+    phoneNumber: row.phone_number ?? null,
     battingStyle: (row.batting_style ?? 'right') as Player['battingStyle'],
     bowlingStyle: (row.bowling_style ?? 'none') as BowlingStyle,
     isWicketKeeper: (row.is_wicket_keeper ?? 0) === 1,
@@ -97,9 +107,20 @@ export async function getPlayersForTeam(teamId: string): Promise<Player[]> {
   }));
 }
 
+/** Returns true if the phone number is already used by another player. */
+export async function isPhoneNumberTaken(phone: string, excludePlayerId?: string): Promise<boolean> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ id: string }>(
+    'SELECT id FROM players WHERE phone_number = ? AND id != ?',
+    phone, excludePlayerId ?? '',
+  );
+  return !!row;
+}
+
 export async function addPlayer(
   teamId: string,
   name: string,
+  phoneNumber: string | null = null,
   battingStyle: string = 'right',
   bowlingStyle: string = 'none',
   isWicketKeeper: boolean = false,
@@ -110,12 +131,12 @@ export async function addPlayer(
   const db = await getDatabase();
   const id = uuidv4();
   await db.runAsync(
-    'INSERT INTO players (id, team_id, name, batting_style, bowling_style, is_wicket_keeper, is_all_rounder, is_captain, is_vice_captain) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    id, teamId, name, battingStyle, bowlingStyle,
+    'INSERT INTO players (id, team_id, name, phone_number, batting_style, bowling_style, is_wicket_keeper, is_all_rounder, is_captain, is_vice_captain) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    id, teamId, name, phoneNumber ?? null, battingStyle, bowlingStyle,
     isWicketKeeper ? 1 : 0, isAllRounder ? 1 : 0, isCaptain ? 1 : 0, isViceCaptain ? 1 : 0
   );
   return {
-    id, name,
+    id, name, phoneNumber: phoneNumber ?? null,
     battingStyle: battingStyle as Player['battingStyle'],
     bowlingStyle: bowlingStyle as BowlingStyle,
     isWicketKeeper, isAllRounder, isCaptain, isViceCaptain,
@@ -125,6 +146,7 @@ export async function addPlayer(
 export async function updatePlayer(
   id: string,
   name: string,
+  phoneNumber: string | null,
   battingStyle: string,
   bowlingStyle: string,
   isWicketKeeper: boolean,
@@ -134,8 +156,8 @@ export async function updatePlayer(
 ): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    'UPDATE players SET name = ?, batting_style = ?, bowling_style = ?, is_wicket_keeper = ?, is_all_rounder = ?, is_captain = ?, is_vice_captain = ? WHERE id = ?',
-    name, battingStyle, bowlingStyle,
+    'UPDATE players SET name = ?, phone_number = ?, batting_style = ?, bowling_style = ?, is_wicket_keeper = ?, is_all_rounder = ?, is_captain = ?, is_vice_captain = ? WHERE id = ?',
+    name, phoneNumber ?? null, battingStyle, bowlingStyle,
     isWicketKeeper ? 1 : 0, isAllRounder ? 1 : 0, isCaptain ? 1 : 0, isViceCaptain ? 1 : 0, id
   );
 }
@@ -166,9 +188,9 @@ export async function importCloudTeam(team: Team): Promise<void> {
   for (const p of team.players) {
     await db.runAsync(
       `INSERT OR IGNORE INTO players
-         (id, team_id, name, batting_style, bowling_style, is_wicket_keeper, is_all_rounder, is_captain, is_vice_captain)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      p.id, team.id, p.name, p.battingStyle, p.bowlingStyle,
+         (id, team_id, name, phone_number, batting_style, bowling_style, is_wicket_keeper, is_all_rounder, is_captain, is_vice_captain)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      p.id, team.id, p.name, p.phoneNumber ?? null, p.battingStyle, p.bowlingStyle,
       p.isWicketKeeper ? 1 : 0, p.isAllRounder ? 1 : 0, p.isCaptain ? 1 : 0, p.isViceCaptain ? 1 : 0,
     );
   }

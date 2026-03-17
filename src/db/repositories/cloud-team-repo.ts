@@ -24,6 +24,7 @@ export async function publishTeam(team: Team): Promise<void> {
           id: p.id,
           team_id: team.id,
           name: p.name,
+          phone_number: p.phoneNumber ?? null,
           batting_style: p.battingStyle,
           bowling_style: p.bowlingStyle,
           is_wicket_keeper: p.isWicketKeeper,
@@ -144,6 +145,7 @@ async function fetchPlayersAndBuild(teamRows: any[]): Promise<Team[]> {
     players: (playersByTeam[row.id] ?? []).map((p: any) => ({
       id: p.id,
       name: p.name,
+      phoneNumber: p.phone_number ?? null,
       battingStyle: (p.batting_style ?? 'right') as 'right' | 'left',
       bowlingStyle: p.bowling_style ?? 'none',
       isWicketKeeper: p.is_wicket_keeper ?? false,

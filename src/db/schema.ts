@@ -22,6 +22,7 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
       id TEXT PRIMARY KEY,
       team_id TEXT NOT NULL,
       name TEXT NOT NULL,
+      phone_number TEXT,
       batting_style TEXT NOT NULL DEFAULT 'right',
       bowling_style TEXT NOT NULL DEFAULT 'none',
       is_wicket_keeper INTEGER NOT NULL DEFAULT 0,
@@ -86,6 +87,10 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
 
   try {
     await db.execAsync(`ALTER TABLE players ADD COLUMN is_vice_captain INTEGER DEFAULT 0;`);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE players ADD COLUMN phone_number TEXT;`);
   } catch { /* already exists */ }
 
   try {
