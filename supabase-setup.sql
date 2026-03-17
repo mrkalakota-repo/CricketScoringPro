@@ -1,6 +1,7 @@
 -- Gully Cricket Scorer — Supabase Cloud Setup
 -- Run this entire script in the Supabase SQL Editor
 -- Dashboard → SQL Editor → New query → paste → Run
+-- Safe to re-run: uses IF NOT EXISTS / IF NOT EXISTS on all objects.
 
 -- ── Tables ───────────────────────────────────────────────────────────────────
 
@@ -39,31 +40,38 @@ ALTER TABLE public.cloud_teams   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cloud_players ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can read teams (needed for discovery)
-CREATE POLICY "public_select_teams"
-  ON public.cloud_teams FOR SELECT USING (true);
+DO $$ BEGIN
+  CREATE POLICY "public_select_teams" ON public.cloud_teams FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- Anyone can publish their team (insert + update via upsert)
-CREATE POLICY "public_insert_teams"
-  ON public.cloud_teams FOR INSERT WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY "public_insert_teams" ON public.cloud_teams FOR INSERT WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "public_update_teams"
-  ON public.cloud_teams FOR UPDATE USING (true) WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY "public_update_teams" ON public.cloud_teams FOR UPDATE USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "public_delete_teams"
-  ON public.cloud_teams FOR DELETE USING (true);
+DO $$ BEGIN
+  CREATE POLICY "public_delete_teams" ON public.cloud_teams FOR DELETE USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- Same for players
-CREATE POLICY "public_select_players"
-  ON public.cloud_players FOR SELECT USING (true);
+DO $$ BEGIN
+  CREATE POLICY "public_select_players" ON public.cloud_players FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "public_insert_players"
-  ON public.cloud_players FOR INSERT WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY "public_insert_players" ON public.cloud_players FOR INSERT WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "public_update_players"
-  ON public.cloud_players FOR UPDATE USING (true) WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY "public_update_players" ON public.cloud_players FOR UPDATE USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "public_delete_players"
-  ON public.cloud_players FOR DELETE USING (true);
+DO $$ BEGIN
+  CREATE POLICY "public_delete_players" ON public.cloud_players FOR DELETE USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ── Vice Captain column ───────────────────────────────────────────────────────
 
@@ -78,10 +86,22 @@ CREATE TABLE IF NOT EXISTS public.delegate_codes (
 );
 
 ALTER TABLE public.delegate_codes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "public_select_delegate_codes" ON public.delegate_codes FOR SELECT USING (true);
-CREATE POLICY "public_insert_delegate_codes" ON public.delegate_codes FOR INSERT WITH CHECK (true);
-CREATE POLICY "public_update_delegate_codes" ON public.delegate_codes FOR UPDATE USING (true) WITH CHECK (true);
-CREATE POLICY "public_delete_delegate_codes" ON public.delegate_codes FOR DELETE USING (true);
+
+DO $$ BEGIN
+  CREATE POLICY "public_select_delegate_codes" ON public.delegate_codes FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_insert_delegate_codes" ON public.delegate_codes FOR INSERT WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_update_delegate_codes" ON public.delegate_codes FOR UPDATE USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_delete_delegate_codes" ON public.delegate_codes FOR DELETE USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ── Chat Messages ─────────────────────────────────────────────────────────────
 
@@ -98,5 +118,11 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_team_created
   ON public.chat_messages (team_id, created_at DESC);
 
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "public_select_chat" ON public.chat_messages FOR SELECT USING (true);
-CREATE POLICY "public_insert_chat" ON public.chat_messages FOR INSERT WITH CHECK (true);
+
+DO $$ BEGIN
+  CREATE POLICY "public_select_chat" ON public.chat_messages FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_insert_chat" ON public.chat_messages FOR INSERT WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
