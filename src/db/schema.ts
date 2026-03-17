@@ -1,10 +1,13 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
-  await db.execAsync(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA foreign_keys = ON;
+  // Run PRAGMAs separately — Android SQLite may skip subsequent statements in
+  // a multi-statement block when the first statement returns a result (like
+  // "PRAGMA journal_mode = WAL" does).
+  await db.execAsync('PRAGMA journal_mode = WAL;');
+  await db.execAsync('PRAGMA foreign_keys = ON;');
 
+  await db.execAsync(`
     CREATE TABLE IF NOT EXISTS teams (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -12,7 +15,9 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
+  `);
 
+  await db.execAsync(`
     CREATE TABLE IF NOT EXISTS players (
       id TEXT PRIMARY KEY,
       team_id TEXT NOT NULL,
@@ -23,7 +28,9 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
       is_all_rounder INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
     );
+  `);
 
+  await db.execAsync(`
     CREATE TABLE IF NOT EXISTS matches (
       id TEXT PRIMARY KEY,
       format TEXT NOT NULL,
@@ -73,6 +80,44 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
       CREATE TABLE IF NOT EXISTS user_prefs (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
+      );
+    `);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE players ADD COLUMN is_vice_captain INTEGER DEFAULT 0;`);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS leagues (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        short_name TEXT NOT NULL,
+        team_ids TEXT NOT NULL DEFAULT '[]',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    `);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS league_fixtures (
+        id TEXT PRIMARY KEY,
+        league_id TEXT NOT NULL,
+        team1_id TEXT NOT NULL,
+        team2_id TEXT NOT NULL,
+        match_id TEXT,
+        venue TEXT NOT NULL DEFAULT '',
+        scheduled_date INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'scheduled',
+        result TEXT,
+        team1_score TEXT,
+        team2_score TEXT,
+        winner_team_id TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
       );
     `);
   } catch { /* already exists */ }

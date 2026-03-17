@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, Card, Button, Avatar, useTheme, Divider, Chip, Portal, Dialog } from 'react-native-paper';
+import { Text, Card, Button, Avatar, useTheme, Divider, Chip, Portal, Dialog, TextInput, ActivityIndicator } from 'react-native-paper';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTeamStore } from '../../../src/store/team-store';
@@ -9,9 +9,12 @@ import { useAdminAuth } from '../../../src/hooks/useAdminAuth';
 import { AdminPinModal } from '../../../src/components/AdminPinModal';
 import { SetAdminPinModal } from '../../../src/components/SetAdminPinModal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { isCloudEnabled } from '../../../src/config/supabase';
+import * as delegateRepo from '../../../src/db/repositories/cloud-delegate-repo';
+import { generateDelegateCode, DELEGATE_CODE_TTL_MS } from '../../../src/utils/delegate-code';
 import type { BowlingStyle, BattingStyle } from '../../../src/engine/types';
 
-type PendingAction = 'roster' | 'edit' | 'delete' | 'setPin';
+type PendingAction = 'roster' | 'edit' | 'delete' | 'setPin' | 'delegate';
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 function bowlingIcon(style: BowlingStyle): { icon: IconName; color: string } {
@@ -41,6 +44,8 @@ export default function TeamDetailScreen() {
   const team = teams.find(t => t.id === teamId);
 
   const myTeamIds = usePrefsStore(s => s.myTeamIds);
+  const delegateTeamIds = usePrefsStore(s => s.delegateTeamIds);
+  const addDelegateTeam = usePrefsStore(s => s.addDelegateTeam);
   const isAdmin = useAdminAuth(s => s.isAdmin);
   const revoke = useAdminAuth(s => s.revoke);
 
@@ -48,6 +53,29 @@ export default function TeamDetailScreen() {
   const [showSetPinModal, setShowSetPinModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+
+  // Delegate state
+  const [showDelegateModal, setShowDelegateModal] = useState(false);
+  const [delegateCode, setDelegateCode] = useState('');
+  const [delegateExpiry, setDelegateExpiry] = useState(0);
+  const [delegateCountdown, setDelegateCountdown] = useState('');
+  const [showClaimModal, setShowClaimModal] = useState(false);
+  const [claimCode, setClaimCode] = useState('');
+  const [claimError, setClaimError] = useState('');
+  const [claimLoading, setClaimLoading] = useState(false);
+
+  // Countdown timer for delegate code
+  useEffect(() => {
+    if (!delegateExpiry) return;
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, delegateExpiry - Date.now());
+      if (remaining === 0) { setDelegateCode(''); setDelegateExpiry(0); setDelegateCountdown(''); clearInterval(interval); return; }
+      const m = Math.floor(remaining / 60000);
+      const s = Math.floor((remaining % 60000) / 1000);
+      setDelegateCountdown(`${m}:${s.toString().padStart(2, '0')}`);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [delegateExpiry]);
 
   if (!team) {
     return (
@@ -58,8 +86,9 @@ export default function TeamDetailScreen() {
     );
   }
 
-  // Only the creating device can edit — cloud-imported teams are read-only
   const isMyTeam = myTeamIds.includes(team.id);
+  const isDelegate = !isMyTeam && delegateTeamIds.includes(team.id);
+  const hasEditAccess = isMyTeam || isDelegate;
   const adminUnlocked = isMyTeam && isAdmin(team.id, team.adminPinHash);
 
   const requireAdmin = (action: PendingAction, callback: () => void) => {
@@ -79,6 +108,35 @@ export default function TeamDetailScreen() {
     else if (action === 'edit') router.push(`/team/${teamId}/edit`);
     else if (action === 'setPin') setShowSetPinModal(true);
     else if (action === 'delete') setShowDeleteDialog(true);
+    else if (action === 'delegate') handleGenerateCode();
+  };
+
+  const handleGenerateCode = async () => {
+    const code = generateDelegateCode();
+    const expiry = Date.now() + DELEGATE_CODE_TTL_MS;
+    setDelegateCode(code);
+    setDelegateExpiry(expiry);
+    try { await delegateRepo.publishDelegateCode(team.id, code, expiry); } catch { /* ignore */ }
+    setShowDelegateModal(true);
+  };
+
+  const handleClaimCode = async () => {
+    setClaimError('');
+    setClaimLoading(true);
+    try {
+      const ok = await delegateRepo.fetchAndClaimDelegateCode(team.id, claimCode.trim());
+      if (ok) {
+        await addDelegateTeam(team.id);
+        setShowClaimModal(false);
+        setClaimCode('');
+      } else {
+        setClaimError('Invalid or expired code. Ask the team admin for a new one.');
+      }
+    } catch {
+      setClaimError('Could not verify code. Check your connection.');
+    } finally {
+      setClaimLoading(false);
+    }
   };
 
   const doDelete = async () => {
@@ -109,6 +167,66 @@ export default function TeamDetailScreen() {
         onDismiss={() => setShowSetPinModal(false)}
       />
 
+      {/* Delegate Code Modal (creator shows code) */}
+      <Portal>
+        <Dialog visible={showDelegateModal} onDismiss={() => setShowDelegateModal(false)}>
+          <Dialog.Title>Delegate Access Code</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 12 }}>
+              Share this code with someone to grant them editor access to {team.name}. Expires in:
+            </Text>
+            <View style={{ alignItems: 'center', padding: 16 }}>
+              <Text style={{ fontSize: 36, fontWeight: '900', letterSpacing: 8, color: theme.colors.primary }}>
+                {delegateCode}
+              </Text>
+              {!!delegateCountdown && (
+                <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 8 }}>{delegateCountdown} remaining</Text>
+              )}
+            </View>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowDelegateModal(false)}>Done</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        {/* Claim Code Modal (delegate enters code) */}
+        <Dialog visible={showClaimModal} onDismiss={() => { setShowClaimModal(false); setClaimCode(''); setClaimError(''); }}>
+          <Dialog.Title>Enter Delegate Code</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 12 }}>
+              Ask the team creator for a 6-character code to get editor access.
+            </Text>
+            {!isCloudEnabled && (
+              <Text variant="bodySmall" style={{ color: theme.colors.error, marginBottom: 8 }}>
+                Cloud sync required. Add Supabase credentials to .env to use this feature.
+              </Text>
+            )}
+            <TextInput
+              label="Code"
+              value={claimCode}
+              onChangeText={t => { setClaimCode(t.toUpperCase()); setClaimError(''); }}
+              mode="outlined"
+              autoCapitalize="characters"
+              maxLength={6}
+              style={{ fontFamily: 'monospace', letterSpacing: 4 }}
+            />
+            {!!claimError && (
+              <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 8 }}>{claimError}</Text>
+            )}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => { setShowClaimModal(false); setClaimCode(''); setClaimError(''); }}>Cancel</Button>
+            <Button
+              mode="contained"
+              onPress={handleClaimCode}
+              disabled={claimCode.length < 6 || claimLoading || !isCloudEnabled}
+            >
+              {claimLoading ? <ActivityIndicator size={16} color="#fff" /> : 'Verify'}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
       {/* Delete confirm dialog */}
       <Portal>
         <Dialog visible={showDeleteDialog} onDismiss={() => setShowDeleteDialog(false)}>
@@ -135,14 +253,33 @@ export default function TeamDetailScreen() {
         />
         <Text variant="headlineSmall" style={styles.teamName}>{team.name}</Text>
         <Text variant="bodyMedium" style={styles.shortName}>{team.shortName}</Text>
-        {!isMyTeam ? (
+        {!hasEditAccess ? (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+            <Chip
+              compact icon="eye-outline"
+              textStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.9)' }}
+              style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+            >
+              View Only
+            </Chip>
+            {!isDelegate && (
+              <Chip
+                compact icon="account-key"
+                textStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.9)' }}
+                style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+                onPress={() => setShowClaimModal(true)}
+              >
+                Claim Access
+              </Chip>
+            )}
+          </View>
+        ) : isDelegate ? (
           <Chip
-            compact
-            icon="eye-outline"
-            textStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.9)' }}
-            style={{ marginTop: 8, backgroundColor: 'rgba(255,255,255,0.2)' }}
+            compact icon="account-key"
+            textStyle={{ fontSize: 10, color: '#2E7D32' }}
+            style={{ marginTop: 8, backgroundColor: '#E8F5E9' }}
           >
-            View Only
+            Delegate Access
           </Chip>
         ) : team.adminPinHash ? (
           <Chip
@@ -157,27 +294,39 @@ export default function TeamDetailScreen() {
         ) : null}
       </View>
 
-      {/* Actions — only shown for owned teams */}
-      {isMyTeam && (
-        <View style={styles.actions}>
-          <Button
-            mode="contained"
-            icon="account-plus"
-            onPress={() => requireAdmin('roster', () => router.push(`/team/${teamId}/roster`))}
-            style={styles.actionButton}
-          >
-            Manage Roster
-          </Button>
+      {/* Actions */}
+      <View style={styles.actions}>
+        {hasEditAccess && (
+          <>
+            <Button
+              mode="contained"
+              icon="account-plus"
+              onPress={() => isDelegate ? router.push(`/team/${teamId}/roster`) : requireAdmin('roster', () => router.push(`/team/${teamId}/roster`))}
+              style={styles.actionButton}
+            >
+              Manage Roster
+            </Button>
+            <Button
+              mode="outlined"
+              icon="pencil"
+              onPress={() => isDelegate ? router.push(`/team/${teamId}/edit`) : requireAdmin('edit', () => router.push(`/team/${teamId}/edit`))}
+              style={styles.actionButton}
+            >
+              Edit Team
+            </Button>
+          </>
+        )}
+        {isCloudEnabled && (
           <Button
             mode="outlined"
-            icon="pencil"
-            onPress={() => requireAdmin('edit', () => router.push(`/team/${teamId}/edit`))}
+            icon="chat"
+            onPress={() => router.push(`/chat/${teamId}`)}
             style={styles.actionButton}
           >
-            Edit Team
+            Team Chat
           </Button>
-        </View>
-      )}
+        )}
+      </View>
 
       <Divider style={{ marginHorizontal: 16 }} />
 
@@ -195,11 +344,11 @@ export default function TeamDetailScreen() {
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>
               No players added yet
             </Text>
-            {isMyTeam && (
+            {hasEditAccess && (
               <Button
                 mode="contained"
                 icon="account-plus"
-                onPress={() => requireAdmin('roster', () => router.push(`/team/${teamId}/roster`))}
+                onPress={() => isDelegate ? router.push(`/team/${teamId}/roster`) : requireAdmin('roster', () => router.push(`/team/${teamId}/roster`))}
                 style={{ marginTop: 12 }}
               >
                 Add Players
@@ -226,6 +375,12 @@ export default function TeamDetailScreen() {
                       <View style={[styles.roleBadge, { backgroundColor: '#FFF3E0' }]}>
                         <MaterialCommunityIcons name="crown" size={11} color="#E65100" />
                         <Text style={[styles.roleBadgeText, { color: '#E65100' }]}>C</Text>
+                      </View>
+                    )}
+                    {!!item.isViceCaptain && (
+                      <View style={[styles.roleBadge, { backgroundColor: '#FFF8E1' }]}>
+                        <MaterialCommunityIcons name="crown-outline" size={11} color="#F9A825" />
+                        <Text style={[styles.roleBadgeText, { color: '#F9A825' }]}>VC</Text>
                       </View>
                     )}
                     {!!item.isWicketKeeper && (
@@ -265,24 +420,36 @@ export default function TeamDetailScreen() {
         }}
       />
 
-      {/* Admin Footer — only shown for owned teams */}
-      {isMyTeam && (
+      {/* Admin Footer */}
+      {hasEditAccess && (
         <View style={[styles.adminSection, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button
-            mode="text"
-            icon={team.adminPinHash ? 'shield-edit' : 'shield-plus'}
-            onPress={() => requireAdmin('setPin', () => setShowSetPinModal(true))}
-          >
-            {team.adminPinHash ? 'Change PIN' : 'Set PIN'}
-          </Button>
-          <Button
-            mode="text"
-            textColor={theme.colors.error}
-            icon="delete"
-            onPress={() => requireAdmin('delete', () => setShowDeleteDialog(true))}
-          >
-            Delete Team
-          </Button>
+          {isMyTeam && (
+            <>
+              <Button
+                mode="text"
+                icon={team.adminPinHash ? 'shield-edit' : 'shield-plus'}
+                onPress={() => requireAdmin('setPin', () => setShowSetPinModal(true))}
+              >
+                {team.adminPinHash ? 'Change PIN' : 'Set PIN'}
+              </Button>
+              <Button
+                mode="text"
+                icon="account-key"
+                onPress={() => requireAdmin('delegate', () => handleGenerateCode())}
+                disabled={!isCloudEnabled}
+              >
+                Delegate Code
+              </Button>
+              <Button
+                mode="text"
+                textColor={theme.colors.error}
+                icon="delete"
+                onPress={() => requireAdmin('delete', () => setShowDeleteDialog(true))}
+              >
+                Delete
+              </Button>
+            </>
+          )}
         </View>
       )}
     </View>

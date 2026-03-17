@@ -48,6 +48,7 @@ export default function RosterScreen() {
   const [isKeeper, setIsKeeper] = useState(false);
   const [isAllRounder, setIsAllRounder] = useState(false);
   const [isCaptain, setIsCaptain] = useState(false);
+  const [isViceCaptain, setIsViceCaptain] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -64,6 +65,7 @@ export default function RosterScreen() {
     setIsKeeper(false);
     setIsAllRounder(false);
     setIsCaptain(false);
+    setIsViceCaptain(false);
     setShowForm(false);
     setAddError(null);
   };
@@ -74,7 +76,7 @@ export default function RosterScreen() {
     if (!teamId) return;
     setAddError(null);
     try {
-      await addPlayer(teamId, trimmedName, battingStyle, BOWLING_STYLES[bowlingStyleIndex], isKeeper, isAllRounder, isCaptain);
+      await addPlayer(teamId, trimmedName, battingStyle, BOWLING_STYLES[bowlingStyleIndex], isKeeper, isAllRounder, isCaptain, isViceCaptain);
       resetForm();
     } catch (err) {
       setAddError('Could not add player. Please try again.');
@@ -179,6 +181,11 @@ export default function RosterScreen() {
             </View>
 
             <View style={styles.toggleRow}>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Vice Captain</Text>
+              <Switch value={isViceCaptain} onValueChange={setIsViceCaptain} />
+            </View>
+
+            <View style={styles.toggleRow}>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Wicket Keeper</Text>
               <Switch value={isKeeper} onValueChange={setIsKeeper} />
             </View>
@@ -223,6 +230,12 @@ export default function RosterScreen() {
                     <View style={[styles.roleBadge, { backgroundColor: '#FFF3E0' }]}>
                       <MaterialCommunityIcons name="crown" size={11} color="#E65100" />
                       <Text style={[styles.roleBadgeText, { color: '#E65100' }]}>C</Text>
+                    </View>
+                  )}
+                  {!!item.isViceCaptain && (
+                    <View style={[styles.roleBadge, { backgroundColor: '#FFF8E1' }]}>
+                      <MaterialCommunityIcons name="crown-outline" size={11} color="#F9A825" />
+                      <Text style={[styles.roleBadgeText, { color: '#F9A825' }]}>VC</Text>
                     </View>
                   )}
                   {!!item.isWicketKeeper && (

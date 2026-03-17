@@ -29,6 +29,7 @@ export async function publishTeam(team: Team): Promise<void> {
           is_wicket_keeper: p.isWicketKeeper,
           is_all_rounder: p.isAllRounder,
           is_captain: p.isCaptain,
+          is_vice_captain: p.isViceCaptain,
         }))
       );
       if (pe) throw pe;
@@ -148,6 +149,7 @@ async function fetchPlayersAndBuild(teamRows: any[]): Promise<Team[]> {
       isWicketKeeper: p.is_wicket_keeper ?? false,
       isAllRounder: p.is_all_rounder ?? false,
       isCaptain: p.is_captain ?? false,
+      isViceCaptain: p.is_vice_captain ?? false,
     })),
     createdAt: row.updated_at ?? Date.now(),
     updatedAt: row.updated_at ?? Date.now(),

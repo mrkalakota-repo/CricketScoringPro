@@ -47,6 +47,7 @@ export default function PlayerProfileScreen() {
   const [editIsKeeper, setEditIsKeeper] = useState(false);
   const [editIsAllRounder, setEditIsAllRounder] = useState(false);
   const [editIsCaptain, setEditIsCaptain] = useState(false);
+  const [editIsViceCaptain, setEditIsViceCaptain] = useState(false);
   const [saveError, setSaveError] = useState('');
 
   let player = null as (typeof teams)[0]['players'][0] | null;
@@ -63,6 +64,7 @@ export default function PlayerProfileScreen() {
     setEditIsKeeper(player.isWicketKeeper);
     setEditIsAllRounder(player.isAllRounder);
     setEditIsCaptain(player.isCaptain);
+    setEditIsViceCaptain(player.isViceCaptain);
     setSaveError('');
     setEditing(true);
   };
@@ -74,7 +76,7 @@ export default function PlayerProfileScreen() {
       await updatePlayer(
         player.id, player.name, editBatStyle,
         BOWLING_STYLES[editBowlIndex],
-        editIsKeeper, editIsAllRounder, editIsCaptain
+        editIsKeeper, editIsAllRounder, editIsCaptain, editIsViceCaptain
       );
       setEditing(false);
     } catch {
@@ -117,6 +119,9 @@ export default function PlayerProfileScreen() {
           <View style={styles.badges}>
             {player.isCaptain && (
               <Chip compact icon="crown" style={{ backgroundColor: '#FFF3E0' }} textStyle={{ color: '#E65100', fontSize: 11 }}>Captain</Chip>
+            )}
+            {player.isViceCaptain && (
+              <Chip compact icon="crown-outline" style={{ backgroundColor: '#FFF8E1' }} textStyle={{ color: '#F9A825', fontSize: 11 }}>Vice Captain</Chip>
             )}
             {player.isWicketKeeper && (
               <Chip compact icon="shield-account" style={{ backgroundColor: 'rgba(255,255,255,0.25)' }} textStyle={{ color: '#FFF', fontSize: 11 }}>Wicket Keeper</Chip>
@@ -213,6 +218,13 @@ export default function PlayerProfileScreen() {
                     <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Captain</Text>
                   </View>
                   <Switch value={editIsCaptain} onValueChange={setEditIsCaptain} />
+                </View>
+                <View style={styles.toggleRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <MaterialCommunityIcons name="crown-outline" size={16} color="#F9A825" />
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Vice Captain</Text>
+                  </View>
+                  <Switch value={editIsViceCaptain} onValueChange={setEditIsViceCaptain} />
                 </View>
                 <View style={styles.toggleRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
