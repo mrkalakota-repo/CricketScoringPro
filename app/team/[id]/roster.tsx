@@ -90,22 +90,23 @@ export default function RosterScreen() {
     if (!trimmedName) return;
     if (!teamId) return;
 
-    // Validate phone uniqueness
-    if (trimmedPhone) {
-      if (!/^\+?[0-9]{7,15}$/.test(trimmedPhone.replace(/\s/g, ''))) {
-        setAddError('Enter a valid phone number or leave it blank.');
-        return;
-      }
-      const taken = await teamRepo.isPhoneNumberTaken(trimmedPhone);
-      if (taken) {
-        setAddError('This phone number is already linked to another player.');
-        return;
-      }
-    }
-
     setAddError(null);
     setAddBusy(true);
     try {
+      // Validate phone uniqueness inside try so any DB error is caught
+      if (trimmedPhone) {
+        if (!/^\+?[0-9]{7,15}$/.test(trimmedPhone.replace(/\s/g, ''))) {
+          setAddError('Enter a valid phone number or leave it blank.');
+          setAddBusy(false);
+          return;
+        }
+        const taken = await teamRepo.isPhoneNumberTaken(trimmedPhone);
+        if (taken) {
+          setAddError('This phone number is already linked to another player.');
+          setAddBusy(false);
+          return;
+        }
+      }
       await addPlayer(
         teamId, trimmedName, trimmedPhone || null,
         battingStyle, BOWLING_STYLES[bowlingStyleIndex],

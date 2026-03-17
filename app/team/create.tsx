@@ -54,12 +54,11 @@ export default function CreateTeamScreen() {
       if (pin !== confirmPin) { setError('PINs do not match'); return; }
     }
 
-    // Check for duplicate team name
-    const nameTaken = await teamRepo.isTeamNameTaken(name.trim());
-    if (nameTaken) { setError('A team with this name already exists'); return; }
-
     setBusy(true);
     try {
+      // Check for duplicate team name
+      const nameTaken = await teamRepo.isTeamNameTaken(name.trim());
+      if (nameTaken) { setError('A team with this name already exists'); setBusy(false); return; }
       const team = await createTeam(
         name.trim(), shortName.trim().toUpperCase(),
         teamLocation?.latitude ?? null, teamLocation?.longitude ?? null,

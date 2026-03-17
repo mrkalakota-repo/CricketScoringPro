@@ -24,6 +24,7 @@ export async function publishTeam(team: Team): Promise<void> {
           id: p.id,
           team_id: team.id,
           name: p.name,
+          phone_number: p.phoneNumber ?? null,
           batting_style: p.battingStyle,
           bowling_style: p.bowlingStyle,
           is_wicket_keeper: p.isWicketKeeper,

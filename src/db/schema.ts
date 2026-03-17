@@ -22,6 +22,7 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
       id TEXT PRIMARY KEY,
       team_id TEXT NOT NULL,
       name TEXT NOT NULL,
+      phone_number TEXT,
       batting_style TEXT NOT NULL DEFAULT 'right',
       bowling_style TEXT NOT NULL DEFAULT 'none',
       is_wicket_keeper INTEGER NOT NULL DEFAULT 0,
