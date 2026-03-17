@@ -8,6 +8,7 @@ const PLAYERS_KEY = 'csp_players';
 
 interface StoredPlayer extends Player {
   teamId: string;
+  phoneNumber: string | null;
 }
 
 function getTeams(): Team[] {
@@ -31,10 +32,15 @@ function setPlayers(players: StoredPlayer[]): void {
 function toPlayer({ teamId: _t, ...p }: StoredPlayer): Player {
   return {
     ...p,
+    phoneNumber: p.phoneNumber ?? null,
     isAllRounder: p.isAllRounder ?? false,
     isCaptain: p.isCaptain ?? false,
     isViceCaptain: p.isViceCaptain ?? false,
   };
+}
+
+export async function isPhoneNumberTaken(phone: string, excludePlayerId?: string): Promise<boolean> {
+  return getPlayers().some(p => p.phoneNumber === phone && p.id !== (excludePlayerId ?? ''));
 }
 
 export async function getAllTeams(): Promise<Team[]> {
@@ -59,6 +65,12 @@ export async function getTeamById(id: string): Promise<Team | null> {
     longitude: team.longitude ?? null,
     players: getPlayers().filter(p => p.teamId === id).map(toPlayer),
   };
+}
+
+export async function isTeamNameTaken(name: string, excludeTeamId?: string): Promise<boolean> {
+  return getTeams().some(t =>
+    t.name.toLowerCase() === name.toLowerCase() && t.id !== (excludeTeamId ?? '')
+  );
 }
 
 export async function createTeam(
@@ -95,6 +107,7 @@ export async function getPlayersForTeam(teamId: string): Promise<Player[]> {
 export async function addPlayer(
   teamId: string,
   name: string,
+  phoneNumber: string | null = null,
   battingStyle: string = 'right',
   bowlingStyle: string = 'none',
   isWicketKeeper: boolean = false,
@@ -104,7 +117,7 @@ export async function addPlayer(
 ): Promise<Player> {
   const players = getPlayers();
   const stored: StoredPlayer = {
-    id: uuidv4(), name,
+    id: uuidv4(), name, phoneNumber: phoneNumber ?? null,
     battingStyle: battingStyle as Player['battingStyle'],
     bowlingStyle: bowlingStyle as BowlingStyle,
     isWicketKeeper, isAllRounder, isCaptain, isViceCaptain,
@@ -118,6 +131,7 @@ export async function addPlayer(
 export async function updatePlayer(
   id: string,
   name: string,
+  phoneNumber: string | null,
   battingStyle: string,
   bowlingStyle: string,
   isWicketKeeper: boolean,
@@ -127,7 +141,7 @@ export async function updatePlayer(
 ): Promise<void> {
   setPlayers(getPlayers().map(p =>
     p.id === id
-      ? { ...p, name, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle: bowlingStyle as BowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain }
+      ? { ...p, name, phoneNumber: phoneNumber ?? null, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle: bowlingStyle as BowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain }
       : p
   ));
 }
@@ -156,7 +170,7 @@ export async function importCloudTeam(team: Team): Promise<void> {
   const existingPlayerIds = new Set(players.map(p => p.id));
   const newPlayers = team.players
     .filter(p => !existingPlayerIds.has(p.id))
-    .map(p => ({ ...p, teamId: team.id }));
+    .map(p => ({ ...p, phoneNumber: p.phoneNumber ?? null, teamId: team.id }));
   if (newPlayers.length > 0) {
     setPlayers([...players, ...newPlayers]);
   }

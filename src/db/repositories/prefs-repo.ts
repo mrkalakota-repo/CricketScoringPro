@@ -62,6 +62,32 @@ export async function removeDelegateTeamId(teamId: string): Promise<void> {
   await setStringPref(DELEGATE_TEAM_IDS_KEY, JSON.stringify(ids.filter(id => id !== teamId)));
 }
 
+// ── User Profile ──────────────────────────────────────────────────────────────
+
+const USER_PROFILE_KEY = 'user_profile';
+
+export interface StoredUserProfile {
+  phone: string;
+  name: string;
+  pinHash: string;
+}
+
+export async function getUserProfile(): Promise<StoredUserProfile | null> {
+  try {
+    const raw = await getStringPref(USER_PROFILE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+export async function setUserProfile(profile: StoredUserProfile): Promise<void> {
+  await setStringPref(USER_PROFILE_KEY, JSON.stringify(profile));
+}
+
+export async function clearUserProfile(): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM user_prefs WHERE key = ?', [USER_PROFILE_KEY]);
+}
+
 // ── Chat Identity ─────────────────────────────────────────────────────────────
 
 export async function getChatIdentity(teamId: string): Promise<{ playerId: string; playerName: string } | null> {

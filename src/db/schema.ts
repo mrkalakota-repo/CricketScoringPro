@@ -89,6 +89,10 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
   } catch { /* already exists */ }
 
   try {
+    await db.execAsync(`ALTER TABLE players ADD COLUMN phone_number TEXT;`);
+  } catch { /* already exists */ }
+
+  try {
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS leagues (
         id TEXT PRIMARY KEY,

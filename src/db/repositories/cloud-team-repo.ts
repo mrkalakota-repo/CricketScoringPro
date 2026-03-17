@@ -144,6 +144,7 @@ async function fetchPlayersAndBuild(teamRows: any[]): Promise<Team[]> {
     players: (playersByTeam[row.id] ?? []).map((p: any) => ({
       id: p.id,
       name: p.name,
+      phoneNumber: p.phone_number ?? null,
       battingStyle: (p.batting_style ?? 'right') as 'right' | 'left',
       bowlingStyle: p.bowling_style ?? 'none',
       isWicketKeeper: p.is_wicket_keeper ?? false,

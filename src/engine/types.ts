@@ -57,12 +57,20 @@ export type PlayerRole = 'batter' | 'bowler' | 'allrounder' | 'wicket-keeper';
 export interface Player {
   id: string;
   name: string;
+  phoneNumber?: string | null; // Unique across all players — used as cross-team identity key
   battingStyle: BattingStyle;
   bowlingStyle: BowlingStyle;
   isWicketKeeper: boolean;
   isAllRounder: boolean;
   isCaptain: boolean;
   isViceCaptain: boolean;
+}
+
+/** Logged-in user profile stored locally */
+export interface UserProfile {
+  phone: string;
+  name: string;
+  pinHash: string; // SHA-256 of the user's PIN
 }
 
 export interface Team {

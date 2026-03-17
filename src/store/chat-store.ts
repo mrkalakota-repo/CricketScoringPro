@@ -40,13 +40,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   sendMessage: async (teamId, text) => {
     const identity = get().identity[teamId];
     if (!identity) return;
-    // Optimistic append
-    const optimistic: ChatMessage = {
-      id: `opt_${Date.now()}`,
-      teamId, playerId: identity.playerId, playerName: identity.playerName,
-      text, createdAt: Date.now(),
-    };
-    get().appendMessage(teamId, optimistic);
+    // No optimistic append — the Supabase real-time subscription will echo
+    // the insert back to all clients (including the sender), which is the
+    // canonical delivery path. Optimistic appends caused duplicate messages
+    // because the opt_ id never matched the server-generated UUID.
     await chatRepo.sendMessage(teamId, identity.playerId, identity.playerName, text);
   },
 
