@@ -179,3 +179,31 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN
   CREATE POLICY "public_delete_live" ON public.live_matches FOR DELETE USING (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ── User Profiles (cross-device login) ────────────────────────────────────────
+-- Stores phone + name + SHA-256 PIN hash so a user can restore their profile
+-- on a new device by entering their phone number and PIN.
+-- NOTE: PIN hashes are readable by anyone with the anon key. 4–6 digit PINs
+-- have a small keyspace — this is acceptable for a low-stakes community app
+-- but should be upgraded (e.g. bcrypt via a Postgres function) for production.
+
+CREATE TABLE IF NOT EXISTS public.user_profiles (
+  phone      TEXT             PRIMARY KEY,
+  name       TEXT             NOT NULL,
+  pin_hash   TEXT             NOT NULL,
+  updated_at BIGINT           NOT NULL DEFAULT 0
+);
+
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "public_select_user_profiles" ON public.user_profiles FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_insert_user_profiles" ON public.user_profiles FOR INSERT WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_update_user_profiles" ON public.user_profiles FOR UPDATE USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
