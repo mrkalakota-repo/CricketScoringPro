@@ -287,7 +287,22 @@ export class MatchEngine {
         }
       }
 
-      // Handle legal ball count and over completion
+      // ── Strike rotation on odd runs (always, before over-completion swap) ──
+      // For no-ball: only bat runs count (NB penalty doesn't cross batsmen)
+      // For wide: no bat runs, no rotation
+      {
+        const runsForRotation = isWide ? 0 : (isNoBall ? runsOffBat : totalRuns);
+        if (runsForRotation % 2 === 1) {
+          const temp = inn.currentStrikerId;
+          inn.currentStrikerId = inn.currentNonStrikerId;
+          inn.currentNonStrikerId = temp;
+          inn.batters.forEach(b => {
+            b.isOnStrike = b.playerId === inn.currentStrikerId;
+          });
+        }
+      }
+
+      // ── Legal ball count and over completion ──
       if (isLegal) {
         inn.totalBalls += 1;
 
@@ -324,21 +339,7 @@ export class MatchEngine {
           inn.totalBalls = 0;
           inn.currentBowlerId = null; // Must be set for next over
 
-          // Rotate strike at end of over
-          const temp = inn.currentStrikerId;
-          inn.currentStrikerId = inn.currentNonStrikerId;
-          inn.currentNonStrikerId = temp;
-          // Update batter isOnStrike
-          inn.batters.forEach(b => {
-            b.isOnStrike = b.playerId === inn.currentStrikerId;
-          });
-        }
-      }
-
-      // Rotate strike on odd runs (if over not just completed)
-      if (inn.totalBalls !== 0 || !isLegal) {
-        const shouldRotate = isWide ? false : (totalRuns % 2 === 1);
-        if (shouldRotate) {
+          // Rotate strike at end of over (separate from odd-run rotation)
           const temp = inn.currentStrikerId;
           inn.currentStrikerId = inn.currentNonStrikerId;
           inn.currentNonStrikerId = temp;
@@ -350,30 +351,33 @@ export class MatchEngine {
 
       // Handle wicket
       if (dismissal) {
-        inn.totalWickets += 1;
+        // retired_hurt is NOT a wicket (batter retires but can return; doesn't count against 10)
+        if (dismissal.type !== 'retired_hurt') {
+          inn.totalWickets += 1;
 
-        // Record fall of wicket
-        inn.fallOfWickets.push({
-          wicketNumber: inn.totalWickets,
-          runs: inn.totalRuns,
-          overs: inn.totalOvers,
-          ballsInOver: inn.totalBalls,
-          playerId: dismissal.batsmanId,
-          dismissal,
-        });
+          // Record fall of wicket
+          inn.fallOfWickets.push({
+            wicketNumber: inn.totalWickets,
+            runs: inn.totalRuns,
+            overs: inn.totalOvers,
+            ballsInOver: inn.totalBalls,
+            playerId: dismissal.batsmanId,
+            dismissal,
+          });
+        }
 
-        // Mark batter as dismissed
+        // Mark batter as dismissed (always, including retired_hurt)
         const dismissedBatter = inn.batters.find(b => b.playerId === dismissal!.batsmanId);
         if (dismissedBatter) {
           dismissedBatter.dismissal = dismissal;
           dismissedBatter.isOnStrike = false;
         }
 
-        // If dismissed batter was striker, new batter takes strike
+        // If dismissed batter was the original striker (before this ball), new batter takes strike
         if (dismissal.batsmanId === ballOutcome.batsmanId) {
           inn.currentStrikerId = null; // Must be set by caller
         } else {
-          // Non-striker run out
+          // Non-striker dismissed (e.g. run out)
           inn.currentNonStrikerId = null;
         }
       }

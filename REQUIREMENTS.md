@@ -25,6 +25,9 @@
 16. [Player Profile Screen](#16-player-profile-screen)
 17. [Admin Auth & PIN System](#17-admin-auth--pin-system)
 18. [Location & Proximity](#18-location--proximity)
+18a. [Live Match Scores (Proximity Broadcast)](#18a-live-match-scores-proximity-broadcast)
+18b. [Delegate Team Access](#18b-delegate-team-access)
+18c. [Real-Time Team Chat](#18c-real-time-team-chat)
 19. [Error Handling](#19-error-handling)
 20. [Data Persistence](#20-data-persistence)
 21. [Navigation Structure](#21-navigation-structure)
@@ -88,14 +91,18 @@ npm test             # Jest unit tests
 | Name | Text, max 50 characters |
 | Batting style | `right` (Right-hand) / `left` (Left-hand) |
 | Bowling style | `none`, `Right-arm fast`, `Right-arm medium`, `Right-arm off-break`, `Right-arm leg-break`, `Left-arm fast`, `Left-arm medium`, `Left-arm orthodox`, `Left-arm chinaman` |
-| Captain | Boolean flag |
+| Captain | Boolean flag (at most one per team) |
+| Vice-captain | Boolean flag (at most one per team; mutually exclusive with Captain) |
 | Wicket-keeper | Boolean flag |
 | All-rounder | Boolean flag |
+| Phone number | Optional — used as cross-team identity key for player discovery |
 
 ### 3.2 Roster Management
 - Add players to a team (requires admin auth if PIN set)
 - Delete players from a team (requires admin auth)
 - Edit player batting/bowling style and role flags
+- Assigning Captain clears any existing captain; assigning Vice-captain clears any existing vice-captain
+- Phone number must be unique within the team (enforced at entry)
 - View player career stats
 
 ### 3.3 Player Codes
@@ -373,6 +380,63 @@ scheduled → toss → in_progress → completed
 
 ---
 
+## 18a. Live Match Scores (Proximity Broadcast)
+
+Live scores from nearby matches are visible to all users within 50 miles, updated ball-by-ball.
+
+### How it works
+1. When a scorer records a ball (or undoes, starts innings, declares), the match state is published to Supabase `live_matches` table
+2. Any user within 50 miles sees a **Nearby Matches** card on the Home screen, updated in real-time via Supabase `postgres_changes` subscription
+3. Matches older than 24 hours are excluded; up to 20 matches shown at once
+4. Location is the team's stored latitude/longitude (either team1 or team2 — whichever has coordinates)
+
+### Displayed per match
+- Team names (short codes and full)
+- Format badge
+- Current score (runs/wickets) and overs
+- Batting team indicator
+- Target (if second innings)
+- Match status (LIVE / TOSS / RESULT) and result string (if completed)
+
+### Requirements
+- `isCloudEnabled` must be true (valid Supabase credentials in `.env`)
+- `live_matches` table must exist in Supabase (run `supabase-setup.sql`)
+- Location permission must be granted on the viewer's device
+- Errors (e.g., table not yet created — PGRST205) are silently swallowed; feature degrades gracefully
+
+---
+
+## 18b. Delegate Team Access
+
+Allows a non-owner to gain editor access to a team without knowing the full admin PIN.
+
+### Flow
+1. **Owner** (must be admin-unlocked) generates a 6-character delegate code
+2. Code stored in Supabase `delegate_codes` table with 10-minute TTL; shown on screen
+3. **Another device** enters the code on the Teams tab → code verified (and deleted — single use)
+4. On success, the team ID is saved to `delegateTeamIds` in local prefs → grants editor access identical to `isMyTeam`
+
+### Requirements
+- Requires `isCloudEnabled` — code exchange uses Supabase
+- Codes are single-use and time-limited (10 min)
+- Delegate access is device-local (stored in `user_prefs`), not propagated to cloud
+
+---
+
+## 18c. Real-Time Team Chat
+
+Per-team in-app chat visible to any device that can see the team.
+
+### Requirements
+- Powered by Supabase `chat_messages` table with `postgres_changes` real-time subscription
+- Messages stored with: team_id, player_id, player_name, text, created_at (BIGINT epoch ms)
+- Last 100 messages fetched on open; new messages arrive via real-time channel
+- Requires `isCloudEnabled`
+- Chat is unauthenticated by design (anon key); suitable for casual coordination
+- Indexed on `(team_id, created_at DESC)` for fast team-scoped queries
+
+---
+
 ## 19. Error Handling
 
 - Inline error messages (not Alert.alert) for form validation failures
@@ -385,27 +449,53 @@ scheduled → toss → in_progress → completed
 
 ## 20. Data Persistence
 
-### Database Schema
+### SQLite Schema (device-local)
 
 ```sql
 teams(id, name, short_name, admin_pin_hash, latitude, longitude, created_at, updated_at)
 
 players(id, team_id, name, batting_style, bowling_style,
-        is_wicket_keeper, is_all_rounder, is_captain)
+        is_wicket_keeper, is_all_rounder, is_captain, is_vice_captain)
 
 matches(id, format, config_json, status, team1_id, team2_id,
         team1_playing_xi, team2_playing_xi, toss_json, venue,
         match_date, result, match_state_json, created_at, updated_at)
 
 user_prefs(key TEXT PRIMARY KEY, value TEXT)
+
+leagues(id, name, short_name, team_ids TEXT, created_at, updated_at)
+
+league_fixtures(id, league_id, team1_id, team2_id, match_id, venue,
+                scheduled_date, status, result, team1_score, team2_score,
+                winner_team_id, created_at, updated_at)
+```
+
+### Supabase Schema (cloud — run `supabase-setup.sql`)
+
+```sql
+cloud_teams(id, name, short_name, latitude, longitude, updated_at)
+
+cloud_players(id, team_id, name, batting_style, bowling_style,
+              is_wicket_keeper, is_all_rounder, is_captain,
+              is_vice_captain, phone_number)
+
+delegate_codes(team_id PRIMARY KEY, code, expires_at)
+
+chat_messages(id UUID, team_id, player_id, player_name, text, created_at BIGINT)
+
+live_matches(id, team1_name, team1_short, team2_name, team2_short, format,
+             venue, status, innings_num, batting_short, score, wickets,
+             overs, balls, target, result, latitude, longitude, updated_at BIGINT)
 ```
 
 ### Notes
-- `user_prefs` stores `myTeamIds` (JSON array) — device-local team ownership
+- `user_prefs` stores `myTeamIds` and `delegateTeamIds` (JSON arrays) — device-local ownership/access
 - Full match engine state serialized into `match_state_json` (enables resume + undo persist)
 - Migrations use `ALTER TABLE ... ADD COLUMN` wrapped in try/catch (safe for re-runs; no NOT NULL on new columns)
 - Match UUID always generated client-side and passed to repo (never repo-generated)
 - Auto-save after every ball recorded and after every undo
+- Cloud sync requires `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in `.env`
+- Supports both legacy JWT anon keys (`length > 100`) and new publishable key format (`sb_publishable_` prefix)
 
 ---
 
@@ -467,12 +557,16 @@ app/
 |---|---|
 | **Formats** | T20, ODI, Test, Custom |
 | **Teams** | Create, manage roster, PIN auth, proximity discovery |
-| **Players** | Batting/bowling styles, roles, codes, career stats |
+| **Players** | Batting/bowling styles, roles (C/VC/WK/AR), phone number, codes, career stats |
 | **Match Lifecycle** | Toss → Innings → Ball-by-Ball → Complete |
 | **Scoring** | Extras, dismissals, free hits, partnerships, over tracking |
 | **Undo** | Full ball revert with innings snapshot restore |
 | **Stats** | Per-player career aggregates + team/match summaries |
 | **Location** | 50-mile proximity, Haversine distance |
+| **Live Scores** | Ball-by-ball broadcast to nearby users (<50 mi) via Supabase real-time |
+| **Delegate Access** | Single-use 6-char code grants editor access to another device |
+| **Team Chat** | Real-time per-team chat via Supabase `postgres_changes` |
+| **Cloud Sync** | Teams + players synced to Supabase for cross-device discovery |
 | **Admin** | SHA-256 PIN auth, in-memory, per-team |
 | **Platform** | Android + iOS + Web, SQLite + localStorage |
 | **UX** | Dark mode, MD3 theming, web-compatible dialogs |

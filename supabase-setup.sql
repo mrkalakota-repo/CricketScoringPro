@@ -130,3 +130,52 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN
   CREATE POLICY "public_insert_chat" ON public.chat_messages FOR INSERT WITH CHECK (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ── Live Match Scores (proximity broadcast) ────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.live_matches (
+  id            TEXT             PRIMARY KEY,
+  team1_name    TEXT             NOT NULL,
+  team1_short   TEXT             NOT NULL,
+  team2_name    TEXT             NOT NULL,
+  team2_short   TEXT             NOT NULL,
+  format        TEXT             NOT NULL,
+  venue         TEXT             NOT NULL DEFAULT '',
+  status        TEXT             NOT NULL DEFAULT 'in_progress',
+  innings_num   INTEGER          NOT NULL DEFAULT 1,
+  batting_short TEXT             NOT NULL DEFAULT '',
+  score         INTEGER          NOT NULL DEFAULT 0,
+  wickets       INTEGER          NOT NULL DEFAULT 0,
+  overs         INTEGER          NOT NULL DEFAULT 0,
+  balls         INTEGER          NOT NULL DEFAULT 0,
+  target        INTEGER,
+  result        TEXT,
+  latitude      DOUBLE PRECISION,
+  longitude     DOUBLE PRECISION,
+  updated_at    BIGINT           NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_live_matches_location
+  ON public.live_matches (latitude, longitude)
+  WHERE latitude IS NOT NULL AND longitude IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_live_matches_updated
+  ON public.live_matches (updated_at DESC);
+
+ALTER TABLE public.live_matches ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "public_select_live" ON public.live_matches FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_insert_live" ON public.live_matches FOR INSERT WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_update_live" ON public.live_matches FOR UPDATE USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_delete_live" ON public.live_matches FOR DELETE USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

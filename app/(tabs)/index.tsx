@@ -1,12 +1,15 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Card, Button, useTheme, Surface, Portal, Dialog } from 'react-native-paper';
+import { Text, Card, Button, useTheme, Surface, Portal, Dialog, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
+import { useLiveScoresStore } from '../../src/store/live-scores-store';
+import { isCloudEnabled } from '../../src/config/supabase';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { loadSingleSeedTeam, deleteSeedData, SEED_TEAM_NAMES } from '../../src/utils/seed-data';
 import type { MatchRow } from '../../src/db/repositories/match-repo';
+import type { LiveMatchSummary } from '../../src/db/repositories/cloud-match-repo';
 
 function getMatchDisplayInfo(row: MatchRow): { teams: string; score: string | null } {
   if (!row.match_state_json) {
@@ -26,6 +29,48 @@ function getMatchDisplayInfo(row: MatchRow): { teams: string; score: string | nu
   }
 }
 
+function formatOvers(overs: number, balls: number): string {
+  return `${overs}.${balls}`;
+}
+
+function NearbyLiveCard({ match }: { match: LiveMatchSummary }) {
+  const theme = useTheme();
+  const isLive = match.status === 'in_progress' || match.status === 'toss';
+  const stripeColor = match.status === 'completed' ? theme.colors.primary : '#D32F2F';
+
+  return (
+    <Card style={[styles.matchCard, isLive && styles.liveMatchCard]}>
+      <View style={[styles.liveStripe, { backgroundColor: stripeColor }]} />
+      <Card.Content style={styles.liveCardContent}>
+        <View style={styles.liveTop}>
+          <View style={[styles.liveBadge, { backgroundColor: isLive ? '#FFEBEE' : theme.colors.primaryContainer }]}>
+            {isLive && <View style={[styles.liveDot, { backgroundColor: stripeColor }]} />}
+            <Text style={[styles.liveBadgeText, { color: isLive ? '#D32F2F' : theme.colors.onPrimaryContainer }]}>
+              {match.status === 'toss' ? 'TOSS' : match.status === 'in_progress' ? 'LIVE' : 'RESULT'}
+            </Text>
+          </View>
+          <Text style={[styles.formatChip, { color: theme.colors.onSurfaceVariant }]}>
+            {match.format.toUpperCase()} · {match.venue || 'Unknown venue'}
+          </Text>
+        </View>
+        <Text variant="titleMedium" style={[styles.liveTeams, { color: theme.colors.onSurface }]}>
+          {match.team1Short} vs {match.team2Short}
+        </Text>
+        {match.status === 'completed' && match.result ? (
+          <Text variant="bodyMedium" style={[styles.liveScore, { color: theme.colors.primary }]}>
+            {match.result}
+          </Text>
+        ) : match.status === 'in_progress' && match.battingShort ? (
+          <Text variant="bodyMedium" style={[styles.liveScore, { color: '#D32F2F' }]}>
+            {match.battingShort}: {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
+            {match.target ? `  •  Target: ${match.target}` : ''}
+          </Text>
+        ) : null}
+      </Card.Content>
+    </Card>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
@@ -35,14 +80,28 @@ export default function HomeScreen() {
   const teams = useTeamStore(s => s.teams);
   const loadTeams = useTeamStore(s => s.loadTeams);
   const deleteTeam = useTeamStore(s => s.deleteTeam);
+  const nearbyLive = useLiveScoresStore(s => s.matches);
+  const loadNearby = useLiveScoresStore(s => s.loadNearby);
+  const subscribeLive = useLiveScoresStore(s => s.subscribe);
+  const liveLoading = useLiveScoresStore(s => s.loading);
   const [seeding, setSeeding] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showSamplePickerDialog, setShowSamplePickerDialog] = useState(false);
   const [showDeleteSampleDialog, setShowDeleteSampleDialog] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ title: string; body: string } | null>(null);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
   useFocusEffect(useCallback(() => { loadMatches(); }, []));
+
+  // Load nearby live matches and subscribe to real-time updates
+  useEffect(() => {
+    if (!isCloudEnabled) return;
+    loadNearby().then(() => {
+      unsubscribeRef.current = subscribeLive();
+    });
+    return () => { unsubscribeRef.current?.(); };
+  }, []);
 
   const liveMatches = matches.filter(m => m.status === 'in_progress' || m.status === 'toss');
   const recentMatches = matches.filter(m => m.status === 'completed').slice(0, 5);
@@ -196,6 +255,26 @@ export default function HomeScreen() {
               </Card>
             );
           })}
+        </View>
+      )}
+
+      {/* Nearby Live Matches (from other devices via Supabase) */}
+      {isCloudEnabled && (nearbyLive.length > 0 || liveLoading) && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <MaterialCommunityIcons name="map-marker-radius" size={16} color={theme.colors.primary} />
+            <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              Nearby Matches
+            </Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 'auto' }}>
+              within 50 miles
+            </Text>
+          </View>
+          {liveLoading && nearbyLive.length === 0 ? (
+            <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginVertical: 12 }} />
+          ) : (
+            nearbyLive.map(m => <NearbyLiveCard key={m.id} match={m} />)
+          )}
         </View>
       )}
 

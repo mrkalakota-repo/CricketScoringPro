@@ -10,8 +10,8 @@ const isValidUrl =
   !SUPABASE_URL.includes('your-project-ref');
 
 const isValidKey =
-  SUPABASE_ANON_KEY.length > 100 &&
-  !SUPABASE_ANON_KEY.includes('your-anon-key');
+  !SUPABASE_ANON_KEY.includes('your-anon-key') &&
+  (SUPABASE_ANON_KEY.length > 100 || SUPABASE_ANON_KEY.startsWith('sb_publishable_'));
 
 export const isCloudEnabled = isValidUrl && isValidKey;
 

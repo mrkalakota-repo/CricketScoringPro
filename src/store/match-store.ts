@@ -3,6 +3,7 @@ import type { Match, BallInput, Toss, ScoringAction } from '../engine/types';
 import { MatchEngine, createNewMatch } from '../engine/match-engine';
 import * as matchRepo from '../db/repositories/match-repo';
 import type { MatchRow } from '../db/repositories/match-repo';
+import * as cloudMatchRepo from '../db/repositories/cloud-match-repo';
 
 interface MatchStore {
   // Active match state
@@ -66,7 +67,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   startMatch: (battingTeamId, bowlingTeamId) => {
     const { engine } = get();
     if (!engine) return;
-    set({ engine: engine.startMatch(battingTeamId, bowlingTeamId) });
+    const newEngine = engine.startMatch(battingTeamId, bowlingTeamId);
+    set({ engine: newEngine });
+    cloudMatchRepo.publishLiveMatch(newEngine.getMatch());
   },
 
   setOpeners: (strikerId, nonStrikerId) => {
@@ -100,12 +103,13 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (!engine) return;
     const newEngine = engine.recordBall(input);
     set({ engine: newEngine });
-    // Auto-save after each ball
     const state = get();
     if (state.matchId) {
-      matchRepo.saveMatchState(state.matchId, newEngine.getMatch()).catch(err => {
+      const m = newEngine.getMatch();
+      matchRepo.saveMatchState(state.matchId, m).catch(err => {
         console.error('[match-store] auto-save after recordBall failed:', err);
       });
+      cloudMatchRepo.publishLiveMatch(m);
     }
   },
 
@@ -116,9 +120,11 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     set({ engine: newEngine });
     const state = get();
     if (state.matchId) {
-      matchRepo.saveMatchState(state.matchId, newEngine.getMatch()).catch(err => {
+      const m = newEngine.getMatch();
+      matchRepo.saveMatchState(state.matchId, m).catch(err => {
         console.error('[match-store] auto-save after undoLastBall failed:', err);
       });
+      cloudMatchRepo.publishLiveMatch(m);
     }
   },
 
@@ -138,13 +144,17 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   startNextInnings: () => {
     const { engine } = get();
     if (!engine) return;
-    set({ engine: engine.startNextInnings() });
+    const newEngine = engine.startNextInnings();
+    set({ engine: newEngine });
+    cloudMatchRepo.publishLiveMatch(newEngine.getMatch());
   },
 
   declareInnings: () => {
     const { engine } = get();
     if (!engine) return;
-    set({ engine: engine.declareInnings() });
+    const newEngine = engine.declareInnings();
+    set({ engine: newEngine });
+    cloudMatchRepo.publishLiveMatch(newEngine.getMatch());
   },
 
   saveMatch: async () => {
@@ -156,6 +166,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
 
   deleteMatch: async (id) => {
     await matchRepo.deleteMatch(id);
+    cloudMatchRepo.removeLiveMatch(id);
     set({ matches: get().matches.filter(m => m.id !== id) });
     if (get().matchId === id) {
       set({ engine: null, matchId: null });
