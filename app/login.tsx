@@ -102,7 +102,7 @@ export default function LoginScreen({ onBack }: LoginScreenProps = {}) {
   const restoreError =
     restoreStatus === 'not_found' ? 'No account found for that phone number.' :
     restoreStatus === 'wrong_pin' ? 'Incorrect PIN. Try again.' :
-    restoreStatus === 'error'     ? (restoreErrorMessage.includes('not ready') ? 'Cloud setup incomplete — ask the admin to run supabase-setup.sql.' : `Server error: ${restoreErrorMessage}`) :
+    restoreStatus === 'error'     ? (restoreErrorMessage.includes('not ready') ? 'Cloud setup incomplete — ask the admin to run supabase-setup.sql.' : restoreErrorMessage.toLowerCase().includes('schema cache') || restoreErrorMessage.includes('waking up') ? 'Database is waking up — please try again in a moment.' : `Server error: ${restoreErrorMessage}`) :
     null;
 
   // ── Render ────────────────────────────────────────────────────────────────

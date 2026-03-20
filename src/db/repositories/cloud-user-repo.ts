@@ -47,6 +47,18 @@ export async function pushUserProfile(profile: CloudUserProfile): Promise<void> 
  *
  * Returns a typed VerifyResult — callers should handle all four states.
  */
+const SCHEMA_CACHE_PHRASE = 'schema cache';
+const RETRY_DELAY_MS = 2500;
+const MAX_RETRIES = 3;
+
+function isSchemaCacheError(msg: string): boolean {
+  return msg.toLowerCase().includes(SCHEMA_CACHE_PHRASE);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export async function verifyUserProfile(
   phone: string,
   pinHash: string,
@@ -54,28 +66,42 @@ export async function verifyUserProfile(
   if (!isCloudEnabled || !supabase) {
     return { status: 'error', message: 'Cloud not enabled' };
   }
-  try {
-    const { data, error } = await supabase.rpc('verify_user_profile', {
-      p_phone: phone,
-      p_pin_hash: pinHash,
-    });
 
-    if (error) {
-      const code = (error as { code?: string }).code;
-      // PGRST205 = table/function not found — degrade gracefully
-      if (code === 'PGRST205') return { status: 'error', message: 'Cloud table not ready' };
-      throw error;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const { data, error } = await supabase.rpc('verify_user_profile', {
+        p_phone: phone,
+        p_pin_hash: pinHash,
+      });
+
+      if (error) {
+        const code = (error as { code?: string }).code;
+        // PGRST205 = table/function not found — degrade gracefully
+        if (code === 'PGRST205') return { status: 'error', message: 'Cloud table not ready' };
+        // Schema cache error — Supabase free tier waking up; retry after delay
+        if (isSchemaCacheError(error.message) && attempt < MAX_RETRIES) {
+          await sleep(RETRY_DELAY_MS);
+          continue;
+        }
+        throw error;
+      }
+
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row) return { status: 'error', message: 'Empty RPC response' };
+
+      if (!row.found) return { status: 'not_found' };
+      if (!row.pin_correct) return { status: 'wrong_pin' };
+      return { status: 'ok', name: row.name as string, role: (row.role as string) ?? 'scorer' };
+    } catch (err) {
+      const message = (err as { message?: string })?.message ?? String(err);
+      if (isSchemaCacheError(message) && attempt < MAX_RETRIES) {
+        await sleep(RETRY_DELAY_MS);
+        continue;
+      }
+      console.error('[cloud-user-repo] verifyUserProfile failed:', message);
+      return { status: 'error', message };
     }
-
-    const row = Array.isArray(data) ? data[0] : data;
-    if (!row) return { status: 'error', message: 'Empty RPC response' };
-
-    if (!row.found) return { status: 'not_found' };
-    if (!row.pin_correct) return { status: 'wrong_pin' };
-    return { status: 'ok', name: row.name as string, role: (row.role as string) ?? 'scorer' };
-  } catch (err) {
-    const message = (err as { message?: string })?.message ?? String(err);
-    console.error('[cloud-user-repo] verifyUserProfile failed:', message);
-    return { status: 'error', message };
   }
+
+  return { status: 'error', message: 'Server is waking up — please try again.' };
 }
