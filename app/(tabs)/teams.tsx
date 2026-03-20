@@ -5,6 +5,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTeamStore } from '../../src/store/team-store';
 import { usePrefsStore } from '../../src/store/prefs-store';
+import { useRole } from '../../src/hooks/useRole';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Team } from '../../src/engine/types';
 import * as Location from 'expo-location';
@@ -197,6 +198,7 @@ export default function TeamsScreen() {
     return () => clearTimeout(timer);
   }, [query]);
 
+  const { canManageTeams } = useRole();
   const fabBottom = Math.max(insets.bottom, 8) + 16;
   const isSearching = query.trim().length > 0;
 
@@ -385,12 +387,14 @@ export default function TeamsScreen() {
         }}
       />
 
-      <FAB
-        icon="plus"
-        style={[styles.fab, { backgroundColor: theme.colors.primary, bottom: fabBottom }]}
-        color="#FFFFFF"
-        onPress={() => router.push('/team/create')}
-      />
+      {canManageTeams && (
+        <FAB
+          icon="plus"
+          style={[styles.fab, { backgroundColor: theme.colors.primary, bottom: fabBottom }]}
+          color="#FFFFFF"
+          onPress={() => router.push('/team/create')}
+        />
+      )}
     </View>
   );
 }

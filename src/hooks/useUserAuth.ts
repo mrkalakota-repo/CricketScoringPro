@@ -15,7 +15,7 @@ import { create } from 'zustand';
 import * as Crypto from 'expo-crypto';
 import * as prefsRepo from '../db/repositories/prefs-repo';
 import * as cloudUserRepo from '../db/repositories/cloud-user-repo';
-import type { UserProfile } from '../engine/types';
+import type { UserProfile, UserRole } from '../engine/types';
 
 export type RestoreStatus = 'idle' | 'fetching' | 'not_found' | 'wrong_pin' | 'error' | 'success';
 
@@ -31,7 +31,7 @@ interface UserAuthStore {
   loadProfile: () => Promise<void>;
 
   /** Register a new user (first launch). Saves locally + pushes to cloud. */
-  register: (phone: string, name: string, pin: string) => Promise<void>;
+  register: (phone: string, name: string, pin: string, role?: UserRole) => Promise<void>;
 
   /** Verify PIN against local profile. Returns true if correct. */
   login: (pin: string) => Promise<boolean>;
@@ -64,7 +64,8 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
     try {
       const stored = await prefsRepo.getUserProfile();
       if (stored) {
-        set({ profile: { phone: stored.phone, name: stored.name, pinHash: stored.pinHash }, isLoading: false });
+        const role: UserRole = (stored.role as UserRole) ?? 'scorer';
+        set({ profile: { phone: stored.phone, name: stored.name, pinHash: stored.pinHash, role }, isLoading: false });
       } else {
         set({ profile: null, isLoading: false });
       }
@@ -73,14 +74,14 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
     }
   },
 
-  register: async (phone, name, pin) => {
+  register: async (phone, name, pin, role = 'scorer') => {
     const pinHash = await hashPin(pin);
-    const profile: UserProfile = { phone, name, pinHash };
+    const profile: UserProfile = { phone, name, pinHash, role };
     // Save locally first so auth works even if cloud push fails
-    await prefsRepo.setUserProfile({ phone, name, pinHash });
+    await prefsRepo.setUserProfile({ phone, name, pinHash, role });
     set({ profile, isAuthenticated: true });
     // Push to cloud in background — failure is non-fatal
-    cloudUserRepo.pushUserProfile({ phone, name, pinHash }).catch(() => {});
+    cloudUserRepo.pushUserProfile({ phone, name, pinHash, role }).catch(() => {});
   },
 
   login: async (pin) => {
@@ -108,13 +109,15 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
         return false;
       }
       // PIN correct — save locally and authenticate
+      const role: UserRole = (cloudProfile.role as UserRole) ?? 'scorer';
       await prefsRepo.setUserProfile({
         phone: cloudProfile.phone,
         name: cloudProfile.name,
         pinHash: cloudProfile.pinHash,
+        role,
       });
       set({
-        profile: cloudProfile,
+        profile: { ...cloudProfile, role },
         isAuthenticated: true,
         restoreStatus: 'success',
       });

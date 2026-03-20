@@ -7,6 +7,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLeagueStore } from '../../../src/store/league-store';
 import { useTeamStore } from '../../../src/store/team-store';
 import type { LeagueFixture, LeagueStandingRow } from '../../../src/engine/types';
+import { useRole } from '../../../src/hooks/useRole';
 
 type Tab = 'teams' | 'standings' | 'fixtures' | 'bracket';
 
@@ -26,6 +27,7 @@ export default function LeagueDetailScreen() {
 
   const { leagues, fixtures: allFixtures, loadLeagues, loadFixtures, addTeamToLeague, removeTeamFromLeague, deleteLeague, computeStandings } = useLeagueStore();
   const teams = useTeamStore(s => s.teams);
+  const { canDeleteMatch } = useRole();
 
   const league = leagues.find(l => l.id === id);
   const fixtures = allFixtures[id ?? ''] ?? [];
@@ -77,9 +79,9 @@ export default function LeagueDetailScreen() {
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen options={{
         title: league.name,
-        headerRight: () => (
+        headerRight: () => canDeleteMatch ? (
           <IconButton icon="delete-outline" iconColor="#FFFFFF" size={22} onPress={() => setShowDeleteDialog(true)} />
-        ),
+        ) : null,
       }} />
 
       {/* Delete Dialog */}
@@ -252,6 +254,19 @@ export default function LeagueDetailScreen() {
                             {f.result}
                           </Text>
                         )}
+                        {f.status === 'completed' && canDeleteMatch && (
+                          <Button
+                            mode="outlined"
+                            compact
+                            icon="shield-edit-outline"
+                            textColor="#E65100"
+                            style={{ borderColor: '#E65100', marginTop: 6, borderRadius: 8 }}
+                            labelStyle={{ fontSize: 11 }}
+                            onPress={e => { e.stopPropagation?.(); router.push(`/league/${id}/schedule?fixtureId=${f.id}`); }}
+                          >
+                            Override Result
+                          </Button>
+                        )}
                       </Card.Content>
                     </Card>
                   );
@@ -377,6 +392,19 @@ export default function LeagueDetailScreen() {
                     <Text variant="bodySmall" style={{ color: theme.colors.primary, textAlign: 'center', marginTop: 4, fontWeight: '600' }}>
                       {f.result}
                     </Text>
+                  )}
+                  {f.status === 'completed' && canDeleteMatch && (
+                    <Button
+                      mode="outlined"
+                      compact
+                      icon="shield-edit-outline"
+                      textColor="#E65100"
+                      style={{ borderColor: '#E65100', marginTop: 6, borderRadius: 8 }}
+                      labelStyle={{ fontSize: 11 }}
+                      onPress={e => { e.stopPropagation?.(); router.push(`/league/${id}/schedule?fixtureId=${f.id}`); }}
+                    >
+                      Override Result
+                    </Button>
                   )}
                   <View style={styles.fixtureMeta}>
                     <MaterialCommunityIcons name="calendar" size={12} color={theme.colors.onSurfaceVariant} />

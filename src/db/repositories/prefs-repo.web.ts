@@ -56,6 +56,7 @@ export interface StoredUserProfile {
   phone: string;
   name: string;
   pinHash: string;
+  role?: string; // UserRole — optional for backwards compat with existing stored profiles
 }
 
 export async function getUserProfile(): Promise<StoredUserProfile | null> {

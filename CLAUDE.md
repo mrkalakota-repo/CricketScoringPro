@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Gully Cricket Scorer — CLAUDE.md
 
 ## Project Overview
@@ -16,6 +20,8 @@ npm run android        # Android emulator
 npm run ios            # iOS simulator
 npm run web            # Mobile web (http://localhost:8081)
 npm test               # Jest unit tests (engine only)
+npm test -- --testPathPattern=functional          # Run a single test file by name
+npm test -- --testNamePattern="strike rotation"   # Run tests matching a name pattern
 npx expo install <pkg> # Add Expo package (add --legacy-peer-deps if it fails)
 ```
 
@@ -48,10 +54,18 @@ Metro resolves `.web.ts` over `.ts` on web. Every DB repo needs both files:
 - `prefs-repo.ts` / `prefs-repo.web.ts`
 - `league-repo.ts` / `league-repo.web.ts`
 
-Cloud repos (`cloud-team-repo`, `cloud-chat-repo`, `cloud-delegate-repo`) use Supabase — same on all platforms, no `.web.ts` needed.
+Cloud repos (`cloud-team-repo`, `cloud-chat-repo`, `cloud-delegate-repo`, `cloud-match-repo`) use Supabase — same on all platforms, no `.web.ts` needed.
 
 ### Scoring Engine
 `src/engine/` — pure TypeScript, zero React/RN dependencies. Never import React or RN APIs there.
+
+`MatchEngine` is **immutable** — every method returns a new `MatchEngine` instance. Never mutate the existing instance; always replace it:
+```ts
+const newEngine = engine.recordBall(input);   // ✓ returns new instance
+set({ engine: newEngine });
+engine.recordBall(input);                      // ✗ wrong — return value ignored
+```
+Test files live in `src/engine/__tests__/` (`match-engine.test.ts` — unit tests; `functional.test.ts` — end-to-end scenarios).
 
 ### Store Pattern
 All mutations go through Zustand stores, never directly through repos.
@@ -60,6 +74,7 @@ All mutations go through Zustand stores, never directly through repos.
 - `usePrefsStore` — device-local prefs (`myTeamIds`, `delegateTeamIds`)
 - `useLeagueStore` — leagues and fixtures
 - `useChatStore` — real-time per-team chat
+- `useLiveScoresStore` — nearby live match scores (Supabase real-time, 50-mile radius)
 - `useAdminAuth` — in-memory PIN auth (resets on restart by design)
 
 ---
@@ -168,8 +183,12 @@ Migrations: `ALTER TABLE ... ADD COLUMN` in try/catch. **Never `NOT NULL` in mig
 
 ## Supabase Schema (Cloud)
 Run `supabase-setup.sql` in the SQL Editor (idempotent — safe to re-run).
-Tables: `cloud_teams`, `cloud_players`, `delegate_codes`, `chat_messages`.
+Tables: `cloud_teams`, `cloud_players`, `delegate_codes`, `chat_messages`, `live_matches`.
 Credentials go in `.env` as `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+
+Supported key formats: legacy JWT (`length > 100`) **or** new publishable format (`sb_publishable_` prefix). Both are accepted — validation is in `src/config/supabase.ts`.
+
+`live_matches` is upserted on every ball (and undo, start innings, declare). If the table doesn't exist yet, `PGRST205` errors are silently ignored so the app degrades gracefully.
 
 ---
 

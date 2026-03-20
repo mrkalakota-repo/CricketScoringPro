@@ -191,8 +191,14 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
   phone      TEXT             PRIMARY KEY,
   name       TEXT             NOT NULL,
   pin_hash   TEXT             NOT NULL,
+  role       TEXT             NOT NULL DEFAULT 'scorer',
   updated_at BIGINT           NOT NULL DEFAULT 0
 );
+
+-- Add role column for existing deployments (idempotent)
+DO $$ BEGIN
+  ALTER TABLE public.user_profiles ADD COLUMN role TEXT NOT NULL DEFAULT 'scorer';
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 

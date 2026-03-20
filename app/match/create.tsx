@@ -44,8 +44,9 @@ export default function CreateMatchScreen() {
   const handleCreate = async () => {
     if (!team1 || !team2) return;
 
-    // Use actual squad size so the engine knows when "all out" happens correctly
-    const playersPerSide = Math.max(team1XI.size, team2XI.size);
+    const playersPerSide = format === 'custom'
+      ? Math.max(team1XI.size, team2XI.size)
+      : FORMAT_CONFIGS[format].playersPerSide;
     const config: MatchConfig = format === 'custom'
       ? {
           format: 'custom',
@@ -85,8 +86,11 @@ export default function CreateMatchScreen() {
   };
 
   const canProceedTeams = team1Id && team2Id && team1Id !== team2Id;
-  // Allow any squad size ≥ 1 — gully cricket doesn't always have 11 players
-  const canProceedXI = team1XI.size >= 1 && team2XI.size >= 1;
+  // Standard formats require exactly 11 players per side; custom format is flexible
+  const requiredXI = format === 'custom' ? null : 11;
+  const canProceedXI = requiredXI === null
+    ? (team1XI.size >= 1 && team2XI.size >= 1)
+    : (team1XI.size === requiredXI && team2XI.size === requiredXI);
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -205,9 +209,9 @@ export default function CreateMatchScreen() {
                   <Button mode="text" onPress={() => setStep('format')}>Back</Button>
                   <Button mode="contained" onPress={() => {
                     if (canProceedTeams) {
-                      // Auto-select all players if teams have <= 11
-                      if (team1 && team1.players.length <= 11) setTeam1XI(new Set(team1.players.map(p => p.id)));
-                      if (team2 && team2.players.length <= 11) setTeam2XI(new Set(team2.players.map(p => p.id)));
+                      // Auto-select all players only when team has exactly the required count
+                      if (team1 && team1.players.length === 11) setTeam1XI(new Set(team1.players.map(p => p.id)));
+                      if (team2 && team2.players.length === 11) setTeam2XI(new Set(team2.players.map(p => p.id)));
                       setStep('playing_xi');
                     }
                   }} disabled={!canProceedTeams}>
@@ -225,7 +229,10 @@ export default function CreateMatchScreen() {
             <Text variant="titleLarge" style={styles.stepTitle}>Select Playing XI</Text>
 
             <Text variant="titleSmall" style={{ marginBottom: 8 }}>
-              {team1.name} ({team1XI.size}/{team1.players.length})
+              {team1.name}{' '}
+              <Text style={{ color: requiredXI !== null && team1XI.size !== requiredXI ? '#B00020' : '#1B6B28' }}>
+                ({team1XI.size}{requiredXI !== null ? `/${requiredXI}` : `/${team1.players.length}`} selected)
+              </Text>
             </Text>
             {team1.players.map(p => (
               <Card key={p.id} style={[styles.optionCard, { padding: 0 }]}>
@@ -243,7 +250,10 @@ export default function CreateMatchScreen() {
             <Divider style={{ marginVertical: 16 }} />
 
             <Text variant="titleSmall" style={{ marginBottom: 8 }}>
-              {team2.name} ({team2XI.size}/{team2.players.length})
+              {team2.name}{' '}
+              <Text style={{ color: requiredXI !== null && team2XI.size !== requiredXI ? '#B00020' : '#1B6B28' }}>
+                ({team2XI.size}{requiredXI !== null ? `/${requiredXI}` : `/${team2.players.length}`} selected)
+              </Text>
             </Text>
             {team2.players.map(p => (
               <Card key={p.id} style={[styles.optionCard, { padding: 0 }]}>

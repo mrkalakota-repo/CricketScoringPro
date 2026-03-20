@@ -132,12 +132,33 @@ export class MatchEngine {
   }
 
   setBowler(bowlerId: string): MatchEngine {
-    const newMatch = produce(this.match, draft => {
-      const innings = draft.innings[draft.currentInningsIndex];
-      innings.currentBowlerId = bowlerId;
+    const innings = this.getCurrentInnings();
+    if (!innings) throw new Error('No active innings');
+
+    // Consecutive overs rule: same bowler cannot bowl back-to-back overs
+    if (innings.overs.length > 0) {
+      const lastOver = innings.overs[innings.overs.length - 1];
+      if (lastOver.bowlerId === bowlerId) {
+        throw new Error('Same bowler cannot bowl consecutive overs');
+      }
+    }
+
+    // Max overs per bowler rule (LOI only — Test has no limit)
+    const { oversPerInnings } = this.match.config;
+    if (oversPerInnings !== null) {
+      const maxOversPerBowler = Math.floor(oversPerInnings / 5);
       const existingBowler = innings.bowlers.find(b => b.playerId === bowlerId);
+      if (existingBowler && existingBowler.overs >= maxOversPerBowler) {
+        throw new Error(`Bowler has already bowled the maximum ${maxOversPerBowler} overs`);
+      }
+    }
+
+    const newMatch = produce(this.match, draft => {
+      const inn = draft.innings[draft.currentInningsIndex];
+      inn.currentBowlerId = bowlerId;
+      const existingBowler = inn.bowlers.find(b => b.playerId === bowlerId);
       if (!existingBowler) {
-        innings.bowlers.push(createBowlerSpell(bowlerId));
+        inn.bowlers.push(createBowlerSpell(bowlerId));
       }
       draft.updatedAt = Date.now();
     });

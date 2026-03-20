@@ -5,6 +5,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMatchStore } from '../../../src/store/match-store';
 import type { BallInput, DismissalType } from '../../../src/engine/types';
+import { useRole } from '../../../src/hooks/useRole';
+import { useSyncStatus } from '../../../src/hooks/useSyncStatus';
+import { isCloudEnabled } from '../../../src/config/supabase';
 import { formatOvers, formatBallOutcome } from '../../../src/utils/formatters';
 import { currentRunRate, requiredRunRate } from '../../../src/utils/cricket-math';
 import { colors } from '../../../src/theme';
@@ -28,6 +31,9 @@ export default function ScoringScreen() {
     engine, recordBall, undoLastBall, setOpeners, setBowler,
     setNewBatter, startNextInnings, startSuperOver, saveMatch,
   } = useMatchStore();
+
+  const { canScore } = useRole();
+  const syncStatus = useSyncStatus();
 
   const [isWide, setIsWide] = useState(false);
   const [isNoBall, setIsNoBall] = useState(false);
@@ -254,6 +260,29 @@ export default function ScoringScreen() {
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.background }]}>
       {/* Mini Scorecard */}
       <Surface style={[styles.scorecard, { backgroundColor: innings?.isSuperOver ? '#E65100' : theme.colors.primary }]} elevation={3}>
+        {/* Sync status chip — top-right corner, only when cloud is enabled */}
+        {isCloudEnabled && (
+          <View style={styles.syncChip} pointerEvents="none">
+            {syncStatus === 'syncing' && (
+              <>
+                <MaterialCommunityIcons name="cloud-upload-outline" size={11} color="rgba(255,255,255,0.85)" />
+                <Text style={styles.syncText}>Syncing…</Text>
+              </>
+            )}
+            {syncStatus === 'offline' && (
+              <>
+                <MaterialCommunityIcons name="cloud-off-outline" size={11} color="#FFCC80" />
+                <Text style={[styles.syncText, { color: '#FFCC80' }]}>Offline</Text>
+              </>
+            )}
+            {syncStatus === 'synced' && (
+              <>
+                <MaterialCommunityIcons name="cloud-check-outline" size={11} color="rgba(255,255,255,0.7)" />
+                <Text style={[styles.syncText, { color: 'rgba(255,255,255,0.7)' }]}>Synced</Text>
+              </>
+            )}
+          </View>
+        )}
         {innings?.isSuperOver && (
           <View style={{ alignItems: 'center', marginBottom: 2 }}>
             <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 11, letterSpacing: 1.5 }}>⚡ SUPER OVER</Text>
@@ -343,8 +372,18 @@ export default function ScoringScreen() {
         </ScrollView>
       </View>
 
+      {/* View-only banner for non-scorers */}
+      {!canScore && !isMatchComplete && (
+        <View style={[styles.viewOnlyBanner, { backgroundColor: theme.colors.surfaceVariant }]}>
+          <MaterialCommunityIcons name="eye-outline" size={16} color={theme.colors.onSurfaceVariant} />
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, flex: 1 }}>
+            View only — your role does not have scoring permissions
+          </Text>
+        </View>
+      )}
+
       {/* Scoring Controls */}
-      {!isMatchComplete && !isInningsComplete && (
+      {canScore && !isMatchComplete && !isInningsComplete && (
         <View style={styles.controls}>
           {/* Extra Toggles */}
           <View style={styles.extrasRow}>
@@ -502,21 +541,28 @@ export default function ScoringScreen() {
             {(bowlingTeamPlayers ?? []).map(p => {
               const prevBowler = innings?.overs.length ? innings.overs[innings.overs.length - 1].bowlerId : null;
               const isSameAsPrev = p.id === prevBowler;
+              const oversPerInnings = match.config.oversPerInnings;
+              const maxOversPerBowler = oversPerInnings !== null ? Math.floor(oversPerInnings / 5) : null;
+              const bowlerSpell = innings?.bowlers.find(b => b.playerId === p.id);
+              const hasMaxOvers = maxOversPerBowler !== null && bowlerSpell !== undefined && bowlerSpell.overs >= maxOversPerBowler;
+              const isDisabled = isSameAsPrev || hasMaxOvers;
+              const disabledReason = isSameAsPrev ? ' (bowled last over)' : hasMaxOvers ? ` (max ${maxOversPerBowler} overs)` : '';
               return (
                 <Pressable
                   key={p.id}
-                  style={[styles.selectionRow, selectedBowler === p.id && { backgroundColor: theme.colors.primaryContainer }, isSameAsPrev && { opacity: 0.4 }]}
-                  onPress={() => !isSameAsPrev && setSelectedBowler(p.id)}
-                  disabled={isSameAsPrev}
+                  style={[styles.selectionRow, selectedBowler === p.id && { backgroundColor: theme.colors.primaryContainer }, isDisabled && { opacity: 0.4 }]}
+                  onPress={() => !isDisabled && setSelectedBowler(p.id)}
+                  disabled={isDisabled}
                 >
-                  <RadioButton value={p.id} status={selectedBowler === p.id ? 'checked' : 'unchecked'} onPress={() => !isSameAsPrev && setSelectedBowler(p.id)} disabled={isSameAsPrev} />
+                  <RadioButton value={p.id} status={selectedBowler === p.id ? 'checked' : 'unchecked'} onPress={() => !isDisabled && setSelectedBowler(p.id)} disabled={isDisabled} />
                   <View>
-                    <Text style={[styles.modalName, { color: theme.colors.onSurface }, isSameAsPrev && { color: theme.colors.onSurfaceVariant }]}>
-                      {p.name}{isSameAsPrev ? ' (bowled last over)' : ''}
+                    <Text style={[styles.modalName, { color: theme.colors.onSurface }, isDisabled && { color: theme.colors.onSurfaceVariant }]}>
+                      {p.name}{disabledReason}
                     </Text>
-                    {innings?.bowlers.find(b => b.playerId === p.id) && (
+                    {bowlerSpell && (
                       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                        {(() => { const b = innings.bowlers.find(bw => bw.playerId === p.id)!; return `${b.overs}.${b.ballsBowled}-${b.maidens}-${b.runsConceded}-${b.wickets}`; })()}
+                        {`${bowlerSpell.overs}.${bowlerSpell.ballsBowled}-${bowlerSpell.maidens}-${bowlerSpell.runsConceded}-${bowlerSpell.wickets}`}
+                        {maxOversPerBowler !== null ? ` (${bowlerSpell.overs}/${maxOversPerBowler} overs)` : ''}
                       </Text>
                     )}
                   </View>
@@ -702,6 +748,9 @@ const styles = StyleSheet.create({
 
   // Controls
   controls: { flex: 1, justifyContent: 'flex-end', paddingBottom: 16 },
+  viewOnlyBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 12, padding: 12, borderRadius: 10 },
+  syncChip: { position: 'absolute', top: 8, right: 10, flexDirection: 'row', alignItems: 'center', gap: 3 },
+  syncText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
   extrasRow: {
     flexDirection: 'row', justifyContent: 'center', gap: 8,
     paddingHorizontal: 16, marginBottom: 12,

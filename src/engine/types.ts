@@ -66,11 +66,18 @@ export interface Player {
   isViceCaptain: boolean;
 }
 
+/**
+ * Role hierarchy (least → most privileged):
+ *   viewer → scorer → team_admin → league_admin
+ */
+export type UserRole = 'viewer' | 'scorer' | 'team_admin' | 'league_admin';
+
 /** Logged-in user profile stored locally */
 export interface UserProfile {
   phone: string;
   name: string;
   pinHash: string; // SHA-256 of the user's PIN
+  role: UserRole;
 }
 
 export interface Team {

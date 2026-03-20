@@ -7,6 +7,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLeagueStore } from '../../src/store/league-store';
 import { useTeamStore } from '../../src/store/team-store';
 import type { League } from '../../src/engine/types';
+import { useRole } from '../../src/hooks/useRole';
 
 export default function LeaguesScreen() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function LeaguesScreen() {
   const insets = useSafeAreaInsets();
   const { leagues, loading, loadLeagues } = useLeagueStore();
   const teams = useTeamStore(s => s.teams);
+  const { canCreateLeague } = useRole();
   const fabBottom = Math.max(insets.bottom, 8) + 16;
 
   useFocusEffect(useCallback(() => { loadLeagues(); }, []));
@@ -76,12 +78,14 @@ export default function LeaguesScreen() {
           </View>
         }
       />
-      <FAB
-        icon="plus"
-        style={[styles.fab, { backgroundColor: theme.colors.primary, bottom: fabBottom }]}
-        color="#FFFFFF"
-        onPress={() => router.push('/league/create')}
-      />
+      {canCreateLeague && (
+        <FAB
+          icon="plus"
+          style={[styles.fab, { backgroundColor: theme.colors.primary, bottom: fabBottom }]}
+          color="#FFFFFF"
+          onPress={() => router.push('/league/create')}
+        />
+      )}
     </View>
   );
 }

@@ -7,6 +7,7 @@ import { useLeagueStore } from '../../../src/store/league-store';
 import { useTeamStore } from '../../../src/store/team-store';
 import type { LeagueFixture, FixtureNRRData } from '../../../src/engine/types';
 import { Switch } from 'react-native-paper';
+import { useRole } from '../../../src/hooks/useRole';
 
 type Mode = 'add' | 'roundrobin' | 'result';
 
@@ -16,6 +17,7 @@ export default function ScheduleScreen() {
   const theme = useTheme();
   const { leagues, fixtures: allFixtures, createFixture, updateFixtureResult, deleteFixture, generateRoundRobin, generateKnockout, loadFixtures } = useLeagueStore();
   const teams = useTeamStore(s => s.teams);
+  const { canDeleteMatch } = useRole();
 
   const league = leagues.find(l => l.id === id);
   const fixtures = allFixtures[id ?? ''] ?? [];
@@ -250,7 +252,7 @@ export default function ScheduleScreen() {
           </Card>
         )}
 
-        {/* ─── Enter Result ─── */}
+        {/* ─── Enter / Override Result ─── */}
         {mode === 'result' && editFixture && (
           <Card style={styles.card}>
             <Card.Content>
@@ -260,6 +262,35 @@ export default function ScheduleScreen() {
                 <Text variant="titleMedium" style={{ fontWeight: '700', color: theme.colors.onSurface }}>{getTeamName(editFixture.team2Id)}</Text>
               </View>
               <Divider style={{ marginVertical: 12 }} />
+
+              {/* Read-only view for non-league-admins on a completed fixture */}
+              {editFixture.status === 'completed' && !canDeleteMatch && (
+                <>
+                  <View style={[styles.readOnlyBanner, { backgroundColor: theme.colors.surfaceVariant }]}>
+                    <MaterialCommunityIcons name="lock-outline" size={16} color={theme.colors.onSurfaceVariant} />
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, flex: 1 }}>
+                      This result is final. Contact your League Admin to dispute or override.
+                    </Text>
+                  </View>
+                  {editFixture.team1Score ? <Text variant="bodyMedium" style={styles.readOnlyRow}>{getTeamName(editFixture.team1Id)}: {editFixture.team1Score}</Text> : null}
+                  {editFixture.team2Score ? <Text variant="bodyMedium" style={styles.readOnlyRow}>{getTeamName(editFixture.team2Id)}: {editFixture.team2Score}</Text> : null}
+                  {editFixture.result ? <Text variant="bodyMedium" style={[styles.readOnlyRow, { color: theme.colors.primary, fontWeight: '700' }]}>{editFixture.result}</Text> : null}
+                </>
+              )}
+
+              {/* Override warning banner for league_admin on completed fixture */}
+              {editFixture.status === 'completed' && canDeleteMatch && (
+                <View style={[styles.overrideBanner, { backgroundColor: '#FFF3E0', borderColor: '#E65100' }]}>
+                  <MaterialCommunityIcons name="alert-outline" size={16} color="#E65100" />
+                  <Text variant="bodySmall" style={{ color: '#E65100', flex: 1, fontWeight: '600' }}>
+                    Dispute Override — you are modifying a completed result as League Admin.
+                  </Text>
+                </View>
+              )}
+
+              {/* Editable form — shown for scheduled fixtures OR for league_admin on completed */}
+              {(editFixture.status !== 'completed' || canDeleteMatch) && (
+                <>
 
               <Text variant="bodySmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>{getTeamName(editFixture.team1Id)} Score</Text>
               <TextInput value={t1Score} onChangeText={setT1Score} placeholder="e.g. 145/6 (20)" mode="outlined" style={styles.input} />
@@ -316,12 +347,15 @@ export default function ScheduleScreen() {
               </View>
 
               {!!error && <Text variant="bodySmall" style={{ color: theme.colors.error, marginBottom: 8 }}>{error}</Text>}
-              <Button mode="contained" onPress={handleSaveResult} loading={saving} disabled={saving} style={styles.button}>
-                Save Result
+              <Button mode="contained" onPress={handleSaveResult} loading={saving} disabled={saving} style={styles.button}
+                buttonColor={editFixture.status === 'completed' ? '#E65100' : undefined}>
+                {editFixture.status === 'completed' ? 'Override Result' : 'Save Result'}
               </Button>
               <Button mode="text" textColor={theme.colors.error} icon="delete-outline" onPress={() => setShowDeleteDialog(true)} style={{ marginTop: 4 }}>
                 Delete Fixture
               </Button>
+              </>
+              )}
             </Card.Content>
           </Card>
         )}
@@ -342,4 +376,7 @@ const styles = StyleSheet.create({
   button: { borderRadius: 20, marginTop: 4 },
   matchupRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 },
+  readOnlyBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: 10, marginBottom: 12 },
+  readOnlyRow: { marginBottom: 6, paddingHorizontal: 4 },
+  overrideBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 12 },
 });

@@ -1,15 +1,16 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Card, Button, useTheme, Surface, Portal, Dialog, ActivityIndicator } from 'react-native-paper';
+import { Text, Card, Button, useTheme, Surface, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
 import { useLiveScoresStore } from '../../src/store/live-scores-store';
 import { isCloudEnabled } from '../../src/config/supabase';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { loadSingleSeedTeam, deleteSeedData, SEED_TEAM_NAMES } from '../../src/utils/seed-data';
 import type { MatchRow } from '../../src/db/repositories/match-repo';
 import type { LiveMatchSummary } from '../../src/db/repositories/cloud-match-repo';
+import { useUserAuth } from '../../src/hooks/useUserAuth';
+import { useRole } from '../../src/hooks/useRole';
 
 function getMatchDisplayInfo(row: MatchRow): { teams: string; score: string | null } {
   if (!row.match_state_json) {
@@ -76,20 +77,14 @@ export default function HomeScreen() {
   const theme = useTheme();
   const matches = useMatchStore(s => s.matches);
   const loadMatches = useMatchStore(s => s.loadMatches);
-  const deleteMatch = useMatchStore(s => s.deleteMatch);
   const teams = useTeamStore(s => s.teams);
   const loadTeams = useTeamStore(s => s.loadTeams);
-  const deleteTeam = useTeamStore(s => s.deleteTeam);
   const nearbyLive = useLiveScoresStore(s => s.matches);
   const loadNearby = useLiveScoresStore(s => s.loadNearby);
   const subscribeLive = useLiveScoresStore(s => s.subscribe);
   const liveLoading = useLiveScoresStore(s => s.loading);
-  const [seeding, setSeeding] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [showSamplePickerDialog, setShowSamplePickerDialog] = useState(false);
-  const [showDeleteSampleDialog, setShowDeleteSampleDialog] = useState(false);
-  const [showClearDialog, setShowClearDialog] = useState(false);
-  const [feedbackMsg, setFeedbackMsg] = useState<{ title: string; body: string } | null>(null);
+  const profile = useUserAuth(s => s.profile);
+  const { roleLabel, roleIcon, roleColor } = useRole();
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
   useFocusEffect(useCallback(() => { loadMatches(); }, []));
@@ -106,50 +101,6 @@ export default function HomeScreen() {
   const liveMatches = matches.filter(m => m.status === 'in_progress' || m.status === 'toss');
   const recentMatches = matches.filter(m => m.status === 'completed').slice(0, 5);
 
-  const handleLoadSample = () => setShowSamplePickerDialog(true);
-
-  const doLoadTeam = async (teamName: typeof SEED_TEAM_NAMES[number]) => {
-    setShowSamplePickerDialog(false);
-    setSeeding(true);
-    try {
-      const result = await loadSingleSeedTeam(teamName);
-      if (result.created) await loadTeams();
-      setFeedbackMsg({ title: result.created ? 'Team Loaded' : 'Already Exists', body: result.message });
-    } finally {
-      setSeeding(false);
-    }
-  };
-
-  const handleDeleteSample = () => setShowDeleteSampleDialog(true);
-
-  const doDeleteSample = async () => {
-    setShowDeleteSampleDialog(false);
-    setDeleting(true);
-    try {
-      const result = await deleteSeedData();
-      await loadTeams();
-      await loadMatches();
-      setFeedbackMsg({ title: result.deleted ? 'Deleted' : 'Not Found', body: result.message });
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const handleClearAllData = () => setShowClearDialog(true);
-
-  const doClearAll = async () => {
-    setShowClearDialog(false);
-    setDeleting(true);
-    try {
-      const matchIds = matches.map(m => m.id);
-      const teamIds = teams.map(t => t.id);
-      for (const id of matchIds) await deleteMatch(id);
-      for (const id of teamIds) await deleteTeam(id);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const handleLiveMatchPress = (match: MatchRow) => {
     if (match.status === 'toss') {
       router.push(`/match/${match.id}/toss`);
@@ -158,8 +109,6 @@ export default function HomeScreen() {
     }
   };
 
-  const hasAnyData = matches.length > 0 || teams.length > 0;
-
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Hero */}
@@ -167,6 +116,14 @@ export default function HomeScreen() {
         <MaterialCommunityIcons name="cricket" size={52} color="rgba(255,255,255,0.9)" />
         <Text variant="headlineMedium" style={styles.heroTitle}>Gully Cricket Scorer</Text>
         <Text variant="bodyMedium" style={styles.heroSubtitle}>Score matches like a pro</Text>
+        {profile && (
+          <View style={styles.roleBadge}>
+            <MaterialCommunityIcons name={roleIcon as any} size={14} color={roleColor} />
+            <Text style={[styles.roleBadgeText, { color: roleColor }]}>
+              {profile.name} · {roleLabel}
+            </Text>
+          </View>
+        )}
         <Button
           mode="contained"
           onPress={() => router.push('/match/create')}
@@ -181,19 +138,11 @@ export default function HomeScreen() {
       </Surface>
 
       {/* Quick Actions Row */}
-      {hasAnyData && (
-        <View style={styles.quickActions}>
-          <Button compact mode="text" icon="account-search" onPress={() => router.push('/profile')} labelStyle={styles.actionLabel}>
-            My Profile
-          </Button>
-          <Button compact mode="text" icon="database-remove-outline" loading={deleting} onPress={handleDeleteSample} labelStyle={styles.actionLabel}>
-            Sample Data
-          </Button>
-          <Button compact mode="text" icon="trash-can-outline" textColor={theme.colors.error} loading={deleting} onPress={handleClearAllData} labelStyle={[styles.actionLabel, { color: theme.colors.error }]}>
-            Clear All
-          </Button>
-        </View>
-      )}
+      <View style={styles.quickActions}>
+        <Button compact mode="text" icon="account-search" onPress={() => router.push('/profile')} labelStyle={styles.actionLabel}>
+          My Profile
+        </Button>
+      </View>
 
       {/* Quick Stats */}
       <View style={styles.statsRow}>
@@ -323,9 +272,6 @@ export default function HomeScreen() {
             <Button mode="contained" onPress={() => router.push('/team/create')} icon="shield-account" style={{ borderRadius: 12 }}>
               Create Team
             </Button>
-            <Button mode="outlined" onPress={handleLoadSample} loading={seeding} icon="database-import-outline" style={{ borderRadius: 12 }}>
-              Load Sample Team
-            </Button>
             <Button mode="text" onPress={() => router.push('/profile')} icon="account-search">
               Find My Profile
             </Button>
@@ -335,62 +281,6 @@ export default function HomeScreen() {
 
       <View style={{ height: 24 }} />
 
-      <Portal>
-        {/* Load Sample Team Picker */}
-        <Dialog visible={showSamplePickerDialog} onDismiss={() => setShowSamplePickerDialog(false)}>
-          <Dialog.Title>Load Sample Team</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>Choose a team to add:</Text>
-          </Dialog.Content>
-          <Dialog.Actions style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-            <Button onPress={() => doLoadTeam('Mumbai Blasters')}>Mumbai Blasters</Button>
-            <Button onPress={() => doLoadTeam('Chennai Challengers')}>Chennai Challengers</Button>
-            <Button onPress={() => doLoadTeam('Delhi Dynamos')}>Delhi Dynamos</Button>
-            <Button onPress={() => setShowSamplePickerDialog(false)} textColor={theme.colors.onSurfaceVariant}>Cancel</Button>
-          </Dialog.Actions>
-        </Dialog>
-
-        {/* Delete Sample Confirm */}
-        <Dialog visible={showDeleteSampleDialog} onDismiss={() => setShowDeleteSampleDialog(false)}>
-          <Dialog.Title>Delete Sample Teams</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">
-              This will delete Mumbai Blasters, Chennai Challengers and Delhi Dynamos, plus any matches involving them.
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowDeleteSampleDialog(false)}>Cancel</Button>
-            <Button textColor={theme.colors.error} onPress={doDeleteSample} loading={deleting}>Delete</Button>
-          </Dialog.Actions>
-        </Dialog>
-
-        {/* Clear All Confirm */}
-        <Dialog visible={showClearDialog} onDismiss={() => setShowClearDialog(false)}>
-          <Dialog.Title>Clear All Data</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">
-              This will permanently delete ALL teams, players, and matches. This cannot be undone.
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowClearDialog(false)}>Cancel</Button>
-            <Button textColor={theme.colors.error} onPress={doClearAll} loading={deleting}>
-              Clear Everything
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
-
-        {/* Feedback / result message */}
-        <Dialog visible={!!feedbackMsg} onDismiss={() => setFeedbackMsg(null)}>
-          <Dialog.Title>{feedbackMsg?.title}</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">{feedbackMsg?.body}</Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setFeedbackMsg(null)}>OK</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
     </ScrollView>
   );
 }
@@ -406,6 +296,8 @@ const styles = StyleSheet.create({
   },
   heroTitle: { color: '#FFFFFF', fontWeight: '900', marginTop: 10, letterSpacing: 0.3 },
   heroSubtitle: { color: 'rgba(255,255,255,0.75)', marginTop: 4 },
+  roleBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, backgroundColor: 'rgba(255,255,255,0.92)', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
+  roleBadgeText: { fontSize: 12, fontWeight: '700' },
   heroButton: { marginTop: 20, borderRadius: 28, paddingHorizontal: 8 },
   quickActions: {
     flexDirection: 'row',

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, TextInput, Button, useTheme, HelperText, Divider } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserAuth } from '../src/hooks/useUserAuth';
 import { isCloudEnabled } from '../src/config/supabase';
+import type { UserRole } from '../src/engine/types';
 
 type Mode = 'register' | 'login' | 'restore';
 
@@ -29,6 +30,7 @@ export default function LoginScreen() {
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
+  const [role, setRole] = useState<UserRole>('scorer');
 
   // Restore only
   const [restorePhone, setRestorePhone] = useState('');
@@ -60,7 +62,7 @@ export default function LoginScreen() {
     if (pin !== confirmPin) { setError('PINs do not match'); return; }
     setBusy(true);
     try {
-      await register(phone.trim(), name.trim(), pin);
+      await register(phone.trim(), name.trim(), pin, role);
     } finally {
       setBusy(false);
     }
@@ -142,6 +144,55 @@ export default function LoginScreen() {
               placeholder="e.g., Rohit Sharma"
               left={<TextInput.Icon icon="account" />}
             />
+            <Text variant="labelLarge" style={[styles.roleLabel, { color: theme.colors.onSurface }]}>
+              I am a…
+            </Text>
+            <View style={styles.roleGrid}>
+              {(
+                [
+                  { value: 'viewer'       as UserRole, label: 'Viewer',       icon: 'eye-outline',        desc: 'Watch & follow matches' },
+                  { value: 'scorer'       as UserRole, label: 'Scorer',       icon: 'scoreboard-outline', desc: 'Score live matches' },
+                  { value: 'team_admin'   as UserRole, label: 'Team Admin',   icon: 'shield-account',     desc: 'Manage teams & players' },
+                  { value: 'league_admin' as UserRole, label: 'League Admin', icon: 'shield-crown',       desc: 'Run tournaments' },
+                ] as { value: UserRole; label: string; icon: string; desc: string }[]
+              ).map(r => {
+                const selected = role === r.value;
+                return (
+                  <TouchableOpacity
+                    key={r.value}
+                    onPress={() => setRole(r.value)}
+                    style={[
+                      styles.roleCard,
+                      {
+                        borderColor: selected ? theme.colors.primary : theme.colors.outlineVariant,
+                        backgroundColor: selected ? theme.colors.primaryContainer : theme.colors.surface,
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons
+                      name={r.icon as any}
+                      size={22}
+                      color={selected ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                    />
+                    <Text
+                      variant="labelMedium"
+                      style={{ color: selected ? theme.colors.primary : theme.colors.onSurface, fontWeight: '700', textAlign: 'center' }}
+                    >
+                      {r.label}
+                    </Text>
+                    <Text
+                      variant="bodySmall"
+                      style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', fontSize: 10 }}
+                      numberOfLines={2}
+                    >
+                      {r.desc}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
             <TextInput
               label="Create PIN (4–6 digits)"
               value={pin}
@@ -315,4 +366,7 @@ const styles = StyleSheet.create({
   divider: { marginVertical: 20 },
   linkBtn: { alignSelf: 'center' },
   infoBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, borderRadius: 10, marginBottom: 12 },
+  roleLabel: { marginTop: 8, marginBottom: 8, fontWeight: '700' },
+  roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  roleCard: { flex: 1, minWidth: '44%', maxWidth: '48%', borderWidth: 2, borderRadius: 12, padding: 10, alignItems: 'center', gap: 4 },
 });

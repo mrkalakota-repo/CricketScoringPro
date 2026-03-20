@@ -86,6 +86,36 @@ function rowToSummary(row: Record<string, unknown>): LiveMatchSummary {
 }
 
 // ---------------------------------------------------------------------------
+// Sync status — observable by the UI (scoring screen indicator).
+// ---------------------------------------------------------------------------
+
+export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'disabled';
+
+let _syncStatus: SyncStatus = isCloudEnabled ? 'synced' : 'disabled';
+const _syncListeners = new Set<(s: SyncStatus) => void>();
+
+function setSyncStatus(s: SyncStatus): void {
+  if (_syncStatus === s) return;
+  _syncStatus = s;
+  _syncListeners.forEach(fn => fn(s));
+}
+
+/** Get current sync status without subscribing. */
+export function getSyncStatus(): SyncStatus {
+  return _syncStatus;
+}
+
+/**
+ * Subscribe to sync status changes. Returns an unsubscribe function.
+ * The callback is invoked immediately with the current value.
+ */
+export function subscribeSyncStatus(callback: (s: SyncStatus) => void): () => void {
+  callback(_syncStatus);
+  _syncListeners.add(callback);
+  return () => { _syncListeners.delete(callback); };
+}
+
+// ---------------------------------------------------------------------------
 // Offline sync queue — keyed by match ID so only the latest state is kept.
 // Drained opportunistically on every publish call and every 30 seconds.
 // ---------------------------------------------------------------------------
@@ -111,6 +141,7 @@ async function drainQueue(): Promise<void> {
       pendingQueue.delete(matchId);
     }
   }
+  if (pendingQueue.size === 0) setSyncStatus('synced');
 }
 
 function ensureDrainTimer(): void {
@@ -122,6 +153,8 @@ export async function publishLiveMatch(match: Match): Promise<void> {
   if (!isCloudEnabled || !supabase) return;
   if (match.status === 'scheduled') return;
 
+  setSyncStatus('syncing');
+
   // Drain any previously queued matches before publishing the new one
   await drainQueue();
 
@@ -130,9 +163,13 @@ export async function publishLiveMatch(match: Match): Promise<void> {
     // Network unavailable — queue this match state; latest wins
     pendingQueue.set(match.id, match);
     ensureDrainTimer();
+    setSyncStatus('offline');
     console.warn(`[cloud-match-repo] offline — queued match ${match.id} (queue size: ${pendingQueue.size})`);
-  } else if (pendingQueue.size > 0) {
-    ensureDrainTimer();
+  } else {
+    if (pendingQueue.size > 0) {
+      ensureDrainTimer();
+    }
+    setSyncStatus('synced');
   }
 }
 

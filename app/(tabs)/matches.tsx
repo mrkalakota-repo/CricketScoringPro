@@ -7,6 +7,7 @@ import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { MatchRow } from '../../src/db/repositories/match-repo';
+import { useRole } from '../../src/hooks/useRole';
 
 function parseMatchInfo(item: MatchRow, teams: ReturnType<typeof useTeamStore.getState>['teams']) {
   let team1Short = '';
@@ -54,6 +55,7 @@ export default function MatchesScreen() {
   const insets = useSafeAreaInsets();
   const { matches, loading, loadMatches } = useMatchStore();
   const teams = useTeamStore(s => s.teams);
+  const { canCreateMatch } = useRole();
 
   useFocusEffect(useCallback(() => { loadMatches(); }, []));
 
@@ -132,12 +134,14 @@ export default function MatchesScreen() {
           );
         }}
       />
-      <FAB
-        icon="plus"
-        style={[styles.fab, { backgroundColor: theme.colors.primary, bottom: fabBottom }]}
-        color="#FFFFFF"
-        onPress={() => router.push('/match/create')}
-      />
+      {canCreateMatch && (
+        <FAB
+          icon="plus"
+          style={[styles.fab, { backgroundColor: theme.colors.primary, bottom: fabBottom }]}
+          color="#FFFFFF"
+          onPress={() => router.push('/match/create')}
+        />
+      )}
     </View>
   );
 }
