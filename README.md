@@ -11,9 +11,12 @@
 |---|---|
 | **Formats** | T20, ODI, Test (4 innings, follow-on), Custom |
 | **Scoring** | Ball-by-ball with extras, all dismissal types, free hit, undo |
+| **Bowling rules** | Max overs per bowler enforced (T20: 4, ODI: 10); no consecutive overs |
 | **Teams** | Create teams, manage rosters, admin PIN, proximity discovery |
 | **Players** | Batting/bowling styles, roles (C / VC / WK / AR), career stats |
 | **Leagues** | Create leagues, round-robin fixtures, live standings |
+| **User Auth** | Phone + PIN registration; cross-device account restore via Supabase |
+| **RBAC** | 4 roles: league\_admin, team\_admin, scorer, viewer |
 | **Live Scores** | Ball-by-ball broadcast to nearby users (< 50 miles) via Supabase |
 | **Team Chat** | Real-time per-team chat via Supabase |
 | **Delegate Access** | Single-use 6-char code grants editor access to another device |

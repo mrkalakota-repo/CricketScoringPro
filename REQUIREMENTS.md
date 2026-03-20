@@ -139,7 +139,7 @@ npm test             # Jest unit tests
 
 1. **Format** — select T20, ODI, Test, or Custom (with over count input)
 2. **Teams** — pick two different teams from available list
-3. **Playing XI** — select 11 players per team (min 2 per team to proceed)
+3. **Playing XI** — select exactly **11 players** per team for T20/ODI/Test; custom format allows any count ≥ 1. Count displayed as `(X/11 selected)` in red until complete, green when ready.
 4. **Venue** — optional venue name (defaults to "Unknown Venue")
 5. **Confirm** — review all settings before creating
 
@@ -229,6 +229,11 @@ scheduled → toss → in_progress → completed
 - 6 legal deliveries = complete over
 - Maiden over = 0 runs in a completed over (regardless of wickets)
 - Bowler must change after each over (same bowler cannot bowl consecutive overs)
+
+### 7.6 Bowling Restrictions (LOI formats only)
+- **Max overs per bowler** = `floor(oversPerInnings / 5)` — T20: 4 overs, ODI: 10 overs; custom: proportional; Test: no limit
+- Enforced in `MatchEngine.setBowler()` — throws on violation
+- Ineligible bowlers shown greyed out in the selection modal with reason: `(bowled last over)` or `(max N overs)`
 
 ### 7.6 Partnerships
 - Auto-tracked per batter pair
@@ -353,19 +358,47 @@ scheduled → toss → in_progress → completed
 
 ---
 
-## 17. Admin Auth & PIN System
+## 17. User Authentication & RBAC
 
-- Optional per-team PIN (4–6 digits)
+### 17.1 Global User Auth (phone + PIN)
+- On first launch users register with: phone number, display name, 4–6 digit PIN, role
+- PIN is SHA-256 hashed client-side; stored locally in `user_prefs`
+- Profile also pushed to Supabase `user_profiles` for cross-device restore
+- Cross-device account restore: enter phone → `verify_user_profile()` RPC verifies PIN server-side (hash never returned to client) → profile saved locally
+- Session is in-memory — PIN must be re-entered after each app restart
+- On web: metadata (phone, name, role) persists in `localStorage`; PIN hash in `sessionStorage` only (cleared on tab close)
+
+### 17.2 Role-Based Permissions (RBAC)
+
+| Permission | league_admin | team_admin | scorer | viewer |
+|---|:---:|:---:|:---:|:---:|
+| Create League | ✅ | ❌ | ❌ | ❌ |
+| Manage Teams | ✅ | ✅ | ❌ | ❌ |
+| Create / Start Match | ✅ | ✅ | ✅ | ❌ |
+| Record Balls (Score) | ✅ | ❌ | ✅ | ❌ |
+| Delete Match | ✅ | ❌ | ❌ | ❌ |
+| View Live Scores | ✅ | ✅ | ✅ | ✅ |
+
+Default role on registration: `scorer`. Use `useRole()` hook for all permission checks.
+
+### 17.3 Team Admin PIN System
+- Optional per-team PIN (4–6 digits), independent of user auth
 - Hashed with SHA-256 (expo-crypto) before storage — plaintext never stored
 - `adminPinHash: null` = open access (no PIN required)
 - Auth state stored in-memory only — intentionally lost on app restart
 - Creator auto-authenticated immediately after team creation
 
-**Actions requiring admin auth (if PIN set):**
+**Actions requiring team admin auth (if PIN set):**
 - Add/edit/delete players
 - Edit team info
 - Change/set PIN
 - Delete team
+
+### 17.4 Access Control for Team Editing
+- `isMyTeam` — team created on this device (stored in `myTeamIds` pref)
+- `isDelegate` — editor access granted via delegate code
+- `hasEditAccess = isMyTeam || isDelegate`
+- Attempting to access `/team/[id]/edit` without access shows an unauthorized screen
 
 ---
 
@@ -463,11 +496,14 @@ matches(id, format, config_json, status, team1_id, team2_id,
 
 user_prefs(key TEXT PRIMARY KEY, value TEXT)
 
-leagues(id, name, short_name, team_ids TEXT, created_at, updated_at)
+leagues(id, name, short_name, team_ids TEXT, format TEXT DEFAULT 'round_robin', created_at, updated_at)
 
 league_fixtures(id, league_id, team1_id, team2_id, match_id, venue,
                 scheduled_date, status, result, team1_score, team2_score,
-                winner_team_id, created_at, updated_at)
+                winner_team_id, nrr_data_json TEXT, round INTEGER,
+                bracket_slot INTEGER, created_at, updated_at)
+
+user_prefs(key TEXT PRIMARY KEY, value TEXT)   -- also stores user_profile JSON
 ```
 
 ### Supabase Schema (cloud — run `supabase-setup.sql`)
@@ -486,16 +522,22 @@ chat_messages(id UUID, team_id, player_id, player_name, text, created_at BIGINT)
 live_matches(id, team1_name, team1_short, team2_name, team2_short, format,
              venue, status, innings_num, batting_short, score, wickets,
              overs, balls, target, result, latitude, longitude, updated_at BIGINT)
+
+user_profiles(phone TEXT PRIMARY KEY, name, pin_hash, role, updated_at BIGINT)
+-- PIN hashes NEVER returned to clients — all reads go through verify_user_profile() RPC
+-- Postgres function verify_user_profile(phone, sha256_hash) → (name, role, found, pin_correct)
+-- Opportunistically upgrades SHA-256 hashes to bcrypt on first successful login (pgcrypto)
 ```
 
 ### Notes
-- `user_prefs` stores `myTeamIds` and `delegateTeamIds` (JSON arrays) — device-local ownership/access
+- `user_prefs` stores `myTeamIds`, `delegateTeamIds`, and `user_profile` JSON (device-local)
 - Full match engine state serialized into `match_state_json` (enables resume + undo persist)
 - Migrations use `ALTER TABLE ... ADD COLUMN` wrapped in try/catch (safe for re-runs; no NOT NULL on new columns)
 - Match UUID always generated client-side and passed to repo (never repo-generated)
 - Auto-save after every ball recorded and after every undo
 - Cloud sync requires `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in `.env`
 - Supports both legacy JWT anon keys (`length > 100`) and new publishable key format (`sb_publishable_` prefix)
+- `.env` must never be committed to git (listed in `.gitignore`)
 
 ---
 
@@ -567,6 +609,9 @@ app/
 | **Delegate Access** | Single-use 6-char code grants editor access to another device |
 | **Team Chat** | Real-time per-team chat via Supabase `postgres_changes` |
 | **Cloud Sync** | Teams + players synced to Supabase for cross-device discovery |
-| **Admin** | SHA-256 PIN auth, in-memory, per-team |
-| **Platform** | Android + iOS + Web, SQLite + localStorage |
+| **User Auth** | Phone + PIN registration, cross-device restore via Supabase RPC, in-memory session |
+| **RBAC** | 4 roles: `league_admin`, `team_admin`, `scorer`, `viewer`; `useRole()` hook |
+| **Admin** | Per-team optional PIN (SHA-256 hashed, in-memory auth); separate from user auth |
+| **Security** | Team edit auth guard; server-side PIN verify (hash never returned to client); bcrypt upgrade path; no PII in logs |
+| **Platform** | Android + iOS + Web, SQLite + localStorage/sessionStorage |
 | **UX** | Dark mode, MD3 theming, web-compatible dialogs |
