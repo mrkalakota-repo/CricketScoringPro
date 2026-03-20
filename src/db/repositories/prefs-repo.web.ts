@@ -24,6 +24,10 @@ export async function removeMyTeamId(teamId: string): Promise<void> {
   localStorage.setItem(MY_TEAM_IDS_KEY, JSON.stringify(ids));
 }
 
+export async function setMyTeamIds(teamIds: string[]): Promise<void> {
+  localStorage.setItem(MY_TEAM_IDS_KEY, JSON.stringify(teamIds));
+}
+
 // ── My League IDs ─────────────────────────────────────────────────────────────
 
 const MY_LEAGUE_IDS_KEY = 'my_league_ids';

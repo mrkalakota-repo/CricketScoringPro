@@ -8,6 +8,7 @@ interface PrefsStore {
   loadPrefs: () => Promise<void>;
   addMyTeam: (teamId: string) => Promise<void>;
   removeMyTeam: (teamId: string) => Promise<void>;
+  setMyTeamIds: (teamIds: string[]) => Promise<void>;
   addDelegateTeam: (teamId: string) => Promise<void>;
   removeDelegateTeam: (teamId: string) => Promise<void>;
   addMyLeague: (leagueId: string) => Promise<void>;
@@ -45,6 +46,13 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
     try {
       await prefsRepo.removeMyTeamId(teamId);
       set({ myTeamIds: get().myTeamIds.filter(id => id !== teamId) });
+    } catch { /* ignore */ }
+  },
+
+  setMyTeamIds: async (teamIds) => {
+    try {
+      await prefsRepo.setMyTeamIds(teamIds);
+      set({ myTeamIds: teamIds });
     } catch { /* ignore */ }
   },
 

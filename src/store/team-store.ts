@@ -30,20 +30,33 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
 
   loadTeams: async () => {
     set({ loading: true });
-    const teams = await teamRepo.getAllTeams();
-    set({ teams, loading: false });
+    const localTeams = await teamRepo.getAllTeams();
+    set({ teams: localTeams, loading: false });
 
-    // Restore myTeamIds from cloud for this account on new devices.
-    // Any team with owner_phone matching the current user is treated as owned.
+    // Restore myTeamIds from cloud — reset to exactly what the cloud says this
+    // user owns. This prevents a previous user's myTeamIds persisting on the
+    // same device after an account switch.
     const phone = currentPhone();
+    const prefsStore = usePrefsStore.getState();
     if (phone) {
       const ownedIds = await cloudRepo.fetchTeamIdsByOwner(phone);
-      if (ownedIds.length > 0) {
-        const prefsStore = usePrefsStore.getState();
-        for (const id of ownedIds) {
-          await prefsStore.addMyTeam(id);
+      await prefsStore.setMyTeamIds(ownedIds);
+
+      // Import any owned teams that don't exist locally yet (e.g. seeded via
+      // script or created on another device before this device ever logged in).
+      const localIds = new Set(localTeams.map(t => t.id));
+      const missingIds = ownedIds.filter(id => !localIds.has(id));
+      if (missingIds.length > 0) {
+        const cloudTeams = await cloudRepo.fetchTeamsByIds(missingIds);
+        for (const team of cloudTeams) {
+          await teamRepo.importCloudTeam(team);
         }
+        const refreshed = await teamRepo.getAllTeams();
+        set({ teams: refreshed });
       }
+    } else {
+      // No logged-in user — clear any stale myTeamIds from a previous session.
+      await prefsStore.setMyTeamIds([]);
     }
   },
 
