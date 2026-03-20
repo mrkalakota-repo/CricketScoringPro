@@ -4,26 +4,32 @@ import * as prefsRepo from '../db/repositories/prefs-repo';
 interface PrefsStore {
   myTeamIds: string[];
   delegateTeamIds: string[];
+  myLeagueIds: string[];
   loadPrefs: () => Promise<void>;
   addMyTeam: (teamId: string) => Promise<void>;
   removeMyTeam: (teamId: string) => Promise<void>;
   addDelegateTeam: (teamId: string) => Promise<void>;
   removeDelegateTeam: (teamId: string) => Promise<void>;
+  addMyLeague: (leagueId: string) => Promise<void>;
+  removeMyLeague: (leagueId: string) => Promise<void>;
+  setMyLeagueIds: (leagueIds: string[]) => Promise<void>;
 }
 
 export const usePrefsStore = create<PrefsStore>((set, get) => ({
   myTeamIds: [],
   delegateTeamIds: [],
+  myLeagueIds: [],
 
   loadPrefs: async () => {
     try {
-      const [myTeamIds, delegateTeamIds] = await Promise.all([
+      const [myTeamIds, delegateTeamIds, myLeagueIds] = await Promise.all([
         prefsRepo.getMyTeamIds(),
         prefsRepo.getDelegateTeamIds(),
+        prefsRepo.getMyLeagueIds(),
       ]);
-      set({ myTeamIds, delegateTeamIds });
+      set({ myTeamIds, delegateTeamIds, myLeagueIds });
     } catch {
-      set({ myTeamIds: [], delegateTeamIds: [] });
+      set({ myTeamIds: [], delegateTeamIds: [], myLeagueIds: [] });
     }
   },
 
@@ -54,6 +60,28 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
     try {
       await prefsRepo.removeDelegateTeamId(teamId);
       set({ delegateTeamIds: get().delegateTeamIds.filter(id => id !== teamId) });
+    } catch { /* ignore */ }
+  },
+
+  addMyLeague: async (leagueId) => {
+    try {
+      await prefsRepo.addMyLeagueId(leagueId);
+      const ids = get().myLeagueIds;
+      if (!ids.includes(leagueId)) set({ myLeagueIds: [...ids, leagueId] });
+    } catch { /* ignore */ }
+  },
+
+  removeMyLeague: async (leagueId) => {
+    try {
+      await prefsRepo.removeMyLeagueId(leagueId);
+      set({ myLeagueIds: get().myLeagueIds.filter(id => id !== leagueId) });
+    } catch { /* ignore */ }
+  },
+
+  setMyLeagueIds: async (leagueIds) => {
+    try {
+      await prefsRepo.setMyLeagueIds(leagueIds);
+      set({ myLeagueIds: leagueIds });
     } catch { /* ignore */ }
   },
 }));

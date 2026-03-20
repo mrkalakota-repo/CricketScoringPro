@@ -5,9 +5,9 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLeagueStore } from '../../../src/store/league-store';
 import { useTeamStore } from '../../../src/store/team-store';
+import { usePrefsStore } from '../../../src/store/prefs-store';
 import type { LeagueFixture, FixtureNRRData } from '../../../src/engine/types';
 import { Switch } from 'react-native-paper';
-import { useRole } from '../../../src/hooks/useRole';
 
 type Mode = 'add' | 'roundrobin' | 'result';
 
@@ -17,9 +17,10 @@ export default function ScheduleScreen() {
   const theme = useTheme();
   const { leagues, fixtures: allFixtures, createFixture, updateFixtureResult, deleteFixture, generateRoundRobin, generateKnockout, loadFixtures } = useLeagueStore();
   const teams = useTeamStore(s => s.teams);
-  const { canDeleteMatch } = useRole();
+  const myLeagueIds = usePrefsStore(s => s.myLeagueIds);
 
   const league = leagues.find(l => l.id === id);
+  const isOwner = league ? myLeagueIds.includes(league.id) : false;
   const fixtures = allFixtures[id ?? ''] ?? [];
   const editFixture: LeagueFixture | null = fixtureId ? (fixtures.find(f => f.id === fixtureId) ?? null) : null;
 
@@ -264,7 +265,7 @@ export default function ScheduleScreen() {
               <Divider style={{ marginVertical: 12 }} />
 
               {/* Read-only view for non-league-admins on a completed fixture */}
-              {editFixture.status === 'completed' && !canDeleteMatch && (
+              {editFixture.status === 'completed' && !isOwner && (
                 <>
                   <View style={[styles.readOnlyBanner, { backgroundColor: theme.colors.surfaceVariant }]}>
                     <MaterialCommunityIcons name="lock-outline" size={16} color={theme.colors.onSurfaceVariant} />
@@ -279,7 +280,7 @@ export default function ScheduleScreen() {
               )}
 
               {/* Override warning banner for league_admin on completed fixture */}
-              {editFixture.status === 'completed' && canDeleteMatch && (
+              {editFixture.status === 'completed' && isOwner && (
                 <View style={[styles.overrideBanner, { backgroundColor: '#FFF3E0', borderColor: '#E65100' }]}>
                   <MaterialCommunityIcons name="alert-outline" size={16} color="#E65100" />
                   <Text variant="bodySmall" style={{ color: '#E65100', flex: 1, fontWeight: '600' }}>
@@ -289,7 +290,7 @@ export default function ScheduleScreen() {
               )}
 
               {/* Editable form — shown for scheduled fixtures OR for league_admin on completed */}
-              {(editFixture.status !== 'completed' || canDeleteMatch) && (
+              {(editFixture.status !== 'completed' || isOwner) && (
                 <>
 
               <Text variant="bodySmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>{getTeamName(editFixture.team1Id)} Score</Text>

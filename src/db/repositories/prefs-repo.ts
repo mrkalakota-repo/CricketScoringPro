@@ -39,6 +39,33 @@ export async function removeMyTeamId(teamId: string): Promise<void> {
   await setStringPref(MY_TEAM_IDS_KEY, JSON.stringify(ids.filter(id => id !== teamId)));
 }
 
+// ── My League IDs ─────────────────────────────────────────────────────────────
+
+const MY_LEAGUE_IDS_KEY = 'my_league_ids';
+
+export async function getMyLeagueIds(): Promise<string[]> {
+  try {
+    const raw = await getStringPref(MY_LEAGUE_IDS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+export async function addMyLeagueId(leagueId: string): Promise<void> {
+  const ids = await getMyLeagueIds();
+  if (!ids.includes(leagueId)) {
+    await setStringPref(MY_LEAGUE_IDS_KEY, JSON.stringify([...ids, leagueId]));
+  }
+}
+
+export async function removeMyLeagueId(leagueId: string): Promise<void> {
+  const ids = await getMyLeagueIds();
+  await setStringPref(MY_LEAGUE_IDS_KEY, JSON.stringify(ids.filter(id => id !== leagueId)));
+}
+
+export async function setMyLeagueIds(leagueIds: string[]): Promise<void> {
+  await setStringPref(MY_LEAGUE_IDS_KEY, JSON.stringify(leagueIds));
+}
+
 // ── Delegate Team IDs ─────────────────────────────────────────────────────────
 
 const DELEGATE_TEAM_IDS_KEY = 'delegate_team_ids';

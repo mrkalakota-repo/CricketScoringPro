@@ -24,6 +24,30 @@ export async function removeMyTeamId(teamId: string): Promise<void> {
   localStorage.setItem(MY_TEAM_IDS_KEY, JSON.stringify(ids));
 }
 
+// ── My League IDs ─────────────────────────────────────────────────────────────
+
+const MY_LEAGUE_IDS_KEY = 'my_league_ids';
+
+function loadLeagueIds(): string[] {
+  try { return JSON.parse(localStorage.getItem(MY_LEAGUE_IDS_KEY) ?? '[]'); }
+  catch { return []; }
+}
+
+export async function getMyLeagueIds(): Promise<string[]> { return loadLeagueIds(); }
+
+export async function addMyLeagueId(leagueId: string): Promise<void> {
+  const ids = loadLeagueIds();
+  if (!ids.includes(leagueId)) localStorage.setItem(MY_LEAGUE_IDS_KEY, JSON.stringify([...ids, leagueId]));
+}
+
+export async function removeMyLeagueId(leagueId: string): Promise<void> {
+  localStorage.setItem(MY_LEAGUE_IDS_KEY, JSON.stringify(loadLeagueIds().filter(id => id !== leagueId)));
+}
+
+export async function setMyLeagueIds(leagueIds: string[]): Promise<void> {
+  localStorage.setItem(MY_LEAGUE_IDS_KEY, JSON.stringify(leagueIds));
+}
+
 // ── Delegate Team IDs ─────────────────────────────────────────────────────────
 
 const DELEGATE_KEY = 'delegate_team_ids';
