@@ -239,19 +239,19 @@ export default function TeamDetailScreen() {
         <Text variant="headlineSmall" style={styles.teamName}>{team.name}</Text>
         <Text variant="bodyMedium" style={styles.shortName}>{team.shortName}</Text>
         {!hasEditAccess ? (
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             <Chip
               compact icon="eye-outline"
-              textStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.9)' }}
-              style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+              textStyle={{ fontSize: 11, color: theme.colors.onSurface, fontWeight: '600' }}
+              style={{ backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 12 }}
             >
               View Only
             </Chip>
             {!isDelegate && (
               <Chip
                 compact icon="account-key"
-                textStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.9)' }}
-                style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+                textStyle={{ fontSize: 11, color: '#FFFFFF', fontWeight: '700' }}
+                style={{ backgroundColor: '#E65100', borderRadius: 12 }}
                 onPress={() => setShowClaimModal(true)}
               >
                 Claim Access
@@ -282,15 +282,17 @@ export default function TeamDetailScreen() {
       {/* Actions */}
       <View style={styles.actions}>
         {hasEditAccess && (
-          <>
-            <Button
-              mode="contained"
-              icon="account-plus"
-              onPress={() => isDelegate ? router.push(`/team/${teamId}/roster`) : requireAdmin('roster', () => router.push(`/team/${teamId}/roster`))}
-              style={styles.actionButton}
-            >
-              Manage Roster
-            </Button>
+          <Button
+            mode="contained"
+            icon="account-plus"
+            onPress={() => isDelegate ? router.push(`/team/${teamId}/roster`) : requireAdmin('roster', () => router.push(`/team/${teamId}/roster`))}
+            style={styles.actionButtonFull}
+          >
+            Manage Roster
+          </Button>
+        )}
+        <View style={styles.actionsRow}>
+          {hasEditAccess && (
             <Button
               mode="outlined"
               icon="pencil"
@@ -299,18 +301,18 @@ export default function TeamDetailScreen() {
             >
               Edit Team
             </Button>
-          </>
-        )}
-        {isCloudEnabled && (
-          <Button
-            mode="outlined"
-            icon="chat"
-            onPress={() => router.push(`/chat/${teamId}`)}
-            style={styles.actionButton}
-          >
-            Team Chat
-          </Button>
-        )}
+          )}
+          {isCloudEnabled && (
+            <Button
+              mode="outlined"
+              icon="chat"
+              onPress={() => router.push(`/chat/${teamId}`)}
+              style={styles.actionButton}
+            >
+              Team Chat
+            </Button>
+          )}
+        </View>
       </View>
 
       <Divider style={{ marginHorizontal: 16 }} />
@@ -452,8 +454,10 @@ const styles = StyleSheet.create({
   },
   teamName: { color: '#FFFFFF', fontWeight: 'bold', marginTop: 12 },
   shortName: { color: 'rgba(255,255,255,0.8)', marginTop: 4 },
-  actions: { flexDirection: 'row', justifyContent: 'center', gap: 12, padding: 16 },
-  actionButton: { borderRadius: 20 },
+  actions: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
+  actionsRow: { flexDirection: 'row', gap: 8 },
+  actionButtonFull: { borderRadius: 20 },
+  actionButton: { borderRadius: 20, flex: 1 },
   sectionTitle: { fontWeight: 'bold', padding: 16, paddingBottom: 8 },
   playerCard: { marginBottom: 8, borderRadius: 12 },
   playerContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },

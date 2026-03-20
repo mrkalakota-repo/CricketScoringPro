@@ -46,9 +46,9 @@ function TeamCard({ team, distance, isMyTeam }: { team: Team; distance?: number;
       <View style={[styles.colorStripe, { backgroundColor: isMyTeam ? theme.colors.primary : avatarColor }]} />
       <Card.Content style={styles.cardContent}>
         <View style={[styles.avatar, {
-          backgroundColor: isMyTeam ? theme.colors.primary + '20' : avatarColor + '22',
-          borderColor: isMyTeam ? theme.colors.primary + '60' : avatarColor + '55',
-          borderWidth: 1.5,
+          backgroundColor: isMyTeam ? theme.colors.primary + '25' : avatarColor + '45',
+          borderColor: isMyTeam ? theme.colors.primary : avatarColor + 'BB',
+          borderWidth: 2,
         }]}>
           <Text style={[styles.avatarText, { color: isMyTeam ? theme.colors.primary : avatarColor }]}>
             {team.shortName.substring(0, 3)}
