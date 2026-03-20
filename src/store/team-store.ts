@@ -9,6 +9,12 @@ function currentPhone(): string | null {
   return useUserAuth.getState().profile?.phone ?? null;
 }
 
+// Throttle cloud ownership sync to at most once per 60 s per phone number.
+// Local SQLite load always runs; only the Supabase round-trip is gated.
+const CLOUD_SYNC_COOLDOWN_MS = 60_000;
+let _lastCloudSync = 0;
+let _lastCloudSyncPhone = '';
+
 interface TeamStore {
   teams: Team[];
   loading: boolean;
@@ -33,12 +39,21 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     const localTeams = await teamRepo.getAllTeams();
     set({ teams: localTeams, loading: false });
 
+    // Throttle Supabase ownership sync — local SQLite load above always runs,
+    // but cloud round-trips are capped to once per 60 s per account.
+    const phone = currentPhone();
+    const prefsStore = usePrefsStore.getState();
+    const now = Date.now();
+    const cooldownActive =
+      now - _lastCloudSync < CLOUD_SYNC_COOLDOWN_MS && _lastCloudSyncPhone === (phone ?? '');
+    if (cooldownActive) return;
+
     // Restore myTeamIds from cloud — reset to exactly what the cloud says this
     // user owns. This prevents a previous user's myTeamIds persisting on the
     // same device after an account switch.
-    const phone = currentPhone();
-    const prefsStore = usePrefsStore.getState();
     if (phone) {
+      _lastCloudSync = now;
+      _lastCloudSyncPhone = phone;
       const ownedIds = await cloudRepo.fetchTeamIdsByOwner(phone);
       await prefsStore.setMyTeamIds(ownedIds);
 

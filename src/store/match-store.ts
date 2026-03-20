@@ -178,7 +178,8 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     const { engine, matchId } = get();
     if (!engine || !matchId) return;
     await matchRepo.saveMatchState(matchId, engine.getMatch());
-    await get().loadMatches();
+    // No need to reload all matches — useFocusEffect on home/matches tabs
+    // refreshes the list whenever the user navigates back.
   },
 
   deleteMatch: async (id) => {
