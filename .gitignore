@@ -41,3 +41,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Local docs not part of the build
+requirements.md
+"REQUIREMENTS 2.md"
+REQUIREMENTS*.md
