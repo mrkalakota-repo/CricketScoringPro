@@ -53,14 +53,17 @@ function argVal(flag) {
 }
 
 const ownerPhone = argVal('--owner');
+const owner1Phone = argVal('--owner1') || ownerPhone;
+const owner2Phone = argVal('--owner2') || ownerPhone;
 const lat = argVal('--lat') !== null ? parseFloat(argVal('--lat')) : null;
 const lon = argVal('--lon') !== null ? parseFloat(argVal('--lon')) : null;
 const supabaseUrl = argVal('--url') || envVars['EXPO_PUBLIC_SUPABASE_URL'];
 const supabaseKey = argVal('--key') || envVars['EXPO_PUBLIC_SUPABASE_ANON_KEY'];
 
-if (!ownerPhone) {
-  console.error('Error: --owner <phone> is required');
-  console.error('Usage: node scripts/seed-teams.mjs --owner +919876543210');
+if (!owner1Phone || !owner2Phone) {
+  console.error('Error: owner phone(s) are required');
+  console.error('Usage: node scripts/seed-teams.mjs --owner1 +1234 --owner2 +5678');
+  console.error('       node scripts/seed-teams.mjs --owner +1234  (same owner for both)');
   process.exit(1);
 }
 if (!supabaseUrl || !supabaseKey) {
@@ -75,6 +78,8 @@ const TEAMS = [
   {
     name: 'Mumbai Strikers',
     shortName: 'MBS',
+    lat: 35.0656,
+    lon: -80.7198,
     players: [
       { name: 'Rohit Sharma',     phone: '+911000000001', batting: 'right', bowling: 'Right-arm medium',    keeper: false, allRounder: false, captain: true,  vc: false },
       { name: 'Shubman Gill',     phone: '+911000000002', batting: 'right', bowling: 'none',                keeper: false, allRounder: false, captain: false, vc: false },
@@ -92,6 +97,8 @@ const TEAMS = [
   {
     name: 'Delhi Thunders',
     shortName: 'DLT',
+    lat: 35.2269,
+    lon: -80.8431,
     players: [
       { name: 'KL Rahul',          phone: '+912000000001', batting: 'right', bowling: 'none',                keeper: true,  allRounder: false, captain: true,  vc: false },
       { name: 'Prithvi Shaw',      phone: '+912000000002', batting: 'right', bowling: 'Right-arm off-break', keeper: false, allRounder: false, captain: false, vc: false },
@@ -109,7 +116,7 @@ const TEAMS = [
 ];
 
 // ── Seed ───────────────────────────────────────────────────────────────────────
-async function seedTeam(teamDef) {
+async function seedTeam(teamDef, teamOwner) {
   const teamId = randomUUID();
   const now = Date.now();
 
@@ -120,9 +127,9 @@ async function seedTeam(teamDef) {
     id: teamId,
     name: teamDef.name,
     short_name: teamDef.shortName,
-    owner_phone: ownerPhone,
-    latitude: lat ?? null,
-    longitude: lon ?? null,
+    owner_phone: teamOwner,
+    latitude: teamDef.lat ?? lat ?? null,
+    longitude: teamDef.lon ?? lon ?? null,
     updated_at: now,
   });
   if (teamErr) throw new Error(`cloud_teams upsert failed: ${teamErr.message}`);
@@ -152,19 +159,21 @@ async function seedTeam(teamDef) {
 async function main() {
   console.log('Gully Cricket Scorer — Team Seeder');
   console.log('====================================');
-  console.log(`Owner phone : ${ownerPhone}`);
-  console.log(`Location   : ${lat != null && lon != null ? `${lat}, ${lon}` : 'not set (proximity disabled)'}`);
-  console.log(`Supabase   : ${supabaseUrl}`);
+  console.log(`Team 1 owner: ${owner1Phone}`);
+  console.log(`Team 2 owner: ${owner2Phone}`);
+  console.log(`Location    : ${lat != null && lon != null ? `${lat}, ${lon} (CLI override)` : 'per-team defaults'}`);
+  console.log(`Supabase    : ${supabaseUrl}`);
 
+  const owners = [owner1Phone, owner2Phone];
   const teamIds = [];
-  for (const teamDef of TEAMS) {
-    const id = await seedTeam(teamDef);
+  for (let i = 0; i < TEAMS.length; i++) {
+    const id = await seedTeam(TEAMS[i], owners[i]);
     teamIds.push(id);
   }
 
   console.log('\n✅ Done! Teams created:');
-  TEAMS.forEach((t, i) => console.log(`  ${t.name} (${t.shortName})  id=${teamIds[i]}`));
-  console.log('\nSign in with the owner phone to see these teams in the app.');
+  TEAMS.forEach((t, i) => console.log(`  ${t.name} (${t.shortName})  owner=${owners[i]}  lat=${t.lat ?? lat ?? 'none'}  lon=${t.lon ?? lon ?? 'none'}  id=${teamIds[i]}`));
+  console.log('\nSign in with each owner phone to see their team in the app.');
 }
 
 main().catch(err => {
