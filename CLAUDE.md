@@ -54,7 +54,7 @@ Metro resolves `.web.ts` over `.ts` on web. Every DB repo needs both files:
 - `prefs-repo.ts` / `prefs-repo.web.ts`
 - `league-repo.ts` / `league-repo.web.ts`
 
-Cloud repos (`cloud-team-repo`, `cloud-chat-repo`, `cloud-delegate-repo`, `cloud-match-repo`) use Supabase — same on all platforms, no `.web.ts` needed.
+Cloud repos (`cloud-team-repo`, `cloud-chat-repo`, `cloud-delegate-repo`, `cloud-match-repo`, `cloud-league-repo`, `cloud-user-repo`) use Supabase — same on all platforms, no `.web.ts` needed.
 
 ### Scoring Engine
 `src/engine/` — pure TypeScript, zero React/RN dependencies. Never import React or RN APIs there.
@@ -72,7 +72,7 @@ All mutations go through Zustand stores, never directly through repos.
 - `useTeamStore` — team/player CRUD
 - `useMatchStore` — match lifecycle, scoring engine, undo, auto-save after every ball
 - `usePrefsStore` — device-local prefs (`myTeamIds`, `delegateTeamIds`)
-- `useLeagueStore` — leagues and fixtures
+- `useLeagueStore` — leagues and fixtures; syncs to/from Supabase `cloud_leagues`/`cloud_league_fixtures` when the user is authenticated (owner-scoped by phone). `loadLeagues` fetches from cloud and upserts locally on every call.
 - `useChatStore` — real-time per-team chat
 - `useLiveScoresStore` — nearby live match scores (Supabase real-time, 50-mile radius)
 - `useAdminAuth` — in-memory PIN auth (resets on restart by design)
@@ -80,6 +80,11 @@ All mutations go through Zustand stores, never directly through repos.
 
 ### User Auth & RBAC
 `src/hooks/useUserAuth.ts` — Zustand store for global auth (phone-number registration + PIN). Profile is saved locally (`user_prefs`) and pushed to Supabase `user_profiles` for cross-device restore.
+
+Key behaviours:
+- `login()` re-pushes the profile to Supabase on every successful local sign-in, recovering profiles whose initial push was dropped (e.g. table didn't exist at registration time).
+- `sessionExpired: boolean` — set when web `sessionStorage` is missing the PIN hash (tab closed and reopened). UI auto-switches to the restore form with phone pre-filled; local login is impossible in this state.
+- `restoreErrorMessage` — propagated from `verifyUserProfile` RPC so the UI can show actionable errors.
 
 `src/hooks/useRole.ts` — pure function of `profile.role`; returns `RolePermissions` object. Use this for all gate checks; never inspect `profile.role` directly in UI.
 
@@ -215,14 +220,16 @@ Migrations: `ALTER TABLE ... ADD COLUMN` in try/catch. **Never `NOT NULL` in mig
 
 ## Supabase Schema (Cloud)
 Run `supabase-setup.sql` in the SQL Editor (idempotent — safe to re-run).
-Tables: `cloud_teams`, `cloud_players`, `delegate_codes`, `chat_messages`, `live_matches`, `user_profiles`.
+Tables: `cloud_teams`, `cloud_players`, `delegate_codes`, `chat_messages`, `live_matches`, `user_profiles`, `cloud_leagues`, `cloud_league_fixtures`.
 Credentials go in `.env` as `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
 
-`user_profiles` stores phone, name, pinHash, role — used for cross-device account restore (`restoreFromCloud` in `useUserAuth`).
+`user_profiles` stores phone, name, pinHash, role. PIN verification goes through `verify_user_profile()` RPC (SECURITY DEFINER) — the hash is never returned to clients. The RPC uses pgcrypto (`crypt`, `gen_salt`) and requires `SET search_path = public, extensions` because Supabase installs pgcrypto in the `extensions` schema.
+
+`cloud_leagues` / `cloud_league_fixtures` are owner-scoped (`owner_phone` column). `league-store` pushes on every mutation and pulls on `loadLeagues` when authenticated.
 
 Supported key formats: legacy JWT (`length > 100`) **or** new publishable format (`sb_publishable_` prefix). Both are accepted — validation is in `src/config/supabase.ts`.
 
-`live_matches` is upserted on every ball (and undo, start innings, declare). If the table doesn't exist yet, `PGRST205` errors are silently ignored so the app degrades gracefully.
+`live_matches` is upserted on every ball (and undo, start innings, declare). If any table doesn't exist yet, `PGRST205` errors are silently ignored so the app degrades gracefully.
 
 ---
 
