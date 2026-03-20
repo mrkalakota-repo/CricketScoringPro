@@ -43,6 +43,44 @@ function rowToFixture(row: FixtureRow): LeagueFixture {
   };
 }
 
+export async function upsertLeague(league: League): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT INTO leagues (id, name, short_name, team_ids, format, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name, short_name = excluded.short_name,
+       team_ids = excluded.team_ids, format = excluded.format,
+       updated_at = excluded.updated_at`,
+    league.id, league.name, league.shortName,
+    JSON.stringify(league.teamIds), league.format,
+    league.createdAt, league.updatedAt,
+  );
+}
+
+export async function upsertFixture(fixture: LeagueFixture): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT INTO league_fixtures
+       (id, league_id, team1_id, team2_id, match_id, venue, scheduled_date,
+        status, result, team1_score, team2_score, winner_team_id,
+        nrr_data_json, round, bracket_slot, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       status = excluded.status, result = excluded.result,
+       team1_score = excluded.team1_score, team2_score = excluded.team2_score,
+       winner_team_id = excluded.winner_team_id, nrr_data_json = excluded.nrr_data_json,
+       match_id = excluded.match_id, updated_at = excluded.updated_at`,
+    fixture.id, fixture.leagueId, fixture.team1Id, fixture.team2Id,
+    fixture.matchId ?? null, fixture.venue, fixture.scheduledDate,
+    fixture.status, fixture.result ?? null, fixture.team1Score ?? null,
+    fixture.team2Score ?? null, fixture.winnerTeamId ?? null,
+    fixture.nrrData ? JSON.stringify(fixture.nrrData) : null,
+    fixture.round ?? null, fixture.bracketSlot ?? null,
+    fixture.createdAt, fixture.updatedAt,
+  );
+}
+
 export async function getAllLeagues(): Promise<League[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<LeagueRow>('SELECT * FROM leagues ORDER BY name');

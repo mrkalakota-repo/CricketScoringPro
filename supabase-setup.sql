@@ -281,3 +281,78 @@ $$;
 -- Grant execute to the anon and authenticated roles used by the Supabase JS client.
 GRANT EXECUTE ON FUNCTION public.verify_user_profile(TEXT, TEXT) TO anon;
 GRANT EXECUTE ON FUNCTION public.verify_user_profile(TEXT, TEXT) TO authenticated;
+
+-- ── Cloud Leagues (cross-device sync, owner-scoped) ───────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.cloud_leagues (
+  id          TEXT   PRIMARY KEY,
+  name        TEXT   NOT NULL,
+  short_name  TEXT   NOT NULL,
+  team_ids    TEXT   NOT NULL DEFAULT '[]',
+  format      TEXT   NOT NULL DEFAULT 'round_robin',
+  owner_phone TEXT   NOT NULL,
+  updated_at  BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_cloud_leagues_owner
+  ON public.cloud_leagues (owner_phone);
+
+CREATE TABLE IF NOT EXISTS public.cloud_league_fixtures (
+  id              TEXT   PRIMARY KEY,
+  league_id       TEXT   NOT NULL REFERENCES public.cloud_leagues (id) ON DELETE CASCADE,
+  team1_id        TEXT   NOT NULL,
+  team2_id        TEXT   NOT NULL,
+  match_id        TEXT,
+  venue           TEXT   NOT NULL DEFAULT '',
+  scheduled_date  BIGINT NOT NULL DEFAULT 0,
+  status          TEXT   NOT NULL DEFAULT 'scheduled',
+  result          TEXT,
+  team1_score     TEXT,
+  team2_score     TEXT,
+  winner_team_id  TEXT,
+  nrr_data_json   TEXT,
+  round           INTEGER,
+  bracket_slot    INTEGER,
+  updated_at      BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_cloud_league_fixtures_league
+  ON public.cloud_league_fixtures (league_id);
+
+ALTER TABLE public.cloud_leagues          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cloud_league_fixtures  ENABLE ROW LEVEL SECURITY;
+
+-- Leagues: any authenticated/anon client can read (filtered by owner_phone in app code).
+-- INSERT/UPDATE/DELETE all allowed — ownership enforced at app layer via owner_phone.
+DO $$ BEGIN
+  CREATE POLICY "public_select_cloud_leagues" ON public.cloud_leagues FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_insert_cloud_leagues" ON public.cloud_leagues FOR INSERT WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_update_cloud_leagues" ON public.cloud_leagues FOR UPDATE USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_delete_cloud_leagues" ON public.cloud_leagues FOR DELETE USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Fixtures: cascade from league ownership.
+DO $$ BEGIN
+  CREATE POLICY "public_select_cloud_fixtures" ON public.cloud_league_fixtures FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_insert_cloud_fixtures" ON public.cloud_league_fixtures FOR INSERT WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_update_cloud_fixtures" ON public.cloud_league_fixtures FOR UPDATE USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_delete_cloud_fixtures" ON public.cloud_league_fixtures FOR DELETE USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

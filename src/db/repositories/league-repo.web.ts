@@ -23,6 +23,26 @@ function setFixtures(fixtures: StoredFixture[]): void {
   localStorage.setItem(FIXTURES_KEY, JSON.stringify(fixtures));
 }
 
+export async function upsertLeague(league: League): Promise<void> {
+  const existing = getLeagues();
+  const idx = existing.findIndex(l => l.id === league.id);
+  if (idx === -1) {
+    setLeagues([...existing, league]);
+  } else if (league.updatedAt >= existing[idx].updatedAt) {
+    setLeagues(existing.map(l => l.id === league.id ? league : l));
+  }
+}
+
+export async function upsertFixture(fixture: LeagueFixture): Promise<void> {
+  const existing = getFixtures();
+  const idx = existing.findIndex(f => f.id === fixture.id);
+  if (idx === -1) {
+    setFixtures([...existing, fixture]);
+  } else if (fixture.updatedAt >= existing[idx].updatedAt) {
+    setFixtures(existing.map(f => f.id === fixture.id ? fixture : f));
+  }
+}
+
 export async function getAllLeagues(): Promise<League[]> {
   return getLeagues().map(l => ({ ...l, teamIds: l.teamIds ?? [] }));
 }
