@@ -23,10 +23,18 @@ export default function RootLayout() {
   const { loadProfile, isLoading, isAuthenticated } = useUserAuth();
   const [showLogin, setShowLogin] = useState(false);
 
+  // Re-load data whenever auth resolves or the user logs in/out, so the
+  // home screen stats (teams, matches, live) are always current without
+  // requiring a manual tab switch.
+  useEffect(() => {
+    if (!isLoading) {
+      loadTeams();
+      loadMatches();
+    }
+  }, [isLoading, isAuthenticated]);
+
   useEffect(() => {
     loadProfile();
-    loadTeams();
-    loadMatches();
     loadPrefs();
 
     // Stop the cloud-match drain timer when the app goes to background,
