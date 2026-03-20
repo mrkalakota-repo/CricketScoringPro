@@ -76,7 +76,17 @@ export interface StoredUserProfile {
 export async function getUserProfile(): Promise<StoredUserProfile | null> {
   try {
     const raw = await getStringPref(USER_PROFILE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      typeof parsed?.phone !== 'string' ||
+      typeof parsed?.name !== 'string' ||
+      typeof parsed?.pinHash !== 'string'
+    ) {
+      console.error('[prefs-repo] getUserProfile: stored profile has unexpected shape, ignoring');
+      return null;
+    }
+    return parsed as StoredUserProfile;
   } catch { return null; }
 }
 

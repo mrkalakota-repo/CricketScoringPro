@@ -16,6 +16,7 @@ import * as Crypto from 'expo-crypto';
 import * as prefsRepo from '../db/repositories/prefs-repo';
 import * as cloudUserRepo from '../db/repositories/cloud-user-repo';
 import type { UserProfile, UserRole } from '../engine/types';
+import type { VerifyResult } from '../db/repositories/cloud-user-repo';
 
 export type RestoreStatus = 'idle' | 'fetching' | 'not_found' | 'wrong_pin' | 'error' | 'success';
 
@@ -98,26 +99,33 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
   restoreFromCloud: async (phone, pin) => {
     set({ restoreStatus: 'fetching' });
     try {
-      const cloudProfile = await cloudUserRepo.fetchUserProfile(phone.trim());
-      if (!cloudProfile) {
+      // Hash the PIN client-side; the server verifies it without returning the stored hash.
+      const pinHash = await hashPin(pin);
+      const result: VerifyResult = await cloudUserRepo.verifyUserProfile(phone.trim(), pinHash);
+
+      if (result.status === 'not_found') {
         set({ restoreStatus: 'not_found' });
         return false;
       }
-      const hash = await hashPin(pin);
-      if (hash !== cloudProfile.pinHash) {
+      if (result.status === 'wrong_pin') {
         set({ restoreStatus: 'wrong_pin' });
         return false;
       }
-      // PIN correct — save locally and authenticate
-      const role: UserRole = (cloudProfile.role as UserRole) ?? 'scorer';
+      if (result.status === 'error') {
+        set({ restoreStatus: 'error' });
+        return false;
+      }
+
+      // PIN correct — save locally (storing our locally-computed hash) and authenticate
+      const role: UserRole = (result.role as UserRole) ?? 'scorer';
       await prefsRepo.setUserProfile({
-        phone: cloudProfile.phone,
-        name: cloudProfile.name,
-        pinHash: cloudProfile.pinHash,
+        phone: phone.trim(),
+        name: result.name,
+        pinHash,  // local hash — never received from server
         role,
       });
       set({
-        profile: { ...cloudProfile, role },
+        profile: { phone: phone.trim(), name: result.name, pinHash, role },
         isAuthenticated: true,
         restoreStatus: 'success',
       });

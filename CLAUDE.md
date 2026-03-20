@@ -76,10 +76,41 @@ All mutations go through Zustand stores, never directly through repos.
 - `useChatStore` — real-time per-team chat
 - `useLiveScoresStore` — nearby live match scores (Supabase real-time, 50-mile radius)
 - `useAdminAuth` — in-memory PIN auth (resets on restart by design)
+- `useUserAuth` — global user auth (phone + PIN); session in-memory, profile persisted locally + Supabase
+
+### User Auth & RBAC
+`src/hooks/useUserAuth.ts` — Zustand store for global auth (phone-number registration + PIN). Profile is saved locally (`user_prefs`) and pushed to Supabase `user_profiles` for cross-device restore.
+
+`src/hooks/useRole.ts` — pure function of `profile.role`; returns `RolePermissions` object. Use this for all gate checks; never inspect `profile.role` directly in UI.
+
+Roles and permissions matrix:
+
+| Permission | league_admin | team_admin | scorer | viewer |
+|---|:---:|:---:|:---:|:---:|
+| Create League | ✅ | ❌ | ❌ | ❌ |
+| Manage Teams | ✅ | ✅ | ❌ | ❌ |
+| Create/Start Match | ✅ | ✅ | ✅ | ❌ |
+| Record Balls (Score) | ✅ | ❌ | ✅ | ❌ |
+| Delete Match | ✅ | ❌ | ❌ | ❌ |
+| View Live Scores | ✅ | ✅ | ✅ | ✅ |
+
+Default role on registration: `scorer`. `useRole()` returns all-false + `role: null` when not authenticated.
+
+### Sync Status
+`src/hooks/useSyncStatus.ts` — subscribes to cloud match repo sync events. States: `synced` | `syncing` | `offline` | `disabled`. Used for the scoring-screen cloud indicator.
 
 ---
 
 ## Key Design Decisions
+
+### Bowling Rules (Enforced in Engine)
+`MatchEngine.setBowler()` throws — not warns — on two violations:
+1. **Consecutive overs**: same bowler cannot bowl back-to-back overs.
+2. **Max overs per bowler (LOI)**: `Math.floor(oversPerInnings / 5)` — T20: 4, ODI: 10, custom: proportional. Test (`oversPerInnings === null`): unlimited.
+
+The scoring UI greys out ineligible bowlers with a reason label: `(bowled last over)` or `(max N overs)`.
+
+When writing test helpers that bowl multiple overs, use a **pool of ≥5 bowlers** and pick the eligible one with the fewest overs (not round-robin) to avoid quota exhaustion.
 
 ### Admin PIN
 - SHA-256 hashed via expo-crypto; `adminPinHash: null` = open access
@@ -174,21 +205,31 @@ matches(id, format, config_json, status, team1_id, team2_id, team1_playing_xi,
         team2_playing_xi, toss_json, venue, match_date, result, match_state_json,
         created_at, updated_at)
 user_prefs(key TEXT PRIMARY KEY, value TEXT)
-leagues(id, name, short_name, team_ids TEXT, created_at, updated_at)
+leagues(id, name, short_name, team_ids TEXT, format TEXT DEFAULT 'round_robin', created_at, updated_at)
 league_fixtures(id, league_id, team1_id, team2_id, match_id, venue, scheduled_date,
-                status, result, team1_score, team2_score, winner_team_id, created_at, updated_at)
+                status, result, team1_score, team2_score, winner_team_id,
+                nrr_data_json TEXT, round INTEGER, bracket_slot INTEGER, created_at, updated_at)
 ```
 
 Migrations: `ALTER TABLE ... ADD COLUMN` in try/catch. **Never `NOT NULL` in migrations** — breaks Android SQLite < 3.37.
 
 ## Supabase Schema (Cloud)
 Run `supabase-setup.sql` in the SQL Editor (idempotent — safe to re-run).
-Tables: `cloud_teams`, `cloud_players`, `delegate_codes`, `chat_messages`, `live_matches`.
+Tables: `cloud_teams`, `cloud_players`, `delegate_codes`, `chat_messages`, `live_matches`, `user_profiles`.
 Credentials go in `.env` as `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+
+`user_profiles` stores phone, name, pinHash, role — used for cross-device account restore (`restoreFromCloud` in `useUserAuth`).
 
 Supported key formats: legacy JWT (`length > 100`) **or** new publishable format (`sb_publishable_` prefix). Both are accepted — validation is in `src/config/supabase.ts`.
 
 `live_matches` is upserted on every ball (and undo, start innings, declare). If the table doesn't exist yet, `PGRST205` errors are silently ignored so the app degrades gracefully.
+
+---
+
+## Shared Utilities
+
+- `src/utils/player-icons.ts` — `bowlingIcon(style)` and `battingIcon(style)` — use these instead of local icon lookups in UI files
+- `src/utils/avatar.ts` — `getAvatarColor(name)` and `AVATAR_COLORS` constant — use for team/player avatar backgrounds
 
 ---
 

@@ -1,7 +1,12 @@
 -- Gully Cricket Scorer — Supabase Cloud Setup
 -- Run this entire script in the Supabase SQL Editor
 -- Dashboard → SQL Editor → New query → paste → Run
--- Safe to re-run: uses IF NOT EXISTS / IF NOT EXISTS on all objects.
+-- Safe to re-run: uses IF NOT EXISTS / exception-swallowing DO blocks on all objects.
+
+-- ── Extensions ───────────────────────────────────────────────────────────────
+
+-- pgcrypto: used for bcrypt PIN hashing in verify_user_profile()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ── Tables ───────────────────────────────────────────────────────────────────
 
@@ -34,12 +39,14 @@ CREATE INDEX IF NOT EXISTS idx_cloud_teams_location
 CREATE INDEX IF NOT EXISTS idx_cloud_players_team
   ON public.cloud_players (team_id);
 
--- ── Row Level Security (allow public anonymous discovery) ─────────────────────
+-- ── Row Level Security ────────────────────────────────────────────────────────
 
 ALTER TABLE public.cloud_teams   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cloud_players ENABLE ROW LEVEL SECURITY;
 
--- Anyone can read teams (needed for discovery)
+-- Teams: anyone can read (proximity discovery); INSERT/UPDATE allowed anonymously.
+-- DELETE excluded — orphaned cloud records are harmless; removing DELETE from the
+-- anonymous API eliminates a potential data-destruction attack surface.
 DO $$ BEGIN
   CREATE POLICY "public_select_teams" ON public.cloud_teams FOR SELECT USING (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -52,11 +59,8 @@ DO $$ BEGIN
   CREATE POLICY "public_update_teams" ON public.cloud_teams FOR UPDATE USING (true) WITH CHECK (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-DO $$ BEGIN
-  CREATE POLICY "public_delete_teams" ON public.cloud_teams FOR DELETE USING (true);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
--- Same for players
+-- Players: read + upsert. DELETE retained because publishTeam() deletes-then-reinserts
+-- to replace the full roster. Team-scoped (team_id FK → cloud_teams) limits blast radius.
 DO $$ BEGIN
   CREATE POLICY "public_select_players" ON public.cloud_players FOR SELECT USING (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -91,8 +95,10 @@ CREATE TABLE IF NOT EXISTS public.delegate_codes (
 
 ALTER TABLE public.delegate_codes ENABLE ROW LEVEL SECURITY;
 
+-- SELECT only returns non-expired codes — prevents scanning/replaying historical codes.
 DO $$ BEGIN
-  CREATE POLICY "public_select_delegate_codes" ON public.delegate_codes FOR SELECT USING (true);
+  CREATE POLICY "select_valid_delegate_codes" ON public.delegate_codes
+    FOR SELECT USING (expires_at > (EXTRACT(EPOCH FROM now()) * 1000)::BIGINT);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
@@ -176,16 +182,12 @@ DO $$ BEGIN
   CREATE POLICY "public_update_live" ON public.live_matches FOR UPDATE USING (true) WITH CHECK (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-DO $$ BEGIN
-  CREATE POLICY "public_delete_live" ON public.live_matches FOR DELETE USING (true);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+-- DELETE intentionally excluded — matches transition to status='completed', never deleted anonymously.
 
 -- ── User Profiles (cross-device login) ────────────────────────────────────────
--- Stores phone + name + SHA-256 PIN hash so a user can restore their profile
--- on a new device by entering their phone number and PIN.
--- NOTE: PIN hashes are readable by anyone with the anon key. 4–6 digit PINs
--- have a small keyspace — this is acceptable for a low-stakes community app
--- but should be upgraded (e.g. bcrypt via a Postgres function) for production.
+-- PIN hashes are NEVER returned directly to API clients. All PIN verification goes
+-- through the verify_user_profile() RPC (SECURITY DEFINER) which returns profile
+-- data (without the hash) only when the correct PIN is supplied.
 
 CREATE TABLE IF NOT EXISTS public.user_profiles (
   phone      TEXT             PRIMARY KEY,
@@ -202,14 +204,80 @@ EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 
-DO $$ BEGIN
-  CREATE POLICY "public_select_user_profiles" ON public.user_profiles FOR SELECT USING (true);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+-- No SELECT policy — direct table reads are intentionally blocked.
+-- All reads go through verify_user_profile() RPC below.
 
 DO $$ BEGIN
   CREATE POLICY "public_insert_user_profiles" ON public.user_profiles FOR INSERT WITH CHECK (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-  CREATE POLICY "public_update_user_profiles" ON public.user_profiles FOR UPDATE USING (true) WITH CHECK (true);
+  CREATE POLICY "public_update_user_profiles" ON public.user_profiles
+    FOR UPDATE USING (true) WITH CHECK (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ── Server-side PIN verification RPC ─────────────────────────────────────────
+-- verify_user_profile(p_phone, p_pin_hash)
+--
+-- The client computes SHA-256(pin) locally and sends only the hash.
+-- This function verifies it server-side and returns (name, role, found, pin_correct)
+-- WITHOUT ever sending the stored hash back to the client.
+--
+-- Hash upgrade path (transparent to clients):
+--   • Legacy records: stored as raw SHA-256 hex — compared directly on first login,
+--     then immediately re-stored as bcrypt(SHA-256) for future logins.
+--   • New / upgraded records: stored as bcrypt(SHA-256) — verified via crypt().
+--
+-- Runs as SECURITY DEFINER to bypass the no-SELECT RLS on user_profiles.
+
+CREATE OR REPLACE FUNCTION public.verify_user_profile(
+  p_phone    TEXT,
+  p_pin_hash TEXT   -- SHA-256 hex of the user's PIN, computed client-side
+)
+RETURNS TABLE (
+  name        TEXT,
+  role        TEXT,
+  found       BOOLEAN,
+  pin_correct BOOLEAN
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_row   public.user_profiles%ROWTYPE;
+  v_match BOOLEAN := FALSE;
+BEGIN
+  SELECT * INTO v_row FROM public.user_profiles WHERE phone = p_phone;
+
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT NULL::TEXT, NULL::TEXT, FALSE, FALSE;
+    RETURN;
+  END IF;
+
+  -- Two supported hash formats:
+  --   bcrypt  → pin_hash starts with '$2' (e.g. '$2a$', '$2b$')
+  --   legacy  → raw SHA-256 hex (64 chars)
+  IF v_row.pin_hash LIKE '$2%' THEN
+    v_match := (crypt(p_pin_hash, v_row.pin_hash) = v_row.pin_hash);
+  ELSE
+    v_match := (v_row.pin_hash = p_pin_hash);
+  END IF;
+
+  IF v_match THEN
+    -- Opportunistically upgrade legacy SHA-256 hash to bcrypt on successful login.
+    IF v_row.pin_hash NOT LIKE '$2%' THEN
+      UPDATE public.user_profiles
+        SET pin_hash = crypt(p_pin_hash, gen_salt('bf', 10))
+        WHERE phone = p_phone;
+    END IF;
+    RETURN QUERY SELECT v_row.name, v_row.role, TRUE, TRUE;
+  ELSE
+    RETURN QUERY SELECT NULL::TEXT, NULL::TEXT, TRUE, FALSE;
+  END IF;
+END;
+$$;
+
+-- Grant execute to the anon and authenticated roles used by the Supabase JS client.
+GRANT EXECUTE ON FUNCTION public.verify_user_profile(TEXT, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION public.verify_user_profile(TEXT, TEXT) TO authenticated;

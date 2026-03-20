@@ -49,8 +49,16 @@ export async function removeDelegateTeamId(teamId: string): Promise<void> {
 }
 
 // ── User Profile ──────────────────────────────────────────────────────────────
+//
+// Security split:
+//   • Non-sensitive metadata (phone, name, role) → localStorage (persists across browser sessions)
+//   • PIN hash → sessionStorage (cleared when browser tab closes, limits XSS exposure)
+//
+// On page load both halves are recombined; the app shows a PIN prompt when
+// the PIN hash is absent (session expired), which is the intended behaviour.
 
 const USER_PROFILE_KEY = 'user_profile';
+const USER_PROFILE_PIN_KEY = 'user_profile_pin';
 
 export interface StoredUserProfile {
   phone: string;
@@ -61,17 +69,31 @@ export interface StoredUserProfile {
 
 export async function getUserProfile(): Promise<StoredUserProfile | null> {
   try {
-    const raw = localStorage.getItem(USER_PROFILE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const rawMeta = localStorage.getItem(USER_PROFILE_KEY);
+    const rawPin = sessionStorage.getItem(USER_PROFILE_PIN_KEY);
+    if (!rawMeta) return null;
+    const meta = JSON.parse(rawMeta);
+    if (typeof meta?.phone !== 'string' || typeof meta?.name !== 'string') return null;
+    // If session has expired, return profile without pinHash — caller must re-authenticate
+    const pinHash = rawPin ?? '';
+    return { phone: meta.phone, name: meta.name, role: meta.role, pinHash } as StoredUserProfile;
   } catch { return null; }
 }
 
 export async function setUserProfile(profile: StoredUserProfile): Promise<void> {
-  localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profile));
+  // Store metadata in localStorage (survives browser restart)
+  localStorage.setItem(USER_PROFILE_KEY, JSON.stringify({
+    phone: profile.phone,
+    name: profile.name,
+    role: profile.role,
+  }));
+  // Store PIN hash in sessionStorage only (cleared when tab closes)
+  sessionStorage.setItem(USER_PROFILE_PIN_KEY, profile.pinHash);
 }
 
 export async function clearUserProfile(): Promise<void> {
   localStorage.removeItem(USER_PROFILE_KEY);
+  sessionStorage.removeItem(USER_PROFILE_PIN_KEY);
 }
 
 // ── Chat Identity ─────────────────────────────────────────────────────────────

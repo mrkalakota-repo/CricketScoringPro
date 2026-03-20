@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { Text, Card, FAB, useTheme, Searchbar, Chip, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -192,24 +192,53 @@ export default function TeamsScreen() {
   const fabBottom = Math.max(insets.bottom, 8) + 16;
   const isSearching = query.trim().length > 0;
 
-  const teamsWithDist = teams.map(t => ({
+  const handleRefresh = useCallback(async () => {
+    syncedRef.current = false;
+    await loadTeams();
+    if (userLoc) {
+      setCloudState('syncing');
+      try {
+        const cloudTeams = await cloudRepo.fetchNearbyTeams(
+          userLoc.lat, userLoc.lng, RADIUS_KM, myTeamIds
+        );
+        await importCloudTeams(cloudTeams, myTeamIds);
+        setCloudState('done');
+      } catch {
+        setCloudState('error');
+      }
+      syncedRef.current = true;
+    }
+  }, [userLoc, myTeamIds, loadTeams, importCloudTeams]);
+
+  const searchbarStyle = useMemo(
+    () => [styles.searchbar, { backgroundColor: theme.colors.surface }],
+    [theme.colors.surface]
+  );
+  const searchbarInputStyle = useMemo(
+    () => ({ fontSize: 14, color: theme.colors.onSurface }),
+    [theme.colors.onSurface]
+  );
+
+  const teamsWithDist = useMemo(() => teams.map(t => ({
     team: t,
     distance: (userLoc && t.latitude != null && t.longitude != null)
       ? haversineKm(userLoc.lat, userLoc.lng, t.latitude, t.longitude)
       : Infinity,
     isMyTeam: myTeamIds.includes(t.id),
-  }));
+  })), [teams, userLoc, myTeamIds]);
 
-  const myTeams = teamsWithDist.filter(t => t.isMyTeam);
+  const myTeams = useMemo(() => teamsWithDist.filter(t => t.isMyTeam), [teamsWithDist]);
 
-  const nearbyOthers = teamsWithDist
+  const nearbyOthers = useMemo(() => teamsWithDist
     .filter(t => !t.isMyTeam && t.distance <= RADIUS_KM)
     .sort((a, b) => a.distance - b.distance)
-    .slice(0, NEARBY_LIMIT);
+    .slice(0, NEARBY_LIMIT),
+  [teamsWithDist]);
 
-  const searchResults = teamsWithDist
+  const searchResults = useMemo(() => teamsWithDist
     .filter(({ team }) => team.name.toLowerCase().includes(query.toLowerCase()))
-    .sort((a, b) => a.team.name.localeCompare(b.team.name));
+    .sort((a, b) => a.team.name.localeCompare(b.team.name)),
+  [teamsWithDist, query]);
 
   // Build sectioned list
   const listItems: ListItem[] = [];
@@ -266,8 +295,8 @@ export default function TeamsScreen() {
         placeholder="Search all teams by name…"
         value={query}
         onChangeText={setQuery}
-        style={[styles.searchbar, { backgroundColor: theme.colors.surface }]}
-        inputStyle={{ fontSize: 14, color: theme.colors.onSurface }}
+        style={searchbarStyle}
+        inputStyle={searchbarInputStyle}
         iconColor={theme.colors.onSurfaceVariant}
         placeholderTextColor={theme.colors.onSurfaceVariant}
         elevation={0}
@@ -297,24 +326,7 @@ export default function TeamsScreen() {
           item.type === 'team' ? item.team.id : `header-${index}`
         }
         contentContainerStyle={[styles.list, { paddingBottom: fabBottom + 56 }]}
-        onRefresh={async () => {
-          syncedRef.current = false;
-          await loadTeams();
-          if (userLoc) {
-            // Re-trigger cloud sync on pull-to-refresh
-            setCloudState('syncing');
-            try {
-              const cloudTeams = await cloudRepo.fetchNearbyTeams(
-                userLoc.lat, userLoc.lng, RADIUS_KM, myTeamIds
-              );
-              await importCloudTeams(cloudTeams, myTeamIds);
-              setCloudState('done');
-            } catch {
-              setCloudState('error');
-            }
-            syncedRef.current = true;
-          }
-        }}
+        onRefresh={handleRefresh}
         refreshing={loading || cloudState === 'syncing'}
         ListEmptyComponent={
           <View style={styles.emptyState}>

@@ -3,9 +3,16 @@ import { supabase, isCloudEnabled } from '../../config/supabase';
 export interface CloudUserProfile {
   phone: string;
   name: string;
+  /** Never populated from server responses — verification happens via RPC. */
   pinHash: string;
   role?: string; // UserRole
 }
+
+export type VerifyResult =
+  | { status: 'not_found' }
+  | { status: 'wrong_pin' }
+  | { status: 'ok'; name: string; role: string }
+  | { status: 'error'; message: string };
 
 /**
  * Push (upsert) a user profile to Supabase so it can be restored on another device.
@@ -25,42 +32,50 @@ export async function pushUserProfile(profile: CloudUserProfile): Promise<void> 
   } catch (err) {
     const code = (err as { code?: string })?.code;
     if (code !== 'PGRST205') {
-      console.error('[cloud-user-repo] pushUserProfile failed:', err);
+      // Log error code/message only — never log profile data (phone, name, pinHash)
+    console.error('[cloud-user-repo] pushUserProfile failed:', (err as { code?: string; message?: string })?.code, (err as Error).message);
     }
   }
 }
 
 /**
- * Fetch a user profile from Supabase by phone number.
- * Returns null if not found, cloud is disabled, or the table doesn't exist yet.
+ * Verify a user's PIN server-side via the verify_user_profile() RPC.
+ *
+ * The PIN hash is computed client-side (SHA-256) and sent to the server.
+ * The server verifies it without ever returning the stored hash to the client.
+ * On success the server returns (name, role) so the profile can be restored locally.
+ *
+ * Returns a typed VerifyResult — callers should handle all four states.
  */
-export async function fetchUserProfile(phone: string): Promise<CloudUserProfile | null> {
-  if (!isCloudEnabled || !supabase) return null;
+export async function verifyUserProfile(
+  phone: string,
+  pinHash: string,
+): Promise<VerifyResult> {
+  if (!isCloudEnabled || !supabase) {
+    return { status: 'error', message: 'Cloud not enabled' };
+  }
   try {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('phone, name, pin_hash, role')
-      .eq('phone', phone)
-      .single();
+    const { data, error } = await supabase.rpc('verify_user_profile', {
+      p_phone: phone,
+      p_pin_hash: pinHash,
+    });
 
     if (error) {
       const code = (error as { code?: string }).code;
-      // PGRST205 = table not found; PGRST116 = no rows returned
-      if (code !== 'PGRST205' && code !== 'PGRST116') throw error;
-      return null;
+      // PGRST205 = table/function not found — degrade gracefully
+      if (code === 'PGRST205') return { status: 'error', message: 'Cloud table not ready' };
+      throw error;
     }
-    if (!data) return null;
-    return {
-      phone: data.phone as string,
-      name: data.name as string,
-      pinHash: data.pin_hash as string,
-      role: (data.role as string) ?? 'scorer',
-    };
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return { status: 'error', message: 'Empty RPC response' };
+
+    if (!row.found) return { status: 'not_found' };
+    if (!row.pin_correct) return { status: 'wrong_pin' };
+    return { status: 'ok', name: row.name as string, role: (row.role as string) ?? 'scorer' };
   } catch (err) {
-    const code = (err as { code?: string })?.code;
-    if (code !== 'PGRST205' && code !== 'PGRST116') {
-      console.error('[cloud-user-repo] fetchUserProfile failed:', err);
-    }
-    return null;
+    const message = (err as { message?: string })?.message ?? String(err);
+    console.error('[cloud-user-repo] verifyUserProfile failed:', message);
+    return { status: 'error', message };
   }
 }

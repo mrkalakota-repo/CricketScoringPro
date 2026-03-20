@@ -149,6 +149,17 @@ function ensureDrainTimer(): void {
   drainTimer = setInterval(() => { drainQueue(); }, 30_000);
 }
 
+/**
+ * Stop the background drain timer. Call this when the app goes to background
+ * or is unmounted to prevent the timer from running indefinitely.
+ */
+export function stopDrainTimer(): void {
+  if (drainTimer !== null) {
+    clearInterval(drainTimer);
+    drainTimer = null;
+  }
+}
+
 export async function publishLiveMatch(match: Match): Promise<void> {
   if (!isCloudEnabled || !supabase) return;
   if (match.status === 'scheduled') return;
@@ -179,7 +190,7 @@ export async function removeLiveMatch(matchId: string): Promise<void> {
   try {
     await supabase.from('live_matches').delete().eq('id', matchId);
   } catch (err) {
-    console.error('[cloud-match-repo] removeLiveMatch failed:', err);
+    console.error('[cloud-match-repo] removeLiveMatch failed:', (err as Error).message);
   }
 }
 
@@ -212,7 +223,7 @@ export async function fetchNearbyLiveMatches(
   } catch (err) {
     const code = (err as { code?: string })?.code;
     if (code !== 'PGRST205') {
-      console.error('[cloud-match-repo] fetchNearbyLiveMatches failed:', err);
+      console.error('[cloud-match-repo] fetchNearbyLiveMatches failed:', (err as Error).message);
     }
     return [];
   }

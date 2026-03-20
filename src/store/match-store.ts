@@ -53,9 +53,14 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   loadMatch: async (id) => {
     const row = await matchRepo.getMatchById(id);
     if (row?.match_state_json) {
-      const match: Match = JSON.parse(row.match_state_json);
-      const engine = new MatchEngine(match);
-      set({ engine, matchId: id });
+      try {
+        const match: Match = JSON.parse(row.match_state_json);
+        const engine = new MatchEngine(match);
+        set({ engine, matchId: id });
+      } catch (err) {
+        console.error('[match-store] loadMatch: corrupted match_state_json for id', id, (err as Error).message);
+        set({ engine: null, matchId: null });
+      }
     }
   },
 
@@ -81,7 +86,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     const { matchId } = get();
     if (matchId) {
       matchRepo.saveMatchState(matchId, newEngine.getMatch()).catch(err => {
-        console.error('[match-store] auto-save after setOpeners failed:', err);
+        console.error('[match-store] auto-save after setOpeners failed:', (err as Error).message);
       });
     }
   },
@@ -94,7 +99,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     const { matchId } = get();
     if (matchId) {
       matchRepo.saveMatchState(matchId, newEngine.getMatch()).catch(err => {
-        console.error('[match-store] auto-save after setBowler failed:', err);
+        console.error('[match-store] auto-save after setBowler failed:', (err as Error).message);
       });
     }
   },
@@ -108,7 +113,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (state.matchId) {
       const m = newEngine.getMatch();
       matchRepo.saveMatchState(state.matchId, m).catch(err => {
-        console.error('[match-store] auto-save after recordBall failed:', err);
+        console.error('[match-store] auto-save after recordBall failed:', (err as Error).message);
       });
       cloudMatchRepo.publishLiveMatch(m);
     }
@@ -123,7 +128,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (state.matchId) {
       const m = newEngine.getMatch();
       matchRepo.saveMatchState(state.matchId, m).catch(err => {
-        console.error('[match-store] auto-save after undoLastBall failed:', err);
+        console.error('[match-store] auto-save after undoLastBall failed:', (err as Error).message);
       });
       cloudMatchRepo.publishLiveMatch(m);
     }
@@ -137,7 +142,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     const { matchId } = get();
     if (matchId) {
       matchRepo.saveMatchState(matchId, newEngine.getMatch()).catch(err => {
-        console.error('[match-store] auto-save after setNewBatter failed:', err);
+        console.error('[match-store] auto-save after setNewBatter failed:', (err as Error).message);
       });
     }
   },
@@ -155,7 +160,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (!engine || !matchId) return;
     const newEngine = engine.startSuperOver();
     set({ engine: newEngine });
-    matchRepo.saveMatchState(matchId, newEngine.getMatch());
+    matchRepo.saveMatchState(matchId, newEngine.getMatch()).catch(err => {
+      console.error('[match-store] auto-save after startSuperOver failed:', (err as Error).message);
+    });
     cloudMatchRepo.publishLiveMatch(newEngine.getMatch());
   },
 

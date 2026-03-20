@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Card, Button, useTheme, Surface, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -98,8 +98,14 @@ export default function HomeScreen() {
     return () => { unsubscribeRef.current?.(); };
   }, []);
 
-  const liveMatches = matches.filter(m => m.status === 'in_progress' || m.status === 'toss');
-  const recentMatches = matches.filter(m => m.status === 'completed').slice(0, 5);
+  const liveMatches = useMemo(
+    () => matches.filter(m => m.status === 'in_progress' || m.status === 'toss'),
+    [matches]
+  );
+  const recentMatches = useMemo(
+    () => matches.filter(m => m.status === 'completed').slice(0, 5),
+    [matches]
+  );
 
   const handleLiveMatchPress = (match: MatchRow) => {
     if (match.status === 'toss') {

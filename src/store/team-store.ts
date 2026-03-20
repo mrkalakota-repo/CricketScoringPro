@@ -31,8 +31,9 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
   createTeam: async (name, shortName, latitude = null, longitude = null) => {
     const team = await teamRepo.createTeam(name, shortName, latitude, longitude);
     set({ teams: [...get().teams, team] });
-    // Publish to cloud (fire and forget)
-    cloudRepo.publishTeam(team);
+    cloudRepo.publishTeam(team).catch(err => {
+      console.error('[team-store] createTeam cloud publish failed:', (err as Error).message);
+    });
     return team;
   },
 
@@ -42,9 +43,12 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       t.id === id ? { ...t, name, shortName, updatedAt: Date.now() } : t
     );
     set({ teams: updatedTeams });
-    // Re-publish updated team to cloud
     const updated = updatedTeams.find(t => t.id === id);
-    if (updated) cloudRepo.publishTeam(updated);
+    if (updated) {
+      cloudRepo.publishTeam(updated).catch(err => {
+        console.error('[team-store] updateTeam cloud publish failed:', (err as Error).message);
+      });
+    }
   },
 
   setTeamAdminPin: async (id, pinHash) => {
@@ -59,8 +63,9 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
   deleteTeam: async (id) => {
     await teamRepo.deleteTeam(id);
     set({ teams: get().teams.filter(t => t.id !== id) });
-    // Remove from cloud
-    cloudRepo.deleteCloudTeam(id);
+    cloudRepo.deleteCloudTeam(id).catch(err => {
+      console.error('[team-store] deleteTeam cloud remove failed:', (err as Error).message);
+    });
   },
 
   addPlayer: async (teamId, name, phoneNumber, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain) => {
@@ -69,9 +74,12 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       t.id === teamId ? { ...t, players: [...t.players, player] } : t
     );
     set({ teams: updatedTeams });
-    // Re-publish team with new player
     const updated = updatedTeams.find(t => t.id === teamId);
-    if (updated) cloudRepo.publishTeam(updated);
+    if (updated) {
+      cloudRepo.publishTeam(updated).catch(err => {
+        console.error('[team-store] addPlayer cloud publish failed:', (err as Error).message);
+      });
+    }
     return player;
   },
 
@@ -86,9 +94,12 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       ),
     }));
     set({ teams: updatedTeams });
-    // Re-publish team with updated player
     const updated = updatedTeams.find(t => t.players.some(p => p.id === id));
-    if (updated) cloudRepo.publishTeam(updated as Team);
+    if (updated) {
+      cloudRepo.publishTeam(updated as Team).catch(err => {
+        console.error('[team-store] updatePlayer cloud publish failed:', (err as Error).message);
+      });
+    }
   },
 
   deletePlayer: async (playerId, teamId) => {
@@ -99,9 +110,12 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
         : t
     );
     set({ teams: updatedTeams });
-    // Re-publish team without deleted player
     const updated = updatedTeams.find(t => t.id === teamId);
-    if (updated) cloudRepo.publishTeam(updated);
+    if (updated) {
+      cloudRepo.publishTeam(updated).catch(err => {
+        console.error('[team-store] deletePlayer cloud publish failed:', (err as Error).message);
+      });
+    }
   },
 
   importCloudTeams: async (cloudTeams, myTeamIds) => {

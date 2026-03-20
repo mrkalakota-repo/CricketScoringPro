@@ -33,7 +33,7 @@ export const useLiveScoresStore = create<LiveScoresStore>((set, get) => ({
         set({ matches });
       }
     } catch (err) {
-      console.error('[live-scores-store] loadNearby failed:', err);
+      console.error('[live-scores-store] loadNearby failed:', (err as Error).message ?? String(err));
     } finally {
       set({ loading: false });
     }

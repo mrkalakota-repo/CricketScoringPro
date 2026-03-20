@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { PaperProvider } from 'react-native-paper';
-import { useColorScheme, Platform, View, ActivityIndicator } from 'react-native';
+import { useColorScheme, Platform, View, ActivityIndicator, AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { lightTheme, darkTheme } from '../src/theme';
@@ -10,6 +10,7 @@ import { useMatchStore } from '../src/store/match-store';
 import { usePrefsStore } from '../src/store/prefs-store';
 import { useUserAuth } from '../src/hooks/useUserAuth';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { stopDrainTimer } from '../src/db/repositories/cloud-match-repo';
 import LoginScreen from './login';
 
 export default function RootLayout() {
@@ -25,6 +26,18 @@ export default function RootLayout() {
     loadTeams();
     loadMatches();
     loadPrefs();
+
+    // Stop the cloud-match drain timer when the app goes to background,
+    // and restart it (lazily, on next publish) when foregrounded.
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' || state === 'inactive') {
+        stopDrainTimer();
+      }
+    });
+    return () => {
+      sub.remove();
+      stopDrainTimer();
+    };
   }, []);
 
   const screenOptions = {
