@@ -45,6 +45,27 @@ function setupT20Match(): { engine: MatchEngine; team1: Team; team2: Team } {
   return { engine, team1, team2 };
 }
 
+/** Pick the next eligible bowler: respects consecutive-overs and LOI over-quota rules. */
+function pickNextBowler(engine: MatchEngine, bowlers: string[]): string {
+  const inn = engine.getCurrentInnings()!;
+  const config = engine.getMatch().config;
+  const lastBowlerId = inn.overs.length > 0 ? inn.overs[inn.overs.length - 1].bowlerId : null;
+  const maxOvers = config.oversPerInnings !== null ? Math.floor(config.oversPerInnings / 5) : Infinity;
+  const eligible = bowlers
+    .filter(b => {
+      if (b === lastBowlerId) return false;
+      const spell = inn.bowlers.find(s => s.playerId === b);
+      return !spell || spell.overs < maxOvers;
+    })
+    .sort((a, b) => {
+      const aOvers = inn.bowlers.find(s => s.playerId === a)?.overs ?? 0;
+      const bOvers = inn.bowlers.find(s => s.playerId === b)?.overs ?? 0;
+      return aOvers - bOvers;
+    });
+  if (eligible.length === 0) throw new Error(`No eligible bowler in [${bowlers.join(', ')}]`);
+  return eligible[0];
+}
+
 const DOT_BALL: BallInput = {
   runs: 0, isWide: false, isNoBall: false, isBye: false, isLegBye: false,
   dismissal: null, isBoundary: false,
@@ -393,14 +414,12 @@ describe('MatchEngine', () => {
   describe('Innings Completion', () => {
     test('overs exhausted completes innings in T20', () => {
       let { engine } = setupT20Match();
-      // Bowl 20 overs of dots
+      const bowlerPool = ['t2_p6', 't2_p7', 't2_p8', 't2_p9', 't2_p10'];
       for (let over = 0; over < 20; over++) {
         for (let ball = 0; ball < 6; ball++) {
           engine = engine.recordBall(DOT_BALL);
         }
-        if (over < 19) {
-          engine = engine.setBowler(over % 2 === 0 ? 't2_p9' : 't2_p10');
-        }
+        if (over < 19) engine = engine.setBowler(pickNextBowler(engine, bowlerPool));
       }
       expect(engine.getCurrentInnings()!.status).toBe('completed');
     });
@@ -408,21 +427,15 @@ describe('MatchEngine', () => {
 
   describe('Second Innings & Match Result', () => {
     function completeFirstInnings(engine: MatchEngine, runs: number): MatchEngine {
-      // Score the runs then exhaust overs
+      const bowlerPool = ['t2_p6', 't2_p7', 't2_p8', 't2_p9', 't2_p10'];
       let e = engine;
       let scored = 0;
       for (let over = 0; over < 20; over++) {
         for (let ball = 0; ball < 6; ball++) {
-          if (scored < runs) {
-            e = e.recordBall(SINGLE);
-            scored++;
-          } else {
-            e = e.recordBall(DOT_BALL);
-          }
+          if (scored < runs) { e = e.recordBall(SINGLE); scored++; }
+          else { e = e.recordBall(DOT_BALL); }
         }
-        if (over < 19) {
-          e = e.setBowler(over % 2 === 0 ? 't2_p9' : 't2_p10');
-        }
+        if (over < 19) e = e.setBowler(pickNextBowler(e, bowlerPool));
       }
       return e;
     }
@@ -462,13 +475,12 @@ describe('MatchEngine', () => {
       engine = engine.setBowler('t1_p10');
 
       // Bowl 20 overs of dots (score 0)
+      const t1Pool = ['t1_p6', 't1_p7', 't1_p8', 't1_p9', 't1_p10'];
       for (let over = 0; over < 20; over++) {
         for (let ball = 0; ball < 6; ball++) {
           engine = engine.recordBall(DOT_BALL);
         }
-        if (over < 19) {
-          engine = engine.setBowler(over % 2 === 0 ? 't1_p9' : 't1_p10');
-        }
+        if (over < 19) engine = engine.setBowler(pickNextBowler(engine, t1Pool));
       }
       expect(engine.getMatch().status).toBe('completed');
       expect(engine.getMatch().result).toContain('Team Alpha won by 100 run');
@@ -486,15 +498,14 @@ describe('MatchEngine', () => {
         engine = engine.recordBall(SINGLE);
       }
       // Exhaust remaining overs
+      const t1TiePool = ['t1_p6', 't1_p7', 't1_p8', 't1_p9', 't1_p10'];
       const ballsRemaining = 20 * 6 - 5;
-      let bowlerToggle = false;
       let currentBalls = 5;
       for (let i = 0; i < ballsRemaining; i++) {
         engine = engine.recordBall(DOT_BALL);
         currentBalls++;
         if (currentBalls % 6 === 0 && currentBalls < 120) {
-          bowlerToggle = !bowlerToggle;
-          engine = engine.setBowler(bowlerToggle ? 't1_p9' : 't1_p10');
+          engine = engine.setBowler(pickNextBowler(engine, t1TiePool));
         }
       }
       expect(engine.getMatch().result).toBe('Match Tied');

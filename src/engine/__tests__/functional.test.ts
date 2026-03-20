@@ -75,16 +75,48 @@ function startMatch(
   return e;
 }
 
+/**
+ * Pick the next eligible bowler from the pool, respecting:
+ *  1. Consecutive-overs rule (same bowler can't bowl back-to-back)
+ *  2. Max-overs-per-bowler quota (oversPerInnings / 5 for LOI; ∞ for Test)
+ *
+ * Picks the eligible bowler with the FEWEST overs so far, distributing the
+ * load evenly. This prevents greedy pairing (e.g. A-B-A-B-A-B) that would
+ * exhaust two bowlers before the others have bowled at all, leaving the
+ * remaining bowlers unable to satisfy the consecutive-overs constraint.
+ */
+function pickNextBowler(engine: MatchEngine, bowlers: string[]): string {
+  const inn = engine.getCurrentInnings()!;
+  const config = engine.getMatch().config;
+  const lastBowlerId = inn.overs.length > 0 ? inn.overs[inn.overs.length - 1].bowlerId : null;
+  const maxOvers = config.oversPerInnings !== null ? Math.floor(config.oversPerInnings / 5) : Infinity;
+
+  const eligible = bowlers
+    .filter(b => {
+      if (b === lastBowlerId) return false;
+      const spell = inn.bowlers.find(s => s.playerId === b);
+      return !spell || spell.overs < maxOvers;
+    })
+    .sort((a, b) => {
+      const aOvers = inn.bowlers.find(s => s.playerId === a)?.overs ?? 0;
+      const bOvers = inn.bowlers.find(s => s.playerId === b)?.overs ?? 0;
+      return aOvers - bOvers; // fewest overs first → even distribution
+    });
+
+  if (eligible.length === 0) {
+    throw new Error(`No eligible bowler found in pool [${bowlers.join(', ')}]`);
+  }
+  return eligible[0];
+}
+
 /** Bowl a sequence of balls, rotating bowlers at every over boundary */
 function bowlBalls(engine: MatchEngine, sequence: BallInput[], bowlers: string[]): MatchEngine {
   let e = engine;
-  let bowlerIdx = 0;
   for (const ball of sequence) {
     const inn = e.getCurrentInnings();
     if (!inn || inn.status !== 'in_progress') break;
     if (!inn.currentBowlerId) {
-      bowlerIdx = (bowlerIdx + 1) % bowlers.length;
-      e = e.setBowler(bowlers[bowlerIdx]);
+      e = e.setBowler(pickNextBowler(e, bowlers));
     }
     e = e.recordBall(ball);
   }
@@ -94,12 +126,11 @@ function bowlBalls(engine: MatchEngine, sequence: BallInput[], bowlers: string[]
 /** Bowl N legal dot balls, rotating bowlers every 6 (from bowlers array) */
 function bowlDots(engine: MatchEngine, balls: number, bowlers: string[]): MatchEngine {
   let e = engine;
-  let bowlerIdx = 0;
-  const inn = () => e.getCurrentInnings()!;
   for (let i = 0; i < balls; i++) {
-    if (!inn().currentBowlerId) {
-      bowlerIdx = (bowlerIdx + 1) % bowlers.length;
-      e = e.setBowler(bowlers[bowlerIdx]);
+    const inn = e.getCurrentInnings();
+    if (!inn || inn.status !== 'in_progress') break;
+    if (!inn.currentBowlerId) {
+      e = e.setBowler(pickNextBowler(e, bowlers));
     }
     e = e.recordBall(DOT);
   }
@@ -1076,6 +1107,7 @@ describe('Full T20 Match Simulation', () => {
     let e = startMatch(t1, t2, makeConfig('t20'), 't1', 't2', 't1_p1', 't1_p2', 't2_p6');
 
     // ── Innings 1 ── Target: 140+1 = 141
+    const inn1BowlerPool = ['t2_p6', 't2_p7', 't2_p8', 't2_p9', 't2_p10'];
     // Over 1: 1, 4, 1, 0, 6, 1  = 13
     e = e.recordBall(S1);
     e = e.recordBall(FOUR);
@@ -1083,7 +1115,7 @@ describe('Full T20 Match Simulation', () => {
     e = e.recordBall(DOT);
     e = e.recordBall(SIX);
     e = e.recordBall(S1);
-    e = e.setBowler('t2_p7');
+    e = e.setBowler(pickNextBowler(e, inn1BowlerPool));
     // Over 2: W, 0, 1, 1, 0, 4  = 6 + wicket
     e = e.recordBall(BOWLED());
     e = e.setNewBatter('t1_p3');
@@ -1092,26 +1124,20 @@ describe('Full T20 Match Simulation', () => {
     e = e.recordBall(S1);
     e = e.recordBall(DOT);
     e = e.recordBall(FOUR);
-    e = e.setBowler('t2_p6');
-    // Overs 3-18: score via singles and dots to get to ~130 by over 18
-    const bowlerPool = ['t2_p6', 't2_p7', 't2_p8', 't2_p9', 't2_p10'];
-    let over3Score = 0;
-    for (let ov = 3; ov <= 18; ov++) {
+    e = e.setBowler(pickNextBowler(e, inn1BowlerPool));
+    // Overs 3-20: score via singles and dots, auto-rotating bowlers within quota
+    let extraScore = 0;
+    for (let ov = 3; ov <= 20; ov++) {
       for (let b = 0; b < 6; b++) {
-        if (over3Score < 113) { // reach 13+6+113 = 132
+        if (extraScore < 120) {
           e = e.recordBall(b % 3 === 0 ? S1 : DOT);
-          if (b % 3 === 0) over3Score++;
+          if (b % 3 === 0) extraScore++;
         } else {
           e = e.recordBall(DOT);
         }
       }
-      if (ov < 18) e = e.setBowler(bowlerPool[ov % bowlerPool.length]);
+      if (ov < 20) e = e.setBowler(pickNextBowler(e, inn1BowlerPool));
     }
-    // Overs 19-20: scoring fours
-    e = e.setBowler('t2_p6');
-    for (let b = 0; b < 6; b++) e = e.recordBall(FOUR); // +24
-    e = e.setBowler('t2_p7');
-    for (let b = 0; b < 6; b++) e = e.recordBall(DOT);
 
     const inn1 = e.getCurrentInnings()!;
     expect(inn1.status).toBe('completed');
@@ -1178,10 +1204,11 @@ describe('All-Out Scenarios', () => {
     const t1 = makeTeam('t1', 'A', 'A');
     const t2 = makeTeam('t2', 'B', 'B');
     let e = startMatch(t1, t2, makeConfig('t20'), 't1', 't2', 't1_p1', 't1_p2', 't2_p6');
-    // Score 5 then get all out
+    // Score 5 then get all out (alternate bowlers to satisfy consecutive-overs rule)
+    const wicketBowlerPool = ['t2_p6', 't2_p7', 't2_p8', 't2_p9', 't2_p10'];
     for (let i = 0; i < 5; i++) e = e.recordBall(S1);
     for (let w = 0; w < 10; w++) {
-      if (!e.getCurrentInnings()!.currentBowlerId) e = e.setBowler('t2_p7');
+      if (!e.getCurrentInnings()!.currentBowlerId) e = e.setBowler(pickNextBowler(e, wicketBowlerPool));
       e = e.recordBall(BOWLED());
       if (w < 9) e = e.setNewBatter(`t1_p${w + 3}`);
     }
