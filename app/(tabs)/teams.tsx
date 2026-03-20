@@ -32,7 +32,7 @@ function formatDistance(km: number): string {
   return `${Math.round(miles)} mi`;
 }
 
-function TeamCard({ team, distance, isMyTeam }: { team: Team; distance?: number; isMyTeam?: boolean }) {
+function TeamCard({ team, distance, isMyTeam, isPlayerTeam }: { team: Team; distance?: number; isMyTeam?: boolean; isPlayerTeam?: boolean }) {
   const router = useRouter();
   const theme = useTheme();
   const avatarColor = getAvatarColor(team.name);
@@ -71,6 +71,16 @@ function TeamCard({ team, distance, isMyTeam }: { team: Team; distance?: number;
                 textStyle={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800' }}
               >
                 MY TEAM
+              </Chip>
+            )}
+            {isPlayerTeam && !isMyTeam && (
+              <Chip
+                compact
+                icon="account-circle"
+                style={{ backgroundColor: theme.colors.secondary }}
+                textStyle={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800' }}
+              >
+                PLAYER
               </Chip>
             )}
           </View>
@@ -118,7 +128,7 @@ type CloudState = 'idle' | 'syncing' | 'done' | 'error';
 
 type ListItem =
   | { type: 'sectionHeader'; label: string; icon: string }
-  | { type: 'team'; team: Team; distance: number; isMyTeam: boolean };
+  | { type: 'team'; team: Team; distance: number; isMyTeam: boolean; isPlayerTeam: boolean };
 
 export default function TeamsScreen() {
   const router = useRouter();
@@ -126,6 +136,7 @@ export default function TeamsScreen() {
   const insets = useSafeAreaInsets();
   const { teams, loading, loadTeams, importCloudTeams } = useTeamStore();
   const myTeamIds = usePrefsStore(s => s.myTeamIds);
+  const playerTeamIds = usePrefsStore(s => s.playerTeamIds);
   const [query, setQuery] = useState('');
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [locState, setLocState] = useState<LocationState>('loading');
@@ -225,12 +236,16 @@ export default function TeamsScreen() {
       ? haversineKm(userLoc.lat, userLoc.lng, t.latitude, t.longitude)
       : Infinity,
     isMyTeam: myTeamIds.includes(t.id),
-  })), [teams, userLoc, myTeamIds]);
+    isPlayerTeam: playerTeamIds.includes(t.id),
+  })), [teams, userLoc, myTeamIds, playerTeamIds]);
 
-  const myTeams = useMemo(() => teamsWithDist.filter(t => t.isMyTeam), [teamsWithDist]);
+  // "My Teams" section = owned + player teams
+  const myTeams = useMemo(() =>
+    teamsWithDist.filter(t => t.isMyTeam || t.isPlayerTeam),
+  [teamsWithDist]);
 
   const nearbyOthers = useMemo(() => teamsWithDist
-    .filter(t => !t.isMyTeam && t.distance <= RADIUS_KM)
+    .filter(t => !t.isMyTeam && !t.isPlayerTeam && t.distance <= RADIUS_KM)
     .sort((a, b) => a.distance - b.distance)
     .slice(0, NEARBY_LIMIT),
   [teamsWithDist]);
@@ -250,15 +265,15 @@ export default function TeamsScreen() {
         label: `${searchResults.length} result${searchResults.length !== 1 ? 's' : ''} for "${query}"`,
         icon: 'magnify',
       });
-      searchResults.forEach(({ team, distance, isMyTeam }) =>
-        listItems.push({ type: 'team', team, distance, isMyTeam })
+      searchResults.forEach(({ team, distance, isMyTeam, isPlayerTeam }) =>
+        listItems.push({ type: 'team', team, distance, isMyTeam, isPlayerTeam })
       );
     }
   } else {
     if (myTeams.length > 0) {
       listItems.push({ type: 'sectionHeader', label: 'My Teams', icon: 'star-circle' });
-      myTeams.forEach(({ team, distance, isMyTeam }) =>
-        listItems.push({ type: 'team', team, distance, isMyTeam })
+      myTeams.forEach(({ team, distance, isMyTeam, isPlayerTeam }) =>
+        listItems.push({ type: 'team', team, distance, isMyTeam, isPlayerTeam })
       );
     }
 
@@ -269,25 +284,26 @@ export default function TeamsScreen() {
           label: `${nearbyOthers.length} team${nearbyOthers.length !== 1 ? 's' : ''} within 50 miles`,
           icon: 'map-marker-radius',
         });
-        nearbyOthers.forEach(({ team, distance, isMyTeam }) =>
-          listItems.push({ type: 'team', team, distance, isMyTeam })
+        nearbyOthers.forEach(({ team, distance, isMyTeam, isPlayerTeam }) =>
+          listItems.push({ type: 'team', team, distance, isMyTeam, isPlayerTeam })
         );
       }
     } else if (locState === 'denied') {
       const others = teamsWithDist
-        .filter(t => !t.isMyTeam)
+        .filter(t => !t.isMyTeam && !t.isPlayerTeam)
         .sort((a, b) => a.team.name.localeCompare(b.team.name));
       if (others.length > 0) {
         listItems.push({ type: 'sectionHeader', label: `All Teams (${others.length})`, icon: 'shield-account-outline' });
-        others.forEach(({ team, distance, isMyTeam }) =>
-          listItems.push({ type: 'team', team, distance, isMyTeam })
+        others.forEach(({ team, distance, isMyTeam, isPlayerTeam }) =>
+          listItems.push({ type: 'team', team, distance, isMyTeam, isPlayerTeam })
         );
       }
     }
   }
 
   const noNearbyTeams = locState === 'granted' && !isSearching && nearbyOthers.length === 0 && myTeams.length === 0;
-  const outsideRadius = locState === 'granted' && !isSearching && teams.length - myTeams.length - nearbyOthers.length > 0;
+  const outsideRadius = locState === 'granted' && !isSearching &&
+    teamsWithDist.filter(t => !t.isMyTeam && !t.isPlayerTeam && t.distance > RADIUS_KM).length > 0;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -385,7 +401,7 @@ export default function TeamsScreen() {
               </View>
             );
           }
-          return <TeamCard team={item.team} distance={item.distance} isMyTeam={item.isMyTeam} />;
+          return <TeamCard team={item.team} distance={item.distance} isMyTeam={item.isMyTeam} isPlayerTeam={item.isPlayerTeam} />;
         }}
       />
 
