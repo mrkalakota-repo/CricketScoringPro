@@ -94,6 +94,22 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
   } catch { /* already exists */ }
 
   try {
+    await db.execAsync(`ALTER TABLE league_fixtures ADD COLUMN nrr_data_json TEXT;`);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE leagues ADD COLUMN format TEXT DEFAULT 'round_robin';`);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE league_fixtures ADD COLUMN round INTEGER;`);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE league_fixtures ADD COLUMN bracket_slot INTEGER;`);
+  } catch { /* already exists */ }
+
+  try {
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS leagues (
         id TEXT PRIMARY KEY,

@@ -8,7 +8,15 @@ import { useLeagueStore } from '../../../src/store/league-store';
 import { useTeamStore } from '../../../src/store/team-store';
 import type { LeagueFixture, LeagueStandingRow } from '../../../src/engine/types';
 
-type Tab = 'teams' | 'standings' | 'fixtures';
+type Tab = 'teams' | 'standings' | 'fixtures' | 'bracket';
+
+function roundLabel(round: number, maxRound: number): string {
+  const fromEnd = maxRound - round;
+  if (fromEnd === 0) return 'Final';
+  if (fromEnd === 1) return 'Semi-Finals';
+  if (fromEnd === 2) return 'Quarter-Finals';
+  return `Round ${round}`;
+}
 
 export default function LeagueDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,7 +31,7 @@ export default function LeagueDetailScreen() {
   const fixtures = allFixtures[id ?? ''] ?? [];
   const standings: LeagueStandingRow[] = league ? computeStandings(id!) : [];
 
-  const [tab, setTab] = useState<Tab>('fixtures');
+  const [tab, setTab] = useState<Tab>(league?.format === 'knockout' ? 'bracket' : 'fixtures');
   const [showAddTeam, setShowAddTeam] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [removeTeamId, setRemoveTeamId] = useState<string | null>(null);
@@ -55,6 +63,15 @@ export default function LeagueDetailScreen() {
 
   const upcoming = fixtures.filter(f => f.status === 'scheduled').sort((a, b) => a.scheduledDate - b.scheduledDate);
   const completed = fixtures.filter(f => f.status !== 'scheduled').sort((a, b) => b.scheduledDate - a.scheduledDate);
+
+  // Knockout bracket helpers
+  const knockoutRounds = fixtures
+    .map(f => f.round)
+    .filter((r): r is number => r != null);
+  const maxRound = knockoutRounds.length > 0 ? Math.max(...knockoutRounds) : 1;
+  const roundNumbers = [...new Set(knockoutRounds)].sort((a, b) => a - b);
+  const byRound = (round: number) =>
+    fixtures.filter(f => f.round === round).sort((a, b) => (a.bracketSlot ?? 0) - (b.bracketSlot ?? 0));
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -127,13 +144,17 @@ export default function LeagueDetailScreen() {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <Text variant="headlineSmall" style={styles.headerTitle}>{league.name}</Text>
-        <Text style={styles.headerSub}>{league.shortName} · {leagueTeams.length} teams · {fixtures.length} fixtures</Text>
+        <Text style={styles.headerSub}>{league.shortName} · {league.format === 'knockout' ? 'Knockout' : 'Round Robin'} · {leagueTeams.length} teams · {fixtures.filter(f => f.result !== 'Bye').length} fixtures</Text>
       </View>
 
       <SegmentedButtons
         value={tab}
         onValueChange={v => setTab(v as Tab)}
-        buttons={[
+        buttons={league.format === 'knockout' ? [
+          { value: 'bracket', label: 'Bracket', icon: 'tournament' },
+          { value: 'fixtures', label: 'Fixtures', icon: 'calendar' },
+          { value: 'teams', label: 'Teams', icon: 'shield-account' },
+        ] : [
           { value: 'fixtures', label: 'Fixtures', icon: 'calendar' },
           { value: 'standings', label: 'Standings', icon: 'podium' },
           { value: 'teams', label: 'Teams', icon: 'shield-account' },
@@ -174,6 +195,73 @@ export default function LeagueDetailScreen() {
         />
       )}
 
+      {tab === 'bracket' && (
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 8) + 80 }}>
+          <Button mode="contained" icon="plus" onPress={() => router.push(`/league/${id}/schedule`)} style={[styles.addBtn, { marginBottom: 16 }]}>
+            Add / Generate Bracket
+          </Button>
+          {roundNumbers.length === 0 ? (
+            <View style={styles.empty}>
+              <MaterialCommunityIcons name="tournament" size={40} color={theme.colors.outlineVariant} />
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>No bracket yet</Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 4 }}>
+                Add at least 2 teams, then generate the knockout bracket
+              </Text>
+            </View>
+          ) : (
+            roundNumbers.map(round => (
+              <View key={round} style={{ marginBottom: 20 }}>
+                <View style={[styles.roundHeader, { backgroundColor: theme.colors.primaryContainer }]}>
+                  <MaterialCommunityIcons name="tournament" size={14} color={theme.colors.primary} />
+                  <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: '800' }}>
+                    {roundLabel(round, maxRound)}
+                  </Text>
+                </View>
+                {byRound(round).map(f => {
+                  const t1 = getTeam(f.team1Id);
+                  const t2 = getTeam(f.team2Id);
+                  const isBye = f.result === 'Bye';
+                  if (isBye) return null; // hide bye fixtures from bracket display
+                  return (
+                    <Card key={f.id} style={[styles.fixtureCard, { borderLeftWidth: 3, borderLeftColor: f.status === 'completed' ? theme.colors.primary : theme.colors.outlineVariant }]}
+                      onPress={() => router.push(`/league/${id}/schedule?fixtureId=${f.id}`)}>
+                      <Card.Content style={{ paddingVertical: 10 }}>
+                        <View style={styles.fixtureTeams}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.fixTeam, { color: f.winnerTeamId === f.team1Id ? theme.colors.primary : theme.colors.onSurface, fontSize: 14 }]} numberOfLines={1}>
+                              {f.winnerTeamId === f.team1Id && <MaterialCommunityIcons name="trophy" size={13} color={theme.colors.primary} />}
+                              {' '}{t1?.shortName ?? '???'}
+                            </Text>
+                            {f.team1Score && <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{f.team1Score}</Text>}
+                          </View>
+                          <View style={[styles.vsBox, { backgroundColor: f.status === 'completed' ? theme.colors.primaryContainer : theme.colors.surfaceVariant }]}>
+                            <Text style={{ fontSize: 10, fontWeight: '800', color: f.status === 'completed' ? theme.colors.primary : theme.colors.onSurfaceVariant }}>
+                              {f.status === 'completed' ? 'FT' : 'VS'}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                            <Text style={[styles.fixTeam, { color: f.winnerTeamId === f.team2Id ? theme.colors.primary : theme.colors.onSurface, fontSize: 14, textAlign: 'right' }]} numberOfLines={1}>
+                              {t2?.shortName ?? '???'}{' '}
+                              {f.winnerTeamId === f.team2Id && <MaterialCommunityIcons name="trophy" size={13} color={theme.colors.primary} />}
+                            </Text>
+                            {f.team2Score && <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'right' }}>{f.team2Score}</Text>}
+                          </View>
+                        </View>
+                        {f.result && f.result !== 'Bye' && (
+                          <Text variant="bodySmall" style={{ color: theme.colors.primary, textAlign: 'center', marginTop: 6, fontWeight: '600' }}>
+                            {f.result}
+                          </Text>
+                        )}
+                      </Card.Content>
+                    </Card>
+                  );
+                })}
+              </View>
+            ))
+          )}
+        </ScrollView>
+      )}
+
       {tab === 'standings' && (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 8) + 16 }}>
           {standings.length === 0 ? (
@@ -195,10 +283,13 @@ export default function LeagueDetailScreen() {
                   <Text style={[styles.numCol, { color: theme.colors.onPrimaryContainer, fontWeight: '700' }]}>L</Text>
                   <Text style={[styles.numCol, { color: theme.colors.onPrimaryContainer, fontWeight: '700' }]}>T</Text>
                   <Text style={[styles.numCol, { color: theme.colors.primary, fontWeight: '800' }]}>Pts</Text>
+                  <Text style={[styles.nrrCol, { color: theme.colors.onPrimaryContainer, fontWeight: '700' }]}>NRR</Text>
                 </View>
                 <Divider />
                 {standings.map((row, idx) => {
                   const team = getTeam(row.teamId);
+                  const nrrStr = row.nrr === 0 ? '-' : (row.nrr > 0 ? '+' : '') + row.nrr.toFixed(3);
+                  const nrrColor = row.nrr > 0 ? '#2E7D32' : row.nrr < 0 ? theme.colors.error : theme.colors.onSurfaceVariant;
                   return (
                     <View key={row.teamId}>
                       <View style={styles.standingsRow}>
@@ -211,6 +302,7 @@ export default function LeagueDetailScreen() {
                         <Text style={[styles.numCol, { color: theme.colors.error }]}>{row.lost}</Text>
                         <Text style={[styles.numCol, { color: theme.colors.onSurfaceVariant }]}>{row.tied}</Text>
                         <Text style={[styles.numCol, { color: theme.colors.primary, fontWeight: '800' }]}>{row.points}</Text>
+                        <Text style={[styles.nrrCol, { color: nrrColor, fontWeight: '600' }]}>{nrrStr}</Text>
                       </View>
                       {idx < standings.length - 1 && <Divider />}
                     </View>
@@ -323,7 +415,9 @@ const styles = StyleSheet.create({
   posCol: { width: 24, fontSize: 13 },
   teamCol: { flex: 1, fontSize: 13 },
   numCol: { width: 32, textAlign: 'center', fontSize: 13 },
+  nrrCol: { width: 52, textAlign: 'center', fontSize: 12 },
   sectionLabel: { paddingVertical: 8, fontWeight: '700', letterSpacing: 0.5 },
+  roundHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, marginBottom: 8 },
   fixtureCard: { marginBottom: 8, borderRadius: 12 },
   fixtureTeams: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   fixTeam: { flex: 1, fontSize: 16, fontWeight: '700' },

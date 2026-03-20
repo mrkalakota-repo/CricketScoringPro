@@ -26,7 +26,7 @@ export default function ScoringScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const {
     engine, recordBall, undoLastBall, setOpeners, setBowler,
-    setNewBatter, startNextInnings, saveMatch,
+    setNewBatter, startNextInnings, startSuperOver, saveMatch,
   } = useMatchStore();
 
   const [isWide, setIsWide] = useState(false);
@@ -253,14 +253,19 @@ export default function ScoringScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.background }]}>
       {/* Mini Scorecard */}
-      <Surface style={[styles.scorecard, { backgroundColor: theme.colors.primary }]} elevation={3}>
+      <Surface style={[styles.scorecard, { backgroundColor: innings?.isSuperOver ? '#E65100' : theme.colors.primary }]} elevation={3}>
+        {innings?.isSuperOver && (
+          <View style={{ alignItems: 'center', marginBottom: 2 }}>
+            <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 11, letterSpacing: 1.5 }}>⚡ SUPER OVER</Text>
+          </View>
+        )}
         <View style={styles.scoreRow}>
           <Text style={styles.teamLabel}>{battingTeamName}</Text>
           <Text style={styles.scoreText}>
             {innings?.totalRuns ?? 0}/{innings?.totalWickets ?? 0}
           </Text>
           <Text style={styles.oversText}>
-            ({formatOvers(innings?.totalOvers ?? 0, innings?.totalBalls ?? 0)}{match.config.oversPerInnings ? ` / ${match.config.oversPerInnings}` : ''})
+            ({formatOvers(innings?.totalOvers ?? 0, innings?.totalBalls ?? 0)} / 1)
           </Text>
         </View>
         <View style={styles.rateRow}>
@@ -269,9 +274,11 @@ export default function ScoringScreen() {
           {innings?.target && (
             <Text style={styles.rateText}>
               Need {innings.target - innings.totalRuns} off {
-                match.config.oversPerInnings
-                  ? (match.config.oversPerInnings * 6 - (innings.totalOvers * 6 + innings.totalBalls))
-                  : '?'
+                innings.isSuperOver
+                  ? (6 - (innings.totalOvers * 6 + innings.totalBalls))
+                  : match.config.oversPerInnings
+                    ? (match.config.oversPerInnings * 6 - (innings.totalOvers * 6 + innings.totalBalls))
+                    : '?'
               }
             </Text>
           )}
@@ -614,9 +621,20 @@ export default function ScoringScreen() {
           </Text>
           {!isMatchComplete && match.innings.length < match.config.maxInnings ? (
             <Button mode="contained" onPress={handleNextInnings}>Start Next Innings</Button>
+          ) : !isMatchComplete && innings?.isSuperOver ? (
+            // Between super over innings 1 and 2
+            <Button mode="contained" onPress={() => { startNextInnings(); setInningsCompleteModal(false); }}>
+              Start Super Over — 2nd Innings
+            </Button>
           ) : (
-            <View>
-              <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 8, color: theme.colors.onSurface }}>{match.result}</Text>
+            <View style={{ gap: 10 }}>
+              <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 4, color: theme.colors.onSurface }}>{match.result}</Text>
+              {match.result === 'Match Tied' && match.config.maxInnings === 2 && (
+                <Button mode="contained" icon="lightning-bolt" onPress={() => { startSuperOver(); setInningsCompleteModal(false); }}
+                  style={{ backgroundColor: '#E65100' }}>
+                  Play Super Over
+                </Button>
+              )}
               <Button mode="contained" onPress={async () => { await saveMatch(); setInningsCompleteModal(false); router.replace('/'); }}>
                 Finish
               </Button>

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, useTheme, SegmentedButtons, Divider, Surface } from 'react-native-paper';
-import { useLocalSearchParams } from 'expo-router';
+import { View, StyleSheet, ScrollView, Share } from 'react-native';
+import { Text, useTheme, SegmentedButtons, Divider, Surface, IconButton } from 'react-native-paper';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMatchStore } from '../../../src/store/match-store';
 import { formatOvers, formatBatterScore, formatBowlerFigures, dismissalDescription } from '../../../src/utils/formatters';
 import { strikeRate, economyRate } from '../../../src/utils/cricket-math';
+import { buildScorecardText } from '../../../src/utils/scorecard-export';
 
 export default function ScorecardScreen() {
   const theme = useTheme();
@@ -13,6 +14,13 @@ export default function ScorecardScreen() {
 
   const match = engine?.getMatch();
   const [selectedInningsIndex, setSelectedInningsIndex] = useState('0');
+
+  const handleShare = async () => {
+    if (!match) return;
+    try {
+      await Share.share({ message: buildScorecardText(match) });
+    } catch { /* user cancelled */ }
+  };
 
   if (!match || match.innings.length === 0) {
     return (
@@ -33,6 +41,12 @@ export default function ScorecardScreen() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Stack.Screen options={{
+        title: 'Scorecard',
+        headerRight: () => (
+          <IconButton icon="share-variant" iconColor="#FFFFFF" size={22} onPress={handleShare} />
+        ),
+      }} />
       {/* Result */}
       {match.result && (
         <Surface style={[styles.resultBanner, { backgroundColor: theme.colors.primary }]} elevation={2}>
@@ -163,7 +177,7 @@ export default function ScorecardScreen() {
 
       {/* Partnerships */}
       {innings.partnerships.length > 0 && (
-        <Surface style={[styles.card, { marginBottom: 32 }]} elevation={1}>
+        <Surface style={styles.card} elevation={1}>
           <Text variant="titleSmall" style={styles.cardTitle}>Partnerships</Text>
           {innings.partnerships.map((p, i) => (
             <View key={i} style={styles.partnershipRow}>
@@ -181,6 +195,24 @@ export default function ScorecardScreen() {
           ))}
         </Surface>
       )}
+      {/* Share Button */}
+      <View style={{ padding: 16, paddingBottom: 32 }}>
+        <Surface style={{ borderRadius: 20, overflow: 'hidden' }} elevation={1}>
+          <Text
+            onPress={handleShare}
+            style={{
+              textAlign: 'center',
+              padding: 14,
+              fontWeight: '700',
+              fontSize: 14,
+              color: theme.colors.primary,
+              letterSpacing: 0.3,
+            }}
+          >
+            ↑  Share Scorecard
+          </Text>
+        </Surface>
+      </View>
     </ScrollView>
   );
 }

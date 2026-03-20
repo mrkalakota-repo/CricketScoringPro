@@ -382,11 +382,12 @@ export class MatchEngine {
         }
       }
 
-      // Check innings completion
-      const maxWickets = MAX_WICKETS_PER_INNINGS(this.match.config.playersPerSide);
+      // Check innings completion (super over: max 2 wickets, 1 over)
+      const maxWickets = inn.isSuperOver ? 2 : MAX_WICKETS_PER_INNINGS(this.match.config.playersPerSide);
+      const oversLimit = inn.isSuperOver ? 1 : this.match.config.oversPerInnings;
       const isAllOut = inn.totalWickets >= maxWickets;
-      const isOversComplete = this.match.config.oversPerInnings !== null &&
-        inn.totalOvers >= this.match.config.oversPerInnings && inn.totalBalls === 0;
+      const isOversComplete = oversLimit !== null &&
+        inn.totalOvers >= oversLimit && inn.totalBalls === 0;
       const isTargetReached = inn.target !== null && inn.totalRuns >= inn.target;
 
       if (isAllOut || isOversComplete || isTargetReached) {
@@ -432,10 +433,53 @@ export class MatchEngine {
 
   // ===== Innings Transitions =====
 
+  startSuperOver(): MatchEngine {
+    if (this.match.result !== 'Match Tied') {
+      throw new Error('Super over can only be started after a tie');
+    }
+    if (this.match.config.maxInnings !== 2) {
+      throw new Error('Super over only available for limited overs matches');
+    }
+    // Team that batted second in main match bats first in super over
+    const mainInnings2 = this.match.innings[1];
+    const soInn1BattingTeamId = mainInnings2.battingTeamId;
+    const soInn1BowlingTeamId = mainInnings2.bowlingTeamId;
+
+    const newMatch = produce(this.match, draft => {
+      draft.status = 'in_progress';
+      draft.result = null;
+      draft.superOver = true;
+      const soInnings = createInnings(uuidv4(), draft.innings.length + 1, soInn1BattingTeamId, soInn1BowlingTeamId, draft.config);
+      soInnings.isSuperOver = true;
+      draft.innings.push(soInnings);
+      draft.currentInningsIndex = draft.innings.length - 1;
+      draft.updatedAt = Date.now();
+    });
+    return new MatchEngine(newMatch, this.undoStack);
+  }
+
   startNextInnings(): MatchEngine {
     const currentInnings = this.getCurrentInnings();
     if (!currentInnings || currentInnings.status === 'in_progress') {
       throw new Error('Current innings is still in progress');
+    }
+
+    // Super over: transition from SO innings 1 → SO innings 2
+    if (currentInnings.isSuperOver) {
+      const soInnings = this.match.innings.filter(i => i.isSuperOver);
+      if (soInnings.length >= 2) throw new Error('Super over already complete');
+      const battingTeamId = currentInnings.bowlingTeamId;
+      const bowlingTeamId = currentInnings.battingTeamId;
+      const target = currentInnings.totalRuns + 1;
+      const newMatch = produce(this.match, draft => {
+        const soInn2 = createInnings(uuidv4(), draft.innings.length + 1, battingTeamId, bowlingTeamId, draft.config);
+        soInn2.isSuperOver = true;
+        soInn2.target = target;
+        draft.innings.push(soInn2);
+        draft.currentInningsIndex = draft.innings.length - 1;
+        draft.updatedAt = Date.now();
+      });
+      return new MatchEngine(newMatch, this.undoStack);
     }
 
     const nextInningsNumber = currentInnings.inningsNumber + 1;
@@ -542,6 +586,26 @@ export class MatchEngine {
     const innings = draft.innings;
     const currentInnings = innings[draft.currentInningsIndex];
 
+    // Super over completion
+    if (draft.superOver && currentInnings.isSuperOver) {
+      const soInnings = innings.filter(i => i.isSuperOver);
+      if (soInnings.length === 2 && soInnings[1].status === 'completed') {
+        draft.status = 'completed';
+        const so1 = soInnings[0];
+        const so2 = soInnings[1];
+        if (so2.totalRuns >= so2.target!) {
+          const wicketsRemaining = 2 - so2.totalWickets;
+          draft.result = `${this.getBattingTeamName(so2.battingTeamId)} won Super Over by ${wicketsRemaining} wicket${wicketsRemaining !== 1 ? 's' : ''}`;
+        } else if (so2.totalRuns === so1.totalRuns) {
+          draft.result = 'Super Over Tied';
+        } else {
+          const runDiff = so1.totalRuns - so2.totalRuns;
+          draft.result = `${this.getBattingTeamName(so1.battingTeamId)} won Super Over by ${runDiff} run${runDiff !== 1 ? 's' : ''}`;
+        }
+      }
+      return;
+    }
+
     if (config.maxInnings === 2) {
       // Limited overs: match is complete after 2nd innings or if target is reached
       if (draft.currentInningsIndex === 1 && currentInnings.status === 'completed') {
@@ -620,6 +684,7 @@ function createInnings(
     fallOfWickets: [],
     powerplays: config.powerplays,
     target: null,
+    isSuperOver: false,
   };
 }
 
@@ -691,6 +756,7 @@ export function createNewMatch(
     venue,
     date,
     result: null,
+    superOver: false,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };

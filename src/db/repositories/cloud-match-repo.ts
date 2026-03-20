@@ -85,21 +85,59 @@ function rowToSummary(row: Record<string, unknown>): LiveMatchSummary {
   };
 }
 
-export async function publishLiveMatch(match: Match): Promise<void> {
-  if (!isCloudEnabled || !supabase) return;
-  if (match.status === 'scheduled') return;
+// ---------------------------------------------------------------------------
+// Offline sync queue — keyed by match ID so only the latest state is kept.
+// Drained opportunistically on every publish call and every 30 seconds.
+// ---------------------------------------------------------------------------
+const pendingQueue = new Map<string, Match>();
+let drainTimer: ReturnType<typeof setInterval> | null = null;
+
+async function tryUpsert(match: Match): Promise<boolean> {
+  if (!supabase) return false;
   try {
     const { error } = await supabase.from('live_matches').upsert(buildRow(match));
     if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
-  } catch (err) {
-    const code = (err as { code?: string })?.code;
-    if (code !== 'PGRST205') {
-      console.error('[cloud-match-repo] publishLiveMatch failed:', err);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function drainQueue(): Promise<void> {
+  if (!isCloudEnabled || pendingQueue.size === 0) return;
+  for (const [matchId, match] of Array.from(pendingQueue.entries())) {
+    const ok = await tryUpsert(match);
+    if (ok) {
+      pendingQueue.delete(matchId);
     }
   }
 }
 
+function ensureDrainTimer(): void {
+  if (drainTimer !== null) return;
+  drainTimer = setInterval(() => { drainQueue(); }, 30_000);
+}
+
+export async function publishLiveMatch(match: Match): Promise<void> {
+  if (!isCloudEnabled || !supabase) return;
+  if (match.status === 'scheduled') return;
+
+  // Drain any previously queued matches before publishing the new one
+  await drainQueue();
+
+  const ok = await tryUpsert(match);
+  if (!ok) {
+    // Network unavailable — queue this match state; latest wins
+    pendingQueue.set(match.id, match);
+    ensureDrainTimer();
+    console.warn(`[cloud-match-repo] offline — queued match ${match.id} (queue size: ${pendingQueue.size})`);
+  } else if (pendingQueue.size > 0) {
+    ensureDrainTimer();
+  }
+}
+
 export async function removeLiveMatch(matchId: string): Promise<void> {
+  pendingQueue.delete(matchId); // don't re-publish a deleted match
   if (!isCloudEnabled || !supabase) return;
   try {
     await supabase.from('live_matches').delete().eq('id', matchId);
