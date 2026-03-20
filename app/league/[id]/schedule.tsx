@@ -5,7 +5,8 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLeagueStore } from '../../../src/store/league-store';
 import { useTeamStore } from '../../../src/store/team-store';
-import type { LeagueFixture } from '../../../src/engine/types';
+import type { LeagueFixture, FixtureNRRData } from '../../../src/engine/types';
+import { Switch } from 'react-native-paper';
 
 type Mode = 'add' | 'roundrobin' | 'result';
 
@@ -13,7 +14,7 @@ export default function ScheduleScreen() {
   const { id, fixtureId } = useLocalSearchParams<{ id: string; fixtureId?: string }>();
   const router = useRouter();
   const theme = useTheme();
-  const { leagues, fixtures: allFixtures, createFixture, updateFixtureResult, deleteFixture, generateRoundRobin, loadFixtures } = useLeagueStore();
+  const { leagues, fixtures: allFixtures, createFixture, updateFixtureResult, deleteFixture, generateRoundRobin, generateKnockout, loadFixtures } = useLeagueStore();
   const teams = useTeamStore(s => s.teams);
 
   const league = leagues.find(l => l.id === id);
@@ -41,6 +42,16 @@ export default function ScheduleScreen() {
   const [winnerTeamId, setWinnerTeamId] = useState(editFixture?.winnerTeamId ?? '');
   const [t1Score, setT1Score] = useState(editFixture?.team1Score ?? '');
   const [t2Score, setT2Score] = useState(editFixture?.team2Score ?? '');
+
+  // NRR form
+  const existing = editFixture?.nrrData ?? null;
+  const [nrrT1Runs, setNrrT1Runs] = useState(existing ? String(existing.team1Runs) : '');
+  const [nrrT1Overs, setNrrT1Overs] = useState(existing ? String(existing.team1OversRaw) : '');
+  const [nrrT1AllOut, setNrrT1AllOut] = useState(existing?.team1AllOut ?? false);
+  const [nrrT2Runs, setNrrT2Runs] = useState(existing ? String(existing.team2Runs) : '');
+  const [nrrT2Overs, setNrrT2Overs] = useState(existing ? String(existing.team2OversRaw) : '');
+  const [nrrT2AllOut, setNrrT2AllOut] = useState(existing?.team2AllOut ?? false);
+  const [nrrMaxOvers, setNrrMaxOvers] = useState(existing ? String(existing.maxOvers) : '20');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -84,11 +95,38 @@ export default function ScheduleScreen() {
     } catch { setError('Could not generate schedule'); setSaving(false); }
   };
 
+  const handleKnockout = async () => {
+    if (leagueTeams.length < 2) { setError('Need at least 2 teams in the league'); return; }
+    const d = new Date(rrStartDate).getTime();
+    if (isNaN(d)) { setError('Invalid start date'); return; }
+    const days = parseInt(rrDays, 10);
+    if (!days || days < 1) { setError('Days apart must be ≥ 1'); return; }
+    setSaving(true);
+    try {
+      await generateKnockout(id!, d, days, rrVenue.trim());
+      router.back();
+    } catch { setError('Could not generate bracket'); setSaving(false); }
+  };
+
   const handleSaveResult = async () => {
     if (!editFixture) return;
     setSaving(true);
     try {
-      await updateFixtureResult(editFixture.id, result, winnerTeamId || null, t1Score || null, t2Score || null);
+      // Build NRR data if all required fields are filled
+      let nrrData: FixtureNRRData | null = null;
+      const r1 = parseInt(nrrT1Runs, 10);
+      const o1 = parseFloat(nrrT1Overs);
+      const r2 = parseInt(nrrT2Runs, 10);
+      const o2 = parseFloat(nrrT2Overs);
+      const maxOv = parseFloat(nrrMaxOvers);
+      if (!isNaN(r1) && !isNaN(o1) && !isNaN(r2) && !isNaN(o2) && !isNaN(maxOv) && maxOv > 0) {
+        nrrData = {
+          team1Runs: r1, team1OversRaw: o1, team1AllOut: nrrT1AllOut,
+          team2Runs: r2, team2OversRaw: o2, team2AllOut: nrrT2AllOut,
+          maxOvers: maxOv,
+        };
+      }
+      await updateFixtureResult(editFixture.id, result, winnerTeamId || null, t1Score || null, t2Score || null, nrrData);
       router.back();
     } catch { setError('Could not save result'); setSaving(false); }
   };
@@ -167,21 +205,41 @@ export default function ScheduleScreen() {
           </Card>
         )}
 
-        {/* ─── Round Robin ─── */}
+        {/* ─── Round Robin / Knockout Generate ─── */}
         {mode === 'roundrobin' && (
           <Card style={styles.card}>
             <Card.Content>
-              <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Generate Round Robin</Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 12 }}>
-                Creates {Math.max(0, leagueTeams.length * (leagueTeams.length - 1) / 2)} fixtures for {leagueTeams.length} teams ({leagueTeams.map(t => t.shortName).join(', ')})
-              </Text>
+              {league.format === 'knockout' ? (
+                <>
+                  <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Generate Knockout Bracket</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 12 }}>
+                    Creates {Math.floor(leagueTeams.length / 2)} Round 1 match{leagueTeams.length > 2 ? 'es' : ''} for {leagueTeams.length} teams.
+                    Winners auto-advance each round.
+                    {leagueTeams.length % 2 === 1 ? ' One team receives a bye.' : ''}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Generate Round Robin</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 12 }}>
+                    Creates {Math.max(0, leagueTeams.length * (leagueTeams.length - 1) / 2)} fixtures for {leagueTeams.length} teams ({leagueTeams.map(t => t.shortName).join(', ')})
+                  </Text>
+                </>
+              )}
               <TextInput label="Start Date (YYYY-MM-DD)" value={rrStartDate} onChangeText={setRrStartDate} mode="outlined" style={styles.input} keyboardType="numbers-and-punctuation" />
               <TextInput label="Days between matches" value={rrDays} onChangeText={setRrDays} mode="outlined" style={styles.input} keyboardType="numeric" />
               <TextInput label="Default Venue (optional)" value={rrVenue} onChangeText={setRrVenue} mode="outlined" style={styles.input} />
 
               {!!error && <Text variant="bodySmall" style={{ color: theme.colors.error, marginBottom: 8 }}>{error}</Text>}
-              <Button mode="contained" icon="autorenew" onPress={handleRoundRobin} loading={saving} disabled={saving || leagueTeams.length < 2} style={styles.button}>
-                Generate Schedule
+              <Button
+                mode="contained"
+                icon={league.format === 'knockout' ? 'tournament' : 'autorenew'}
+                onPress={league.format === 'knockout' ? handleKnockout : handleRoundRobin}
+                loading={saving}
+                disabled={saving || leagueTeams.length < 2}
+                style={styles.button}
+              >
+                {league.format === 'knockout' ? 'Generate Bracket' : 'Generate Schedule'}
               </Button>
               {leagueTeams.length < 2 && (
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8, textAlign: 'center' }}>
@@ -225,6 +283,38 @@ export default function ScheduleScreen() {
                 </Button>
               </View>
 
+              <Divider style={{ marginVertical: 8 }} />
+              <Text variant="labelLarge" style={[styles.label, { color: theme.colors.primary, marginBottom: 8 }]}>NRR Data (optional)</Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 10 }}>
+                Fill in to enable Net Run Rate in standings. Overs in cricket format (e.g. 18.3 = 18 overs 3 balls).
+              </Text>
+              <TextInput label="Max overs per side" value={nrrMaxOvers} onChangeText={setNrrMaxOvers}
+                mode="outlined" style={styles.input} keyboardType="numeric" />
+
+              <Text variant="bodySmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>{getTeamName(editFixture.team1Id)}</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
+                <TextInput label="Runs" value={nrrT1Runs} onChangeText={setNrrT1Runs}
+                  mode="outlined" style={{ flex: 1 }} keyboardType="numeric" />
+                <TextInput label="Overs (e.g. 18.3)" value={nrrT1Overs} onChangeText={setNrrT1Overs}
+                  mode="outlined" style={{ flex: 1 }} keyboardType="decimal-pad" />
+              </View>
+              <View style={[styles.switchRow, { marginBottom: 12 }]}>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurface }}>All out</Text>
+                <Switch value={nrrT1AllOut} onValueChange={setNrrT1AllOut} />
+              </View>
+
+              <Text variant="bodySmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>{getTeamName(editFixture.team2Id)}</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
+                <TextInput label="Runs" value={nrrT2Runs} onChangeText={setNrrT2Runs}
+                  mode="outlined" style={{ flex: 1 }} keyboardType="numeric" />
+                <TextInput label="Overs (e.g. 16.2)" value={nrrT2Overs} onChangeText={setNrrT2Overs}
+                  mode="outlined" style={{ flex: 1 }} keyboardType="decimal-pad" />
+              </View>
+              <View style={[styles.switchRow, { marginBottom: 12 }]}>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurface }}>All out</Text>
+                <Switch value={nrrT2AllOut} onValueChange={setNrrT2AllOut} />
+              </View>
+
               {!!error && <Text variant="bodySmall" style={{ color: theme.colors.error, marginBottom: 8 }}>{error}</Text>}
               <Button mode="contained" onPress={handleSaveResult} loading={saving} disabled={saving} style={styles.button}>
                 Save Result
@@ -251,4 +341,5 @@ const styles = StyleSheet.create({
   teamBtn: { marginRight: 8, borderRadius: 16 },
   button: { borderRadius: 20, marginTop: 4 },
   matchupRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 },
 });

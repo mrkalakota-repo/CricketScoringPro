@@ -194,6 +194,7 @@ export interface Innings {
   fallOfWickets: FallOfWicket[];
   powerplays: PowerplayConfig[];
   target: number | null;
+  isSuperOver: boolean;
 }
 
 export interface OverSummary {
@@ -237,6 +238,7 @@ export interface Match {
   venue: string;
   date: number;
   result: string | null;
+  superOver: boolean;       // true once super over innings have started
   createdAt: number;
   updatedAt: number;
 }
@@ -261,6 +263,16 @@ export interface BallInput {
 
 export type LeagueFixtureStatus = 'scheduled' | 'completed' | 'abandoned';
 
+export interface FixtureNRRData {
+  team1Runs: number;
+  team1OversRaw: number;   // cricket notation: 18.3 = 18 overs 3 balls
+  team1AllOut: boolean;
+  team2Runs: number;
+  team2OversRaw: number;
+  team2AllOut: boolean;
+  maxOvers: number;
+}
+
 export interface LeagueFixture {
   id: string;
   leagueId: string;
@@ -274,15 +286,21 @@ export interface LeagueFixture {
   team1Score: string | null;
   team2Score: string | null;
   winnerTeamId: string | null;
+  nrrData: FixtureNRRData | null;
+  round: number | null;        // knockout round (1-based); null for round-robin
+  bracketSlot: number | null;  // position within round (0-based) for pairing
   createdAt: number;
   updatedAt: number;
 }
+
+export type LeagueFormat = 'round_robin' | 'knockout';
 
 export interface League {
   id: string;
   name: string;
   shortName: string;
   teamIds: string[];
+  format: LeagueFormat;
   createdAt: number;
   updatedAt: number;
 }
@@ -295,6 +313,7 @@ export interface LeagueStandingRow {
   tied: number;
   abandoned: number;
   points: number;
+  nrr: number;
 }
 
 // ===== Chat Models =====

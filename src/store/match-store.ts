@@ -26,6 +26,7 @@ interface MatchStore {
   undoLastBall: () => void;
   setNewBatter: (batterId: string) => void;
   startNextInnings: () => void;
+  startSuperOver: () => void;
   declareInnings: () => void;
   saveMatch: () => Promise<void>;
   deleteMatch: (id: string) => Promise<void>;
@@ -146,6 +147,15 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (!engine) return;
     const newEngine = engine.startNextInnings();
     set({ engine: newEngine });
+    cloudMatchRepo.publishLiveMatch(newEngine.getMatch());
+  },
+
+  startSuperOver: () => {
+    const { engine, matchId } = get();
+    if (!engine || !matchId) return;
+    const newEngine = engine.startSuperOver();
+    set({ engine: newEngine });
+    matchRepo.saveMatchState(matchId, newEngine.getMatch());
     cloudMatchRepo.publishLiveMatch(newEngine.getMatch());
   },
 
