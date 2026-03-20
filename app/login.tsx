@@ -14,7 +14,11 @@ type Mode = 'register' | 'login' | 'restore';
  *  login    — returning user on same device, enter PIN
  *  restore  — new device, enter phone + PIN to pull profile from Supabase
  */
-export default function LoginScreen() {
+interface LoginScreenProps {
+  onBack?: () => void;
+}
+
+export default function LoginScreen({ onBack }: LoginScreenProps = {}) {
   const theme = useTheme();
   const { profile, register, login, restoreFromCloud, restoreStatus, restoreErrorMessage, resetRestoreStatus, sessionExpired } = useUserAuth();
 
@@ -358,6 +362,14 @@ export default function LoginScreen() {
               {profile ? 'Back to sign in' : 'Back to registration'}
             </Button>
           </View>
+        )}
+        {onBack && (
+          <>
+            <Divider style={styles.divider} />
+            <Button mode="text" icon="eye-outline" onPress={onBack} style={styles.linkBtn}>
+              Continue as guest (view scores only)
+            </Button>
+          </>
         )}
       </ScrollView>
     </KeyboardAvoidingView>
