@@ -16,9 +16,11 @@ type Mode = 'register' | 'login' | 'restore';
  */
 export default function LoginScreen() {
   const theme = useTheme();
-  const { profile, register, login, restoreFromCloud, restoreStatus, resetRestoreStatus } = useUserAuth();
+  const { profile, register, login, restoreFromCloud, restoreStatus, restoreErrorMessage, resetRestoreStatus, sessionExpired } = useUserAuth();
 
-  const defaultMode: Mode = profile ? 'login' : 'register';
+  // On web: if session has expired (pinHash gone from sessionStorage), skip straight
+  // to the restore form so the user is never stuck on an unresolvable "wrong PIN" loop.
+  const defaultMode: Mode = sessionExpired ? 'restore' : profile ? 'login' : 'register';
   const [mode, setMode] = useState<Mode>(defaultMode);
 
   // Shared
@@ -32,8 +34,8 @@ export default function LoginScreen() {
   const [confirmPin, setConfirmPin] = useState('');
   const [role, setRole] = useState<UserRole>('scorer');
 
-  // Restore only
-  const [restorePhone, setRestorePhone] = useState('');
+  // Restore only — pre-fill phone when session expired so user only needs to enter PIN
+  const [restorePhone, setRestorePhone] = useState(sessionExpired ? (profile?.phone ?? '') : '');
   const [restorePin, setRestorePin] = useState('');
 
   const pinMismatch = mode === 'register' && confirmPin.length > 0 && pin !== confirmPin;
@@ -96,7 +98,7 @@ export default function LoginScreen() {
   const restoreError =
     restoreStatus === 'not_found' ? 'No account found for that phone number.' :
     restoreStatus === 'wrong_pin' ? 'Incorrect PIN. Try again.' :
-    restoreStatus === 'error'     ? 'Could not reach the server. Check your connection.' :
+    restoreStatus === 'error'     ? (restoreErrorMessage.includes('not ready') ? 'Cloud setup incomplete — ask the admin to run supabase-setup.sql.' : `Server error: ${restoreErrorMessage}`) :
     null;
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -117,7 +119,7 @@ export default function LoginScreen() {
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
             {mode === 'register' && 'Create your player profile to get started'}
             {mode === 'login'    && `Welcome back, ${profile!.name}!`}
-            {mode === 'restore'  && 'Sign in on a new device'}
+            {mode === 'restore'  && (sessionExpired ? `Welcome back, ${profile!.name}!` : 'Sign in on a new device')}
           </Text>
         </View>
 
@@ -286,13 +288,22 @@ export default function LoginScreen() {
         {/* ── Restore form ── */}
         {mode === 'restore' && (
           <View style={styles.form}>
-            <View style={[styles.infoBanner, { backgroundColor: theme.colors.primaryContainer }]}>
-              <MaterialCommunityIcons name="information-outline" size={18} color={theme.colors.onPrimaryContainer} />
-              <Text variant="bodySmall" style={{ color: theme.colors.onPrimaryContainer, flex: 1 }}>
-                Enter the phone number and PIN you used when you first registered.
-                Your profile will be restored from the cloud.
-              </Text>
-            </View>
+            {sessionExpired ? (
+              <View style={[styles.infoBanner, { backgroundColor: theme.colors.tertiaryContainer ?? theme.colors.primaryContainer }]}>
+                <MaterialCommunityIcons name="lock-clock" size={18} color={theme.colors.onTertiaryContainer ?? theme.colors.onPrimaryContainer} />
+                <Text variant="bodySmall" style={{ color: theme.colors.onTertiaryContainer ?? theme.colors.onPrimaryContainer, flex: 1 }}>
+                  Your session has expired. Enter your PIN to sign back in.
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.infoBanner, { backgroundColor: theme.colors.primaryContainer }]}>
+                <MaterialCommunityIcons name="information-outline" size={18} color={theme.colors.onPrimaryContainer} />
+                <Text variant="bodySmall" style={{ color: theme.colors.onPrimaryContainer, flex: 1 }}>
+                  Enter the phone number and PIN you used when you first registered.
+                  Your profile will be restored from the cloud.
+                </Text>
+              </View>
+            )}
             {!isCloudEnabled && (
               <View style={[styles.infoBanner, { backgroundColor: theme.colors.errorContainer }]}>
                 <MaterialCommunityIcons name="cloud-off-outline" size={18} color={theme.colors.onErrorContainer} />
@@ -310,7 +321,7 @@ export default function LoginScreen() {
               keyboardType="phone-pad"
               placeholder="+91 98765 43210"
               left={<TextInput.Icon icon="phone" />}
-              autoFocus
+              autoFocus={!sessionExpired}
             />
             <TextInput
               label="PIN"
@@ -324,6 +335,7 @@ export default function LoginScreen() {
               left={<TextInput.Icon icon="lock" />}
               onSubmitEditing={handleRestore}
               returnKeyType="done"
+              autoFocus={sessionExpired}
             />
             {restoreError ? <HelperText type="error" style={styles.errorText}>{restoreError}</HelperText> : null}
             <Button

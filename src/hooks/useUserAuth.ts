@@ -19,14 +19,24 @@ import type { UserProfile, UserRole } from '../engine/types';
 import type { VerifyResult } from '../db/repositories/cloud-user-repo';
 
 export type RestoreStatus = 'idle' | 'fetching' | 'not_found' | 'wrong_pin' | 'error' | 'success';
+export type RestoreStatusWithMessage = { status: RestoreStatus; errorMessage?: string };
 
 interface UserAuthStore {
   profile: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 
+  /**
+   * True on web when the profile metadata exists in localStorage but the PIN hash
+   * is gone from sessionStorage (tab was closed and reopened). In this state local
+   * login is impossible — the user must restore from cloud to re-acquire the hash.
+   */
+  sessionExpired: boolean;
+
   /** Restore status for the "new device" flow — drives UI feedback. */
   restoreStatus: RestoreStatus;
+  /** Error message from the last failed restore attempt (e.g. server error details). */
+  restoreErrorMessage: string;
 
   /** Load stored profile from local DB — call once on app startup. */
   loadProfile: () => Promise<void>;
@@ -59,19 +69,29 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
   profile: null,
   isAuthenticated: false,
   isLoading: true,
+  sessionExpired: false,
   restoreStatus: 'idle',
+  restoreErrorMessage: '',
 
   loadProfile: async () => {
     try {
       const stored = await prefsRepo.getUserProfile();
       if (stored) {
         const role: UserRole = (stored.role as UserRole) ?? 'scorer';
-        set({ profile: { phone: stored.phone, name: stored.name, pinHash: stored.pinHash, role }, isLoading: false });
+        // On web, sessionStorage is cleared when the tab is closed. If pinHash is empty
+        // the user's metadata is present but local auth is impossible — they must restore
+        // from cloud. Flag this so the UI can skip straight to the restore form.
+        const sessionExpired = stored.pinHash === '';
+        set({
+          profile: { phone: stored.phone, name: stored.name, pinHash: stored.pinHash, role },
+          sessionExpired,
+          isLoading: false,
+        });
       } else {
-        set({ profile: null, isLoading: false });
+        set({ profile: null, sessionExpired: false, isLoading: false });
       }
     } catch {
-      set({ profile: null, isLoading: false });
+      set({ profile: null, sessionExpired: false, isLoading: false });
     }
   },
 
@@ -91,6 +111,8 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
     const hash = await hashPin(pin);
     if (hash === profile.pinHash) {
       set({ isAuthenticated: true });
+      // Re-push to cloud in case the initial registration push failed (e.g. table didn't exist yet).
+      cloudUserRepo.pushUserProfile({ phone: profile.phone, name: profile.name, pinHash: profile.pinHash, role: profile.role }).catch(() => {});
       return true;
     }
     return false;
@@ -104,15 +126,15 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
       const result: VerifyResult = await cloudUserRepo.verifyUserProfile(phone.trim(), pinHash);
 
       if (result.status === 'not_found') {
-        set({ restoreStatus: 'not_found' });
+        set({ restoreStatus: 'not_found', restoreErrorMessage: '' });
         return false;
       }
       if (result.status === 'wrong_pin') {
-        set({ restoreStatus: 'wrong_pin' });
+        set({ restoreStatus: 'wrong_pin', restoreErrorMessage: '' });
         return false;
       }
       if (result.status === 'error') {
-        set({ restoreStatus: 'error' });
+        set({ restoreStatus: 'error', restoreErrorMessage: result.message });
         return false;
       }
 
@@ -130,13 +152,14 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
         restoreStatus: 'success',
       });
       return true;
-    } catch {
-      set({ restoreStatus: 'error' });
+    } catch (err) {
+      const msg = (err as { message?: string })?.message ?? String(err);
+      set({ restoreStatus: 'error', restoreErrorMessage: msg });
       return false;
     }
   },
 
-  resetRestoreStatus: () => set({ restoreStatus: 'idle' }),
+  resetRestoreStatus: () => set({ restoreStatus: 'idle', restoreErrorMessage: '' }),
 
   logout: () => {
     set({ isAuthenticated: false });
