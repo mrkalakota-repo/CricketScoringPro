@@ -9,17 +9,7 @@ import { usePrefsStore } from '../../src/store/prefs-store';
 import { useChatStore } from '../../src/store/chat-store';
 import { isCloudEnabled } from '../../src/config/supabase';
 import type { Team } from '../../src/engine/types';
-
-const AVATAR_COLORS = [
-  '#1B5E20', '#0D47A1', '#4A148C', '#BF360C',
-  '#006064', '#E65100', '#37474F', '#880E4F',
-];
-
-function getAvatarColor(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
+import { getAvatarColor } from '../../src/utils/avatar';
 
 function TeamChatRow({ team, isDelegate, messageCount }: { team: Team; isDelegate: boolean; messageCount: number }) {
   const router = useRouter();

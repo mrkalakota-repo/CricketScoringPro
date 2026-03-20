@@ -8,30 +8,14 @@ import { useMatchStore } from '../../src/store/match-store';
 import { computePlayerStats, formatBestFigures, formatBowlingOvers } from '../../src/utils/player-stats';
 import { getPlayerCode } from '../../src/utils/player-code';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import type { Match, BowlingStyle, BattingStyle } from '../../src/engine/types';
+import type { Match, BowlingStyle } from '../../src/engine/types';
+import { bowlingIcon, battingIcon } from '../../src/utils/player-icons';
 
 const BOWLING_STYLES: BowlingStyle[] = [
   'none', 'Right-arm fast', 'Right-arm medium', 'Right-arm off-break',
   'Right-arm leg-break', 'Left-arm fast', 'Left-arm medium',
   'Left-arm orthodox', 'Left-arm chinaman',
 ];
-
-type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
-
-function bowlingIcon(style: BowlingStyle): { icon: IconName; color: string } {
-  if (style === 'none') return { icon: 'minus-circle-outline', color: '#9E9E9E' };
-  if (style.includes('fast')) return { icon: 'lightning-bolt', color: '#E65100' };
-  if (style.includes('medium')) return { icon: 'weather-windy', color: '#1565C0' };
-  if (style.includes('off-break') || style.includes('orthodox')) return { icon: 'rotate-right', color: '#6A1B9A' };
-  if (style.includes('leg-break') || style.includes('chinaman')) return { icon: 'rotate-left', color: '#00695C' };
-  return { icon: 'cricket', color: '#9E9E9E' };
-}
-
-function battingIcon(style: BattingStyle): { icon: IconName; color: string } {
-  return style === 'right'
-    ? { icon: 'alpha-r-circle', color: '#1B6B28' }
-    : { icon: 'alpha-l-circle', color: '#E65100' };
-}
 
 export default function PlayerProfileScreen() {
   const theme = useTheme();

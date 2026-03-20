@@ -11,20 +11,10 @@ import type { Team } from '../../src/engine/types';
 import * as Location from 'expo-location';
 import * as cloudRepo from '../../src/db/repositories/cloud-team-repo';
 import { isCloudEnabled } from '../../src/config/supabase';
+import { getAvatarColor } from '../../src/utils/avatar';
 
 const NEARBY_LIMIT = 10;
 const RADIUS_KM = 80.47; // 50 miles
-
-const AVATAR_COLORS = [
-  '#1B5E20', '#0D47A1', '#4A148C', '#BF360C',
-  '#006064', '#E65100', '#37474F', '#880E4F',
-];
-
-function getAvatarColor(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;

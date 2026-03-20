@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Text, Button, Card, useTheme, RadioButton } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useMatchStore } from '../../../src/store/match-store';
