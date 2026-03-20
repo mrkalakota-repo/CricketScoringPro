@@ -286,6 +286,25 @@ export default function LoginScreen({ onBack }: LoginScreenProps = {}) {
             >
               Unlock
             </Button>
+            <Divider style={styles.divider} />
+            <Button
+              mode="text"
+              icon="account-plus"
+              onPress={() => switchMode('register')}
+              style={styles.linkBtn}
+            >
+              Not {profile!.name}? Register a new account
+            </Button>
+            {isCloudEnabled && (
+              <Button
+                mode="text"
+                icon="cloud-download-outline"
+                onPress={() => switchMode('restore')}
+                style={styles.linkBtn}
+              >
+                Sign in on a new device
+              </Button>
+            )}
           </View>
         )}
 
