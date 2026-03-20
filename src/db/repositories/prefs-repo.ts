@@ -39,6 +39,10 @@ export async function removeMyTeamId(teamId: string): Promise<void> {
   await setStringPref(MY_TEAM_IDS_KEY, JSON.stringify(ids.filter(id => id !== teamId)));
 }
 
+export async function setMyTeamIds(teamIds: string[]): Promise<void> {
+  await setStringPref(MY_TEAM_IDS_KEY, JSON.stringify(teamIds));
+}
+
 // ── My League IDs ─────────────────────────────────────────────────────────────
 
 const MY_LEAGUE_IDS_KEY = 'my_league_ids';

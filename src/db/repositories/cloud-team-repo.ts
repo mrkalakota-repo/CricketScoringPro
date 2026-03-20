@@ -85,6 +85,22 @@ export async function fetchTeamIdsByOwner(ownerPhone: string): Promise<string[]>
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 
+export async function fetchTeamsByIds(ids: string[]): Promise<Team[]> {
+  if (!isCloudEnabled || !supabase || ids.length === 0) return [];
+  try {
+    const { data: teamRows, error } = await supabase
+      .from('cloud_teams')
+      .select('*')
+      .in('id', ids);
+    if (error) throw error;
+    if (!teamRows || teamRows.length === 0) return [];
+    return fetchPlayersAndBuild(teamRows);
+  } catch (err) {
+    console.error('[cloud-team-repo] fetchTeamsByIds failed:', (err as any)?.message ?? err);
+    return [];
+  }
+}
+
 export async function fetchNearbyTeams(
   lat: number,
   lon: number,
