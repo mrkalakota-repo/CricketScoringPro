@@ -54,21 +54,39 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     if (phone) {
       _lastCloudSync = now;
       _lastCloudSyncPhone = phone;
-      const ownedIds = await cloudRepo.fetchTeamIdsByOwner(phone);
+
+      // Fetch both owned IDs and teams the user is a player on, in parallel.
+      const [ownedIds, playerTeamIds] = await Promise.all([
+        cloudRepo.fetchTeamIdsByOwner(phone),
+        cloudRepo.fetchTeamIdsByPlayerPhone(phone),
+      ]);
+
+      // ── Stale cache cleanup ─────────────────────────────────────────────────
+      // Remove any locally cached teams that were previously "mine" but are no
+      // longer returned by the cloud (e.g. after a re-seed or team deletion).
+      const prevMyIds = prefsStore.myTeamIds;
+      const newCloudIds = new Set([...ownedIds, ...playerTeamIds]);
+      const staleIds = prevMyIds.filter(id => !newCloudIds.has(id));
+      for (const id of staleIds) {
+        await teamRepo.deleteTeam(id);
+      }
+
+      // Replace ownership pref with exactly what cloud says.
       await prefsStore.setMyTeamIds(ownedIds);
 
-      // Import any owned teams that don't exist locally yet (e.g. seeded via
-      // script or created on another device before this device ever logged in).
-      const localIds = new Set(localTeams.map(t => t.id));
-      const missingIds = ownedIds.filter(id => !localIds.has(id));
+      // ── Import missing teams ────────────────────────────────────────────────
+      // Owned teams + player teams that aren't in local SQLite yet.
+      const localIds = new Set((await teamRepo.getAllTeams()).map(t => t.id));
+      const missingIds = [...ownedIds, ...playerTeamIds].filter(id => !localIds.has(id));
       if (missingIds.length > 0) {
         const cloudTeams = await cloudRepo.fetchTeamsByIds(missingIds);
         for (const team of cloudTeams) {
           await teamRepo.importCloudTeam(team);
         }
-        const refreshed = await teamRepo.getAllTeams();
-        set({ teams: refreshed });
       }
+
+      const refreshed = await teamRepo.getAllTeams();
+      set({ teams: refreshed });
     } else {
       // No logged-in user — clear any stale myTeamIds from a previous session.
       await prefsStore.setMyTeamIds([]);
