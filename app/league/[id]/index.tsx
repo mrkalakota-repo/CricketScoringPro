@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLeagueStore } from '../../../src/store/league-store';
 import { useTeamStore } from '../../../src/store/team-store';
+import { usePrefsStore } from '../../../src/store/prefs-store';
 import type { LeagueFixture, LeagueStandingRow } from '../../../src/engine/types';
-import { useRole } from '../../../src/hooks/useRole';
 
 type Tab = 'teams' | 'standings' | 'fixtures' | 'bracket';
 
@@ -27,9 +27,10 @@ export default function LeagueDetailScreen() {
 
   const { leagues, fixtures: allFixtures, loadLeagues, loadFixtures, addTeamToLeague, removeTeamFromLeague, deleteLeague, computeStandings } = useLeagueStore();
   const teams = useTeamStore(s => s.teams);
-  const { canDeleteMatch } = useRole();
+  const myLeagueIds = usePrefsStore(s => s.myLeagueIds);
 
   const league = leagues.find(l => l.id === id);
+  const isOwner = league ? myLeagueIds.includes(league.id) : false;
   const fixtures = allFixtures[id ?? ''] ?? [];
   const standings: LeagueStandingRow[] = league ? computeStandings(id!) : [];
 
@@ -79,7 +80,7 @@ export default function LeagueDetailScreen() {
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen options={{
         title: league.name,
-        headerRight: () => canDeleteMatch ? (
+        headerRight: () => isOwner ? (
           <IconButton icon="delete-outline" iconColor="#FFFFFF" size={22} onPress={() => setShowDeleteDialog(true)} />
         ) : null,
       }} />
@@ -169,11 +170,11 @@ export default function LeagueDetailScreen() {
           data={leagueTeams}
           keyExtractor={t => t.id}
           contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 8) + 80 }}
-          ListHeaderComponent={
+          ListHeaderComponent={isOwner ? (
             <Button mode="contained" icon="plus" onPress={() => setShowAddTeam(true)} style={styles.addBtn}>
               Add Team
             </Button>
-          }
+          ) : null}
           ListEmptyComponent={
             <View style={styles.empty}>
               <MaterialCommunityIcons name="shield-account-outline" size={40} color={theme.colors.outlineVariant} />
@@ -190,7 +191,7 @@ export default function LeagueDetailScreen() {
                   <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>{item.name}</Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{item.players.length} players</Text>
                 </View>
-                <IconButton icon="close" size={18} iconColor={theme.colors.error} onPress={() => setRemoveTeamId(item.id)} />
+                {isOwner && <IconButton icon="close" size={18} iconColor={theme.colors.error} onPress={() => setRemoveTeamId(item.id)} />}
               </Card.Content>
             </Card>
           )}
@@ -199,9 +200,11 @@ export default function LeagueDetailScreen() {
 
       {tab === 'bracket' && (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 8) + 80 }}>
-          <Button mode="contained" icon="plus" onPress={() => router.push(`/league/${id}/schedule`)} style={[styles.addBtn, { marginBottom: 16 }]}>
-            Add / Generate Bracket
-          </Button>
+          {isOwner && (
+            <Button mode="contained" icon="plus" onPress={() => router.push(`/league/${id}/schedule`)} style={[styles.addBtn, { marginBottom: 16 }]}>
+              Add / Generate Bracket
+            </Button>
+          )}
           {roundNumbers.length === 0 ? (
             <View style={styles.empty}>
               <MaterialCommunityIcons name="tournament" size={40} color={theme.colors.outlineVariant} />
@@ -254,7 +257,7 @@ export default function LeagueDetailScreen() {
                             {f.result}
                           </Text>
                         )}
-                        {f.status === 'completed' && canDeleteMatch && (
+                        {f.status === 'completed' && isOwner && (
                           <Button
                             mode="outlined"
                             compact
@@ -339,11 +342,11 @@ export default function LeagueDetailScreen() {
           ]}
           keyExtractor={(item, idx) => item.type === 'header' ? `hdr-${idx}` : item.fixture.id}
           contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 8) + 80 }}
-          ListHeaderComponent={
+          ListHeaderComponent={isOwner ? (
             <Button mode="contained" icon="calendar-plus" onPress={() => router.push(`/league/${id}/schedule`)} style={styles.addBtn}>
               Add / Generate Fixtures
             </Button>
-          }
+          ) : null}
           ListEmptyComponent={
             <View style={styles.empty}>
               <MaterialCommunityIcons name="calendar-blank" size={40} color={theme.colors.outlineVariant} />
@@ -393,7 +396,7 @@ export default function LeagueDetailScreen() {
                       {f.result}
                     </Text>
                   )}
-                  {f.status === 'completed' && canDeleteMatch && (
+                  {f.status === 'completed' && isOwner && (
                     <Button
                       mode="outlined"
                       compact

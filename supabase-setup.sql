@@ -77,6 +77,12 @@ DO $$ BEGIN
   CREATE POLICY "public_delete_players" ON public.cloud_players FOR DELETE USING (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- ── Team owner (cross-device ownership restoration) ───────────────────────────
+-- Identifies which user created the team. Used by fetchTeamsByOwner() to restore
+-- myTeamIds on a new device after account restore, enforcing the 1-team-per-user rule.
+
+ALTER TABLE public.cloud_teams ADD COLUMN IF NOT EXISTS owner_phone TEXT;
+
 -- ── Vice Captain column ───────────────────────────────────────────────────────
 
 ALTER TABLE public.cloud_players ADD COLUMN IF NOT EXISTS is_vice_captain BOOLEAN NOT NULL DEFAULT FALSE;

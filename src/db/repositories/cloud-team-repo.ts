@@ -9,7 +9,7 @@ function safeIds(ids: string[]): string[] {
   return ids.filter(id => UUID_RE.test(id));
 }
 
-export async function publishTeam(team: Team): Promise<{ success: boolean; error?: string }> {
+export async function publishTeam(team: Team, ownerPhone?: string | null): Promise<{ success: boolean; error?: string }> {
   if (!isCloudEnabled || !supabase) return { success: false, error: 'Cloud not enabled' };
   try {
     const { error } = await supabase.from('cloud_teams').upsert({
@@ -18,6 +18,7 @@ export async function publishTeam(team: Team): Promise<{ success: boolean; error
       short_name: team.shortName,
       latitude: team.latitude,
       longitude: team.longitude,
+      ...(ownerPhone ? { owner_phone: ownerPhone } : {}),
       updated_at: Date.now(),
     });
     if (error) throw error;
@@ -55,6 +56,30 @@ export async function deleteCloudTeam(teamId: string): Promise<void> {
     await supabase.from('cloud_teams').delete().eq('id', teamId);
   } catch (err) {
     console.error('[cloud-team-repo] deleteCloudTeam failed:', (err as Error).message);
+  }
+}
+
+/**
+ * Return the IDs of teams whose owner_phone matches the given phone number.
+ * Used on login/account-restore to repopulate myTeamIds on a new device.
+ */
+export async function fetchTeamIdsByOwner(ownerPhone: string): Promise<string[]> {
+  if (!isCloudEnabled || !supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('cloud_teams')
+      .select('id')
+      .eq('owner_phone', ownerPhone);
+    if (error) {
+      if ((error as { code?: string }).code !== 'PGRST205') {
+        console.error('[cloud-team-repo] fetchTeamIdsByOwner failed:', error.message);
+      }
+      return [];
+    }
+    return (data ?? []).map((r: { id: string }) => r.id);
+  } catch (err) {
+    console.error('[cloud-team-repo] fetchTeamIdsByOwner failed:', (err as Error).message);
+    return [];
   }
 }
 

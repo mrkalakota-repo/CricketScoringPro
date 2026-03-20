@@ -2,6 +2,12 @@ import { create } from 'zustand';
 import type { Team, Player, BowlingStyle } from '../engine/types';
 import * as teamRepo from '../db/repositories/team-repo';
 import * as cloudRepo from '../db/repositories/cloud-team-repo';
+import { useUserAuth } from '../hooks/useUserAuth';
+import { usePrefsStore } from './prefs-store';
+
+function currentPhone(): string | null {
+  return useUserAuth.getState().profile?.phone ?? null;
+}
 
 interface TeamStore {
   teams: Team[];
@@ -26,12 +32,26 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     set({ loading: true });
     const teams = await teamRepo.getAllTeams();
     set({ teams, loading: false });
+
+    // Restore myTeamIds from cloud for this account on new devices.
+    // Any team with owner_phone matching the current user is treated as owned.
+    const phone = currentPhone();
+    if (phone) {
+      const ownedIds = await cloudRepo.fetchTeamIdsByOwner(phone);
+      if (ownedIds.length > 0) {
+        const prefsStore = usePrefsStore.getState();
+        for (const id of ownedIds) {
+          await prefsStore.addMyTeam(id);
+        }
+      }
+    }
   },
 
   createTeam: async (name, shortName, latitude = null, longitude = null) => {
     const team = await teamRepo.createTeam(name, shortName, latitude, longitude);
     set({ teams: [...get().teams, team] });
-    cloudRepo.publishTeam(team).catch(err => {
+    const phone = currentPhone();
+    cloudRepo.publishTeam(team, phone).catch(err => {
       console.error('[team-store] createTeam cloud publish failed:', (err as Error).message);
     });
     return team;
@@ -45,7 +65,8 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     set({ teams: updatedTeams });
     const updated = updatedTeams.find(t => t.id === id);
     if (updated) {
-      cloudRepo.publishTeam(updated).catch(err => {
+      const phone = currentPhone();
+      cloudRepo.publishTeam(updated, phone).catch(err => {
         console.error('[team-store] updateTeam cloud publish failed:', (err as Error).message);
       });
     }
@@ -76,7 +97,8 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     set({ teams: updatedTeams });
     const updated = updatedTeams.find(t => t.id === teamId);
     if (updated) {
-      cloudRepo.publishTeam(updated).catch(err => {
+      const phone = currentPhone();
+      cloudRepo.publishTeam(updated, phone).catch(err => {
         console.error('[team-store] addPlayer cloud publish failed:', (err as Error).message);
       });
     }
@@ -96,7 +118,8 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     set({ teams: updatedTeams });
     const updated = updatedTeams.find(t => t.players.some(p => p.id === id));
     if (updated) {
-      cloudRepo.publishTeam(updated as Team).catch(err => {
+      const phone = currentPhone();
+      cloudRepo.publishTeam(updated as Team, phone).catch(err => {
         console.error('[team-store] updatePlayer cloud publish failed:', (err as Error).message);
       });
     }
@@ -112,7 +135,8 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     set({ teams: updatedTeams });
     const updated = updatedTeams.find(t => t.id === teamId);
     if (updated) {
-      cloudRepo.publishTeam(updated).catch(err => {
+      const phone = currentPhone();
+      cloudRepo.publishTeam(updated, phone).catch(err => {
         console.error('[team-store] deletePlayer cloud publish failed:', (err as Error).message);
       });
     }

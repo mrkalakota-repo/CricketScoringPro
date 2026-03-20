@@ -3,6 +3,7 @@ import type { League, LeagueFixture, LeagueStandingRow, FixtureNRRData, LeagueFo
 import * as leagueRepo from '../db/repositories/league-repo';
 import * as cloudLeagueRepo from '../db/repositories/cloud-league-repo';
 import { useUserAuth } from '../hooks/useUserAuth';
+import { usePrefsStore } from './prefs-store';
 
 function ownerPhone(): string | null {
   return useUserAuth.getState().profile?.phone ?? null;
@@ -65,6 +66,18 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
       fixtures[league.id] = await leagueRepo.getFixturesForLeague(league.id);
     }
     set({ leagues, fixtures, loading: false });
+
+    // Restore myLeagueIds: all cloud-fetched leagues belong to this user.
+    // Merge with any locally-created leagues already in myLeagueIds.
+    if (phone) {
+      const prefsStore = usePrefsStore.getState();
+      const currentMyLeagueIds = prefsStore.myLeagueIds;
+      const cloudLeagueIds = leagues.map(l => l.id);
+      const merged = [...new Set([...currentMyLeagueIds, ...cloudLeagueIds])];
+      if (merged.length !== currentMyLeagueIds.length) {
+        await prefsStore.setMyLeagueIds(merged);
+      }
+    }
   },
 
   loadFixtures: async (leagueId) => {
@@ -77,6 +90,7 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
     set({ leagues: [...get().leagues, league] });
     const phone = ownerPhone();
     if (phone) cloudLeagueRepo.pushLeague(league, phone).catch(() => {});
+    await usePrefsStore.getState().addMyLeague(league.id);
     return league;
   },
 
@@ -94,6 +108,7 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
     const { [id]: _, ...rest } = get().fixtures;
     set({ leagues: get().leagues.filter(l => l.id !== id), fixtures: rest });
     cloudLeagueRepo.deleteCloudLeague(id).catch(() => {});
+    await usePrefsStore.getState().removeMyLeague(id);
   },
 
   addTeamToLeague: async (leagueId, teamId) => {

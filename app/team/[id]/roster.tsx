@@ -93,22 +93,24 @@ export default function RosterScreen() {
     setAddError(null);
     setAddBusy(true);
     try {
-      // Validate phone uniqueness inside try so any DB error is caught
-      if (trimmedPhone) {
-        if (!/^\+?[0-9]{7,15}$/.test(trimmedPhone.replace(/\s/g, ''))) {
-          setAddError('Enter a valid phone number or leave it blank.');
-          setAddBusy(false);
-          return;
-        }
-        const taken = await teamRepo.isPhoneNumberTaken(trimmedPhone);
-        if (taken) {
-          setAddError('This phone number is already linked to another player.');
-          setAddBusy(false);
-          return;
-        }
+      if (!trimmedPhone) {
+        setAddError('Phone number is required.');
+        setAddBusy(false);
+        return;
+      }
+      if (!/^\+?[0-9]{7,15}$/.test(trimmedPhone.replace(/\s/g, ''))) {
+        setAddError('Enter a valid phone number.');
+        setAddBusy(false);
+        return;
+      }
+      const taken = await teamRepo.isPhoneNumberTaken(trimmedPhone);
+      if (taken) {
+        setAddError('This phone number is already linked to another player.');
+        setAddBusy(false);
+        return;
       }
       await addPlayer(
-        teamId, trimmedName, trimmedPhone || null,
+        teamId, trimmedName, trimmedPhone,
         battingStyle, BOWLING_STYLES[bowlingStyleIndex],
         isKeeper, isAllRounder, isCaptain, isViceCaptain,
       );
@@ -174,7 +176,7 @@ export default function RosterScreen() {
             />
 
             <TextInput
-              label="Phone Number (optional)"
+              label="Phone Number"
               value={phone}
               onChangeText={t => { setPhone(t); setAddError(null); }}
               mode="outlined"
