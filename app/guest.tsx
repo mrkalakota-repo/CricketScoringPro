@@ -50,13 +50,45 @@ function MatchCard({ match, onPress }: { match: LiveMatchSummary; onPress: () =>
           {match.team1Short} vs {match.team2Short}
         </Text>
 
-        {/* Score summary */}
-        {isLive && match.battingShort ? (
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-            {match.battingShort}: {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
-            {match.target ? ` · need ${match.target - match.score} from ${match.target - 1 - match.score} balls` : ''}
-          </Text>
-        ) : isCompleted && match.result ? (
+        {/* Team-level scores */}
+        {isLive && match.battingShort ? (() => {
+          const bowlingShort = match.battingShort === match.team1Short ? match.team2Short : match.team1Short;
+          const inning2 = match.inningsNum >= 2 && match.target != null;
+          return (
+            <View style={styles.scoreBlock}>
+              {inning2 ? (
+                <>
+                  <View style={styles.scoreLine}>
+                    <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant }]}>{bowlingShort}</Text>
+                    <Text style={[styles.scoreVal, { color: theme.colors.onSurfaceVariant }]}>{match.target! - 1}</Text>
+                  </View>
+                  <View style={styles.scoreLine}>
+                    <Text style={[styles.scoreTeam, { color: LIVE_RED }]}>{match.battingShort} *</Text>
+                    <Text style={[styles.scoreVal, { color: LIVE_RED }]}>
+                      {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
+                    </Text>
+                  </View>
+                  <Text style={[styles.chaseText, { color: theme.colors.onSurfaceVariant }]}>
+                    Need {match.target! - match.score} more
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <View style={styles.scoreLine}>
+                    <Text style={[styles.scoreTeam, { color: LIVE_RED }]}>{match.battingShort} *</Text>
+                    <Text style={[styles.scoreVal, { color: LIVE_RED }]}>
+                      {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
+                    </Text>
+                  </View>
+                  <View style={styles.scoreLine}>
+                    <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant }]}>{bowlingShort}</Text>
+                    <Text style={[styles.scoreVal, { color: theme.colors.onSurfaceVariant }]}>Yet to bat</Text>
+                  </View>
+                </>
+              )}
+            </View>
+          );
+        })() : isCompleted && match.result ? (
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={2}>
             {match.result}
           </Text>
@@ -271,6 +303,11 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   formatChip: { fontSize: 10, fontWeight: '600' },
   teams: { fontWeight: '800', fontSize: 16 },
+  scoreBlock: { gap: 2, marginTop: 4 },
+  scoreLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  scoreTeam: { fontSize: 12, fontWeight: '700', minWidth: 36 },
+  scoreVal: { fontSize: 12, fontWeight: '600' },
+  chaseText: { fontSize: 11, marginTop: 2 },
   scoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4 },
   footer: { marginTop: 24, marginHorizontal: 16, paddingTop: 20, borderTopWidth: StyleSheet.hairlineWidth, alignItems: 'center' },
 });

@@ -14,21 +14,42 @@ import { NearbyLiveCard, LIVE_RED } from '../../src/components/NearbyLiveCard';
 import { formatOvers } from '../../src/utils/formatters';
 import type { LiveMatchSummary } from '../../src/db/repositories/cloud-match-repo';
 
-function getMatchDisplayInfo(row: MatchRow): { teams: string; score: string | null } {
+interface ScoreLine { label: string; score: string; live?: boolean }
+
+function getMatchDisplayInfo(row: MatchRow): { teams: string; scoreLines: ScoreLine[] } {
   if (!row.match_state_json) {
-    return { teams: `${row.format.toUpperCase()} Match`, score: null };
+    return { teams: `${row.format.toUpperCase()} Match`, scoreLines: [] };
   }
   try {
     const match = JSON.parse(row.match_state_json);
     const teams = `${match.team1.shortName} vs ${match.team2.shortName}`;
-    const inn = match.innings?.[match.currentInningsIndex];
-    if (!inn) return { teams, score: null };
-    const battingShort = inn.battingTeamId === match.team1.id
-      ? match.team1.shortName : match.team2.shortName;
-    const overs = `${inn.totalOvers}.${inn.totalBalls}`;
-    return { teams, score: `${battingShort}: ${inn.totalRuns}/${inn.totalWickets} (${overs} ov)` };
+    const innings: any[] = match.innings ?? [];
+    const currentIdx: number = match.currentInningsIndex ?? 0;
+    const scoreLines: ScoreLine[] = [];
+
+    for (let i = 0; i <= currentIdx && i < innings.length; i++) {
+      const inn = innings[i];
+      if (!inn) continue;
+      const short = inn.battingTeamId === match.team1.id ? match.team1.shortName : match.team2.shortName;
+      const overs = formatOvers(inn.totalOvers, inn.totalBalls);
+      const isCurrentLive = i === currentIdx && row.status !== 'completed';
+      scoreLines.push({
+        label: isCurrentLive ? `${short} *` : short,
+        score: `${inn.totalRuns}/${inn.totalWickets} (${overs} ov)`,
+        live: isCurrentLive,
+      });
+    }
+
+    // Show "Yet to bat" for the other team when only 1st innings is in progress
+    if (row.status !== 'completed' && currentIdx === 0 && innings.length >= 1) {
+      const inn = innings[0];
+      const otherShort = inn.battingTeamId === match.team1.id ? match.team2.shortName : match.team1.shortName;
+      scoreLines.push({ label: otherShort, score: 'Yet to bat' });
+    }
+
+    return { teams, scoreLines };
   } catch {
-    return { teams: `${row.format.toUpperCase()} Match`, score: null };
+    return { teams: `${row.format.toUpperCase()} Match`, scoreLines: [] };
   }
 }
 
@@ -155,27 +176,35 @@ export default function HomeScreen() {
             <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Live Now</Text>
           </View>
           {liveMatches.map(match => {
-            const { teams: teamNames, score } = getMatchDisplayInfo(match);
+            const { teams: teamNames, scoreLines } = getMatchDisplayInfo(match);
+            const isTossMatch = match.status === 'toss';
             return (
               <Card
                 key={match.id}
                 style={[styles.matchCard, styles.liveMatchCard]}
                 onPress={() => handleLiveMatchPress(match)}
               >
-                <View style={[styles.liveStripe, { backgroundColor: match.status === 'toss' ? '#F57C00' : LIVE_RED }]} />
+                <View style={[styles.liveStripe, { backgroundColor: isTossMatch ? '#F57C00' : LIVE_RED }]} />
                 <Card.Content style={styles.liveCardContent}>
                   <View style={styles.liveTop}>
-                    <View style={[styles.liveBadge, { backgroundColor: match.status === 'toss' ? '#FFF3E0' : '#FFEBEE' }]}>
-                      <View style={[styles.liveDot, { backgroundColor: match.status === 'toss' ? '#F57C00' : LIVE_RED }]} />
-                      <Text style={[styles.liveBadgeText, { color: match.status === 'toss' ? '#F57C00' : LIVE_RED }]}>
-                        {match.status === 'toss' ? 'TOSS' : 'LIVE'}
+                    <View style={[styles.liveBadge, { backgroundColor: isTossMatch ? '#FFF3E0' : '#FFEBEE' }]}>
+                      <View style={[styles.liveDot, { backgroundColor: isTossMatch ? '#F57C00' : LIVE_RED }]} />
+                      <Text style={[styles.liveBadgeText, { color: isTossMatch ? '#F57C00' : LIVE_RED }]}>
+                        {isTossMatch ? 'TOSS' : 'LIVE'}
                       </Text>
                     </View>
                     <Text style={[styles.formatChip, { color: theme.colors.onSurfaceVariant }]}>{match.format.toUpperCase()}</Text>
                   </View>
                   <Text variant="titleMedium" style={[styles.liveTeams, { color: theme.colors.onSurface }]}>{teamNames}</Text>
-                  {score && (
-                    <Text variant="bodyMedium" style={[styles.liveScore, { color: theme.colors.primary }]}>{score}</Text>
+                  {scoreLines.length > 0 && (
+                    <View style={styles.scoreBlock}>
+                      {scoreLines.map((line, i) => (
+                        <View key={i} style={styles.scoreLine}>
+                          <Text style={[styles.scoreTeam, { color: line.live ? LIVE_RED : theme.colors.onSurfaceVariant }]}>{line.label}</Text>
+                          <Text style={[styles.scoreValue, { color: line.live ? LIVE_RED : theme.colors.onSurfaceVariant }]}>{line.score}</Text>
+                        </View>
+                      ))}
+                    </View>
                   )}
                   {match.venue ? <Text variant="bodySmall" style={[styles.liveVenue, { color: theme.colors.onSurfaceVariant }]}>{match.venue}</Text> : null}
                 </Card.Content>
@@ -210,7 +239,7 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Recent Matches</Text>
           {recentMatches.map(match => {
-            const { teams: teamNames } = getMatchDisplayInfo(match);
+            const { teams: teamNames, scoreLines } = getMatchDisplayInfo(match);
             return (
               <Card
                 key={match.id}
@@ -220,7 +249,17 @@ export default function HomeScreen() {
                 <Card.Content style={styles.recentCardContent}>
                   <View style={styles.recentInfo}>
                     <Text variant="titleSmall" style={[styles.recentTeams, { color: theme.colors.onSurface }]}>{teamNames}</Text>
-                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>{match.result ?? 'No result'}</Text>
+                    {scoreLines.length > 0 ? (
+                      <View style={[styles.scoreBlock, { marginTop: 3 }]}>
+                        {scoreLines.map((line, i) => (
+                          <View key={i} style={styles.scoreLine}>
+                            <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant }]}>{line.label}</Text>
+                            <Text style={[styles.scoreValue, { color: theme.colors.onSurfaceVariant }]}>{line.score}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                    {match.result ? <Text variant="bodySmall" style={{ color: theme.colors.primary, marginTop: 3, fontWeight: '600' }}>{match.result}</Text> : null}
                     {match.venue ? <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 1 }}>{match.venue}</Text> : null}
                   </View>
                   <View style={[styles.doneChip, { backgroundColor: theme.colors.primaryContainer }]}>
@@ -355,9 +394,12 @@ const styles = StyleSheet.create({
   liveDot: { width: 7, height: 7, borderRadius: 4 },
   liveBadgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   formatChip: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
-  liveTeams: { fontWeight: '800', fontSize: 16 },
-  liveScore: { fontWeight: '700', marginTop: 4, fontSize: 14 },
+  liveTeams: { fontWeight: '800', fontSize: 16, marginBottom: 4 },
   liveVenue: { marginTop: 4, fontSize: 12 },
+  scoreBlock: { gap: 2 },
+  scoreLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  scoreTeam: { fontSize: 13, fontWeight: '700', minWidth: 40 },
+  scoreValue: { fontSize: 13, fontWeight: '600' },
   recentCardContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   recentInfo: { flex: 1 },
   recentTeams: { fontWeight: '700' },
