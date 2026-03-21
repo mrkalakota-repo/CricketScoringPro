@@ -5,11 +5,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserAuth } from '../src/hooks/useUserAuth';
 import type { UserRole } from '../src/engine/types';
 
-type Mode = 'register' | 'login';
+type Mode = 'register' | 'login' | 'restore';
 
 export default function LoginScreen() {
   const theme = useTheme();
-  const { profile, register, login } = useUserAuth();
+  const { profile, register, login, restoreFromCloud, restoreStatus, restoreErrorMessage, resetRestoreStatus } = useUserAuth();
 
   const defaultMode: Mode = profile ? 'login' : 'register';
   const [mode, setMode] = useState<Mode>(defaultMode);
@@ -25,6 +25,9 @@ export default function LoginScreen() {
   const [confirmPin, setConfirmPin] = useState('');
   const [role, setRole] = useState<UserRole>('scorer');
 
+  // Restore only
+  const [restorePhone, setRestorePhone] = useState(profile?.phone ?? '');
+
   const pinMismatch = mode === 'register' && confirmPin.length > 0 && pin !== confirmPin;
 
   function clearErrors() {
@@ -36,6 +39,7 @@ export default function LoginScreen() {
     setPin('');
     setConfirmPin('');
     setError('');
+    resetRestoreStatus();
   };
 
   // ── Register ──────────────────────────────────────────────────────────────
@@ -48,6 +52,27 @@ export default function LoginScreen() {
     setBusy(true);
     try {
       await register(phone.trim(), name.trim(), pin, role);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ── Restore ───────────────────────────────────────────────────────────────
+  const handleRestore = async () => {
+    const cleaned = restorePhone.replace(/\D/g, '');
+    if (cleaned.length !== 10) { setError('Enter a valid 10-digit phone number'); return; }
+    if (pin.length < 4) { setError('Enter your PIN'); return; }
+    setBusy(true);
+    setError('');
+    try {
+      const ok = await restoreFromCloud(cleaned, pin);
+      if (!ok) {
+        // Read updated store state post-await
+        const { restoreStatus: status, restoreErrorMessage: msg } = useUserAuth.getState();
+        if (status === 'not_found') setError('No account found for this phone number.');
+        else if (status === 'wrong_pin') setError('Incorrect PIN. Try again.');
+        else setError(msg || 'Could not restore account. Try again.');
+      }
     } finally {
       setBusy(false);
     }
@@ -237,11 +262,77 @@ export default function LoginScreen() {
             <Divider style={styles.divider} />
             <Button
               mode="text"
+              icon="lock-reset"
+              onPress={() => switchMode('restore')}
+              style={styles.linkBtn}
+            >
+              Forgot PIN? Restore from cloud
+            </Button>
+            <Button
+              mode="text"
               icon="account-plus"
               onPress={() => switchMode('register')}
               style={styles.linkBtn}
             >
               Not {profile!.name}? Register a new account
+            </Button>
+          </View>
+        )}
+
+        {/* ── Restore form ── */}
+        {mode === 'restore' && (
+          <View style={styles.form}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 12, textAlign: 'center' }}>
+              Enter your phone number and PIN to restore your account from the cloud.
+            </Text>
+            <TextInput
+              label="Phone Number"
+              value={restorePhone}
+              onChangeText={t => { setRestorePhone(t.replace(/[^0-9]/g, '')); clearErrors(); }}
+              mode="outlined"
+              style={styles.input}
+              keyboardType="number-pad"
+              maxLength={10}
+              placeholder="e.g., 8001234567"
+              left={<TextInput.Icon icon="phone" />}
+              right={<TextInput.Affix text="+1" />}
+              autoFocus
+            />
+            <TextInput
+              label="Enter PIN"
+              value={pin}
+              onChangeText={t => { setPin(t.replace(/[^0-9]/g, '')); clearErrors(); }}
+              mode="outlined"
+              style={styles.input}
+              keyboardType="numeric"
+              secureTextEntry
+              maxLength={6}
+              left={<TextInput.Icon icon="lock" />}
+              onSubmitEditing={handleRestore}
+              returnKeyType="done"
+            />
+            {error ? <HelperText type="error" style={styles.errorText}>{error}</HelperText> : null}
+            {restoreStatus === 'success' && (
+              <HelperText type="info" style={{ color: theme.colors.primary }}>Account restored successfully!</HelperText>
+            )}
+            <Button
+              mode="contained"
+              onPress={handleRestore}
+              loading={busy}
+              disabled={busy}
+              style={[styles.button, { borderRadius: 12 }]}
+              icon="cloud-download"
+            >
+              Restore Account
+            </Button>
+            <Divider style={styles.divider} />
+            <Button
+              mode="text"
+              icon="arrow-left"
+              onPress={() => switchMode(profile ? 'login' : 'register')}
+              style={styles.linkBtn}
+            >
+              Back
             </Button>
           </View>
         )}
