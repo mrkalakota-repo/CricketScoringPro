@@ -69,6 +69,20 @@ export default function ScheduleScreen() {
     </View>;
   }
 
+  if (!isOwner) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Stack.Screen options={{ title: 'Schedule' }} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <MaterialCommunityIcons name="lock-outline" size={40} color={theme.colors.outlineVariant} />
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, textAlign: 'center' }}>
+            Only the league owner can manage the schedule.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   const leagueTeams = teams.filter(t => league.teamIds.includes(t.id));
   const getTeamName = (tid: string) => teams.find(t => t.id === tid)?.name ?? '???';
 
