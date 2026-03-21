@@ -83,7 +83,7 @@ function TeamCard({ team, distance, isMyTeam, isPlayerTeam }: { team: Team; dist
             )}
           </View>
           <View style={styles.metaRow}>
-            <Text variant="bodySmall" style={[styles.shortCode, { color: isMyTeam ? theme.colors.primary : avatarColor }]}>
+            <Text variant="bodySmall" style={[styles.shortCode, { color: isMyTeam ? theme.colors.primary : avatarColor, opacity: 1 }]}>
               {team.shortName}
             </Text>
             <Text style={[styles.dot, { color: theme.colors.outlineVariant }]}>·</Text>
@@ -436,8 +436,8 @@ const styles = StyleSheet.create({
   card: { marginBottom: 12, borderRadius: 16, overflow: 'hidden' },
   colorStripe: { height: 4 },
   cardContent: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
-  avatar: { width: 52, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  avatarText: { fontSize: 15, fontWeight: '900', letterSpacing: 1 },
+  avatar: { width: 52, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center', elevation: 2 },
+  avatarText: { fontSize: 14, fontWeight: '900', letterSpacing: 1, color: '#FFFFFF' },
   cardText: { flex: 1, minWidth: 0 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3, flexWrap: 'wrap' },
   shortCode: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
