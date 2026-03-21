@@ -239,10 +239,11 @@ Supported key formats: legacy JWT (`length > 100`) **or** new publishable format
 
 ---
 
-## Shared Utilities
+## Shared Utilities & Components
 
 - `src/utils/player-icons.ts` — `bowlingIcon(style)` and `battingIcon(style)` — use these instead of local icon lookups in UI files
 - `src/utils/avatar.ts` — `getAvatarColor(name)` and `AVATAR_COLORS` constant — use for team/player avatar backgrounds
+- `src/components/NearbyLiveCard.tsx` — shared card for nearby live match display (used by home tab + guest screen). Also exports `LIVE_RED = '#D32F2F'` — use this constant anywhere live/in-progress status needs a red color instead of hardcoding the hex.
 
 ---
 
