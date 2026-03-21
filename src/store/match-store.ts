@@ -19,6 +19,8 @@ interface MatchStore {
   loadMatches: () => Promise<void>;
   createAndStartMatch: (match: Match) => void;
   loadMatch: (id: string) => Promise<void>;
+  acceptMatchInvitation: (matchId: string) => Promise<void>;
+  declineMatchInvitation: (matchId: string) => Promise<void>;
   recordToss: (toss: Toss) => void;
   startMatch: (battingTeamId: string, bowlingTeamId: string) => void;
   setOpeners: (strikerId: string, nonStrikerId: string) => void;
@@ -205,5 +207,32 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
 
   clearActiveMatch: () => {
     set({ engine: null, matchId: null });
+  },
+
+  acceptMatchInvitation: async (matchId) => {
+    // Update cloud invitation status
+    await cloudMatchRepo.respondToInvitation(matchId, 'accepted');
+    // Update local match state to 'scheduled' so the toss becomes available
+    const row = await matchRepo.getMatchById(matchId);
+    if (row?.match_state_json) {
+      try {
+        const match: Match = JSON.parse(row.match_state_json);
+        const updated: Match = { ...match, status: 'scheduled' };
+        await matchRepo.saveMatchState(matchId, updated);
+        // If this match is currently active in the store, update the engine
+        if (get().matchId === matchId) {
+          set({ engine: new MatchEngine(updated) });
+        }
+        // Refresh list
+        const matches = await matchRepo.getAllMatches();
+        set({ matches });
+      } catch (err) {
+        console.error('[match-store] acceptMatchInvitation: failed to update local state', (err as Error).message);
+      }
+    }
+  },
+
+  declineMatchInvitation: async (matchId) => {
+    await cloudMatchRepo.respondToInvitation(matchId, 'declined');
   },
 }));

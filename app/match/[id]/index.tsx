@@ -1,16 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Button, Card, useTheme, Surface, Portal, Dialog, ActivityIndicator } from 'react-native-paper';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useMatchStore } from '../../../src/store/match-store';
 import { useTeamStore } from '../../../src/store/team-store';
 import { useLiveScoresStore } from '../../../src/store/live-scores-store';
+import { usePrefsStore } from '../../../src/store/prefs-store';
+import { useUserAuth } from '../../../src/hooks/useUserAuth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatOvers } from '../../../src/utils/formatters';
 import { LIVE_RED } from '../../../src/components/NearbyLiveCard';
 import type { LiveMatchSummary } from '../../../src/db/repositories/cloud-match-repo';
 import * as cloudMatchRepo from '../../../src/db/repositories/cloud-match-repo';
+
+const PENDING_ORANGE = '#F57C00';
 
 function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: LiveMatchSummary | null }) {
   const theme = useTheme();
@@ -215,16 +219,35 @@ export default function MatchDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const matchId = Array.isArray(id) ? id[0] : id;
-  const { engine, matches, loadMatch, deleteMatch } = useMatchStore();
+  const { engine, matches, loadMatch, deleteMatch, acceptMatchInvitation, declineMatchInvitation } = useMatchStore();
   const teams = useTeamStore(s => s.teams);
   const nearbyMatches = useLiveScoresStore(s => s.matches);
+  const myTeamIds = usePrefsStore(s => s.myTeamIds);
+  const delegateTeamIds = usePrefsStore(s => s.delegateTeamIds);
+  const profile = useUserAuth(s => s.profile);
+  const myPhone = profile?.phone ?? null;
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [respondingTo, setRespondingTo] = useState<string | null>(null);
+  const invUnsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (matchId && (!engine || engine.getMatch().id !== matchId)) {
       loadMatch(matchId);
     }
   }, [matchId]);
+
+  // Subscribe to invitation status updates so the creator auto-updates when team2 accepts
+  useEffect(() => {
+    const currentStatus = engine?.getMatch().id === matchId ? engine?.getMatch().status : null;
+    if (!matchId || currentStatus !== 'pending_acceptance') return;
+    const unsub = cloudMatchRepo.subscribeToMatchInvitation(matchId, (inv) => {
+      if (inv && (inv.status === 'accepted' || inv.status === 'declined')) {
+        loadMatch(matchId);
+      }
+    });
+    invUnsubRef.current = unsub;
+    return () => { invUnsubRef.current?.(); invUnsubRef.current = null; };
+  }, [matchId, engine?.getMatch().status]);
 
   const match = engine != null && engine.getMatch().id === matchId ? engine.getMatch() : null;
   const row = matches.find(m => m.id === matchId);
@@ -303,9 +326,14 @@ export default function MatchDetailScreen() {
     switch (match!.status) {
       case 'in_progress': return '#D32F2F';
       case 'completed': return '#2E7D32';
+      case 'pending_acceptance': return PENDING_ORANGE;
       default: return '#1565C0';
     }
   };
+
+  const isPendingAcceptance = match!.status === 'pending_acceptance';
+  const isTeam2Admin = myTeamIds.includes(match!.team2.id) || delegateTeamIds.includes(match!.team2.id);
+  const isTeam1Admin = myTeamIds.includes(match!.team1.id) || delegateTeamIds.includes(match!.team1.id);
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -362,6 +390,57 @@ export default function MatchDetailScreen() {
             </Card.Content>
           </Card>
         ) : null}
+
+        {isPendingAcceptance && (
+          <Card style={[styles.pendingCard, { borderColor: PENDING_ORANGE }]}>
+            <Card.Content style={{ gap: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialCommunityIcons name="clock-alert-outline" size={20} color={PENDING_ORANGE} />
+                <Text variant="labelMedium" style={{ color: PENDING_ORANGE, fontWeight: '700', flex: 1 }}>
+                  {isTeam2Admin ? 'Match invitation from ' + match!.team1.name : 'Waiting for ' + match!.team2.name + ' to accept'}
+                </Text>
+              </View>
+              {isTeam2Admin ? (
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Button
+                    mode="contained"
+                    buttonColor={PENDING_ORANGE}
+                    loading={respondingTo === 'accept'}
+                    disabled={respondingTo !== null}
+                    onPress={async () => {
+                      setRespondingTo('accept');
+                      await acceptMatchInvitation(matchId);
+                      setRespondingTo(null);
+                      router.push(`/match/${matchId}/toss`);
+                    }}
+                    style={{ flex: 1, borderRadius: 10 }}
+                  >
+                    Accept
+                  </Button>
+                  <Button
+                    mode="outlined"
+                    textColor={theme.colors.error}
+                    loading={respondingTo === 'decline'}
+                    disabled={respondingTo !== null}
+                    onPress={async () => {
+                      setRespondingTo('decline');
+                      await declineMatchInvitation(matchId);
+                      setRespondingTo(null);
+                      router.back();
+                    }}
+                    style={{ flex: 1, borderRadius: 10 }}
+                  >
+                    Decline
+                  </Button>
+                </View>
+              ) : isTeam1Admin ? (
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  The toss will be available once {match!.team2.name} accepts.
+                </Text>
+              ) : null}
+            </Card.Content>
+          </Card>
+        )}
 
         <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, 8) + 16 }]}>
           {match!.status === 'in_progress' && (
@@ -444,4 +523,5 @@ const styles = StyleSheet.create({
   alertCard: { marginBottom: 12, borderRadius: 14 },
   actions: { marginTop: 8, gap: 8 },
   actionButton: {},
+  pendingCard: { marginBottom: 10, borderRadius: 14, borderWidth: 1 },
 });

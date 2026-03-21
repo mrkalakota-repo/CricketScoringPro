@@ -6,10 +6,14 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTeamStore } from '../../src/store/team-store';
 import { useMatchStore } from '../../src/store/match-store';
 import { useRole } from '../../src/hooks/useRole';
+import { useUserAuth } from '../../src/hooks/useUserAuth';
 import { FORMAT_CONFIGS } from '../../src/engine/types';
 import type { MatchFormat, MatchConfig, Player } from '../../src/engine/types';
 import { createNewMatch } from '../../src/engine/match-engine';
 import * as matchRepo from '../../src/db/repositories/match-repo';
+import * as cloudMatchRepo from '../../src/db/repositories/cloud-match-repo';
+import * as cloudTeamRepo from '../../src/db/repositories/cloud-team-repo';
+import { isCloudEnabled } from '../../src/config/supabase';
 import * as Crypto from 'expo-crypto';
 const uuidv4 = () => Crypto.randomUUID();
 
@@ -21,6 +25,7 @@ export default function CreateMatchScreen() {
   const teams = useTeamStore(s => s.teams);
   const { createAndStartMatch } = useMatchStore();
   const { canCreateMatch } = useRole();
+  const myPhone = useUserAuth(s => s.profile?.phone ?? null);
 
   if (!canCreateMatch) {
     return (
@@ -93,16 +98,38 @@ export default function CreateMatchScreen() {
       now
     );
 
+    // Determine if acceptance flow is needed:
+    // - Cloud must be enabled
+    // - Creator must be logged in (has phone)
+    // - Team2 must have a cloud owner different from the creator
+    let needsAcceptance = false;
+    let team2OwnerPhone: string | null = null;
+    if (isCloudEnabled && myPhone) {
+      team2OwnerPhone = await cloudTeamRepo.fetchTeamOwnerPhone(team2.id);
+      if (team2OwnerPhone && team2OwnerPhone !== myPhone) {
+        needsAcceptance = true;
+      }
+    }
+
+    const finalMatch = needsAcceptance
+      ? { ...match, status: 'pending_acceptance' as const }
+      : match;
+
     await matchRepo.createMatch(
       matchId, config, team1.id, team2.id,
       Array.from(team1XI), Array.from(team2XI),
       venue.trim() || 'Unknown Venue', now
     );
     // Save initial match state so it can be restored if user navigates away
-    await matchRepo.saveMatchState(matchId, match);
+    await matchRepo.saveMatchState(matchId, finalMatch);
 
-    createAndStartMatch(match);
-    router.replace(`/match/${matchId}/toss`);
+    if (needsAcceptance && team2OwnerPhone && myPhone) {
+      cloudMatchRepo.publishMatchInvitation(finalMatch, myPhone, team2OwnerPhone).catch(() => {});
+    }
+
+    createAndStartMatch(finalMatch);
+    // Navigate to match detail to show acceptance pending state (or toss if no acceptance needed)
+    router.replace(`/match/${matchId}`);
   };
 
   const canProceedTeams = team1Id && team2Id && team1Id !== team2Id;

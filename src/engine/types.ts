@@ -10,6 +10,7 @@ export type InningsStatus =
   | 'forfeited';
 
 export type MatchStatus =
+  | 'pending_acceptance'
   | 'scheduled'
   | 'toss'
   | 'in_progress'

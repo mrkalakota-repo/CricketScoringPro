@@ -106,6 +106,31 @@ export async function fetchTeamIdsByPlayerPhone(playerPhone: string): Promise<st
   }
 }
 
+/**
+ * Return the owner_phone for a single team, or null if not found / no owner set.
+ * Used during match creation to determine if an invitation is needed.
+ */
+export async function fetchTeamOwnerPhone(teamId: string): Promise<string | null> {
+  if (!isCloudEnabled || !supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('cloud_teams')
+      .select('owner_phone')
+      .eq('id', teamId)
+      .single();
+    if (error) {
+      if ((error as { code?: string }).code !== 'PGRST205' && (error as { code?: string }).code !== 'PGRST116') {
+        console.error('[cloud-team-repo] fetchTeamOwnerPhone failed:', error.message);
+      }
+      return null;
+    }
+    return (data as any)?.owner_phone ?? null;
+  } catch (err) {
+    console.error('[cloud-team-repo] fetchTeamOwnerPhone failed:', (err as Error).message);
+    return null;
+  }
+}
+
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 
 export async function fetchTeamsByIds(ids: string[]): Promise<Team[]> {

@@ -162,7 +162,7 @@ export function stopDrainTimer(): void {
 
 export async function publishLiveMatch(match: Match): Promise<void> {
   if (!isCloudEnabled || !supabase) return;
-  if (match.status === 'scheduled') return;
+  if (match.status === 'scheduled' || match.status === 'pending_acceptance') return;
 
   setSyncStatus('syncing');
 
@@ -288,7 +288,7 @@ function matchToCloudRow(match: Match, ownerPhone?: string) {
 
 export async function publishMatchState(match: Match, ownerPhone?: string): Promise<void> {
   if (!isCloudEnabled || !supabase) return;
-  if (match.status === 'scheduled') return;
+  if (match.status === 'scheduled' || match.status === 'pending_acceptance') return;
   try {
     const { error } = await supabase
       .from('cloud_match_states')
@@ -360,4 +360,172 @@ export async function fetchCloudMatchState(matchId: string): Promise<Match | nul
     console.error('[cloud-match-repo] fetchCloudMatchState failed:', (err as Error).message);
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Match Invitations — two-team acceptance before match starts
+// ---------------------------------------------------------------------------
+
+const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+export interface MatchInvitation {
+  matchId: string;
+  team1Id: string;
+  team2Id: string;
+  team1Name: string;
+  team2Name: string;
+  format: string;
+  venue: string;
+  team1OwnerPhone: string;
+  team2OwnerPhone: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: number;
+  expiresAt: number;
+}
+
+function rowToInvitation(r: Record<string, unknown>): MatchInvitation {
+  return {
+    matchId: r.match_id as string,
+    team1Id: r.team1_id as string,
+    team2Id: r.team2_id as string,
+    team1Name: r.team1_name as string,
+    team2Name: r.team2_name as string,
+    format: r.format as string,
+    venue: r.venue as string,
+    team1OwnerPhone: r.team1_owner_phone as string,
+    team2OwnerPhone: r.team2_owner_phone as string,
+    status: r.status as 'pending' | 'accepted' | 'declined',
+    createdAt: r.created_at as number,
+    expiresAt: r.expires_at as number,
+  };
+}
+
+/** Publish a match invitation. Called by the creating admin immediately after match creation. */
+export async function publishMatchInvitation(
+  match: Match,
+  team1OwnerPhone: string,
+  team2OwnerPhone: string,
+): Promise<void> {
+  if (!isCloudEnabled || !supabase) return;
+  const now = Date.now();
+  try {
+    const { error } = await supabase.from('match_invitations').upsert({
+      match_id: match.id,
+      team1_id: match.team1.id,
+      team2_id: match.team2.id,
+      team1_name: match.team1.name,
+      team2_name: match.team2.name,
+      format: match.config.format,
+      venue: match.venue ?? '',
+      team1_owner_phone: team1OwnerPhone,
+      team2_owner_phone: team2OwnerPhone,
+      status: 'pending',
+      created_at: now,
+      expires_at: now + TWENTY_FOUR_HOURS,
+    });
+    if (error && (error as { code?: string }).code !== 'PGRST205') {
+      console.error('[cloud-match-repo] publishMatchInvitation failed:', error.message);
+    }
+  } catch (err) {
+    console.error('[cloud-match-repo] publishMatchInvitation error:', (err as Error).message);
+  }
+}
+
+/** Accept or decline an invitation. */
+export async function respondToInvitation(
+  matchId: string,
+  response: 'accepted' | 'declined',
+): Promise<void> {
+  if (!isCloudEnabled || !supabase) return;
+  try {
+    const { error } = await supabase
+      .from('match_invitations')
+      .update({ status: response })
+      .eq('match_id', matchId);
+    if (error && (error as { code?: string }).code !== 'PGRST205') {
+      console.error('[cloud-match-repo] respondToInvitation failed:', error.message);
+    }
+  } catch (err) {
+    console.error('[cloud-match-repo] respondToInvitation error:', (err as Error).message);
+  }
+}
+
+/** Fetch pending (non-expired) invitations for the opposing team's admin. */
+export async function fetchPendingInvitations(myPhone: string): Promise<MatchInvitation[]> {
+  if (!isCloudEnabled || !supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('match_invitations')
+      .select('*')
+      .eq('team2_owner_phone', myPhone)
+      .eq('status', 'pending')
+      .gt('expires_at', Date.now())
+      .order('created_at', { ascending: false });
+    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    return (data ?? []).map(rowToInvitation);
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    if (code !== 'PGRST205') {
+      console.error('[cloud-match-repo] fetchPendingInvitations failed:', (err as Error).message);
+    }
+    return [];
+  }
+}
+
+/** Fetch the invitation status for a match the creator is watching. */
+export async function fetchInvitationStatus(matchId: string): Promise<MatchInvitation | null> {
+  if (!isCloudEnabled || !supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('match_invitations')
+      .select('*')
+      .eq('match_id', matchId)
+      .single();
+    if (error && (error as { code?: string }).code !== 'PGRST205' && (error as { code?: string }).code !== 'PGRST116') throw error;
+    if (!data) return null;
+    return rowToInvitation(data as Record<string, unknown>);
+  } catch (err) {
+    console.error('[cloud-match-repo] fetchInvitationStatus failed:', (err as Error).message);
+    return null;
+  }
+}
+
+/**
+ * Subscribe to invitation changes for the opposing team admin.
+ * Triggers onUpdate whenever any invitation row for myPhone changes.
+ */
+export function subscribeToInvitations(
+  myPhone: string,
+  onUpdate: (invitations: MatchInvitation[]) => void,
+): () => void {
+  if (!isCloudEnabled || !supabase) return () => {};
+  const channel = supabase
+    .channel(`match_invitations_${myPhone}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'match_invitations' }, async () => {
+      const invitations = await fetchPendingInvitations(myPhone);
+      onUpdate(invitations);
+    })
+    .subscribe();
+  return () => { supabase!.removeChannel(channel); };
+}
+
+/**
+ * Subscribe to changes on a specific match invitation (for the creating admin
+ * waiting for team2 to accept or decline).
+ */
+export function subscribeToMatchInvitation(
+  matchId: string,
+  onUpdate: (invitation: MatchInvitation | null) => void,
+): () => void {
+  if (!isCloudEnabled || !supabase) return () => {};
+  const channel = supabase
+    .channel(`match_invitation_${matchId}`)
+    .on('postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'match_invitations', filter: `match_id=eq.${matchId}` },
+      async () => {
+        const inv = await fetchInvitationStatus(matchId);
+        onUpdate(inv);
+      })
+    .subscribe();
+  return () => { supabase!.removeChannel(channel); };
 }

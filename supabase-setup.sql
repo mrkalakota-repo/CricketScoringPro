@@ -408,3 +408,48 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN
   CREATE POLICY "public_delete_match_states" ON public.cloud_match_states FOR DELETE USING (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ── Match Invitations (two-team acceptance before match starts) ───────────────
+-- When a match is created, an invitation row is written here.
+-- team1 is the creator (auto-accepted); team2 must explicitly accept.
+-- status: 'pending' | 'accepted' | 'declined'
+-- Expires after 24 hours (app layer treats expired = declined).
+
+CREATE TABLE IF NOT EXISTS public.match_invitations (
+  match_id          TEXT   PRIMARY KEY,
+  team1_id          TEXT   NOT NULL,
+  team2_id          TEXT   NOT NULL,
+  team1_name        TEXT   NOT NULL,
+  team2_name        TEXT   NOT NULL,
+  format            TEXT   NOT NULL,
+  venue             TEXT   NOT NULL DEFAULT '',
+  team1_owner_phone TEXT   NOT NULL,
+  team2_owner_phone TEXT   NOT NULL,
+  status            TEXT   NOT NULL DEFAULT 'pending',
+  created_at        BIGINT NOT NULL DEFAULT 0,
+  expires_at        BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_match_invitations_team2
+  ON public.match_invitations (team2_owner_phone);
+
+CREATE INDEX IF NOT EXISTS idx_match_invitations_team1
+  ON public.match_invitations (team1_owner_phone);
+
+ALTER TABLE public.match_invitations ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "public_select_match_invitations" ON public.match_invitations FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_insert_match_invitations" ON public.match_invitations FOR INSERT WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_update_match_invitations" ON public.match_invitations FOR UPDATE USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_delete_match_invitations" ON public.match_invitations FOR DELETE USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

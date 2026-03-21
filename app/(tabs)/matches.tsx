@@ -1,16 +1,19 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, Card, FAB, useTheme } from 'react-native-paper';
+import { Text, Card, FAB, useTheme, Button } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as cloudMatchRepo from '../../src/db/repositories/cloud-match-repo';
-import type { CloudMatchRow } from '../../src/db/repositories/cloud-match-repo';
+import type { CloudMatchRow, MatchInvitation } from '../../src/db/repositories/cloud-match-repo';
 import { isCloudEnabled } from '../../src/config/supabase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
+import { useUserAuth } from '../../src/hooks/useUserAuth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { MatchRow } from '../../src/db/repositories/match-repo';
 import { useRole } from '../../src/hooks/useRole';
+
+const PENDING_ORANGE = '#F57C00';
 
 function parseMatchInfo(item: MatchRow, teams: ReturnType<typeof useTeamStore.getState>['teams']) {
   let team1Short = '';
@@ -38,10 +41,11 @@ function parseMatchInfo(item: MatchRow, teams: ReturnType<typeof useTeamStore.ge
 
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; color: string; icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'] }> = {
-    in_progress: { label: 'LIVE', color: '#D32F2F', icon: 'circle' },
-    toss:        { label: 'TOSS', color: '#F57C00', icon: 'circle-outline' },
-    completed:   { label: 'DONE', color: '#2E7D32', icon: 'check-circle' },
-    scheduled:   { label: 'SOON', color: '#1565C0', icon: 'clock-outline' },
+    in_progress:        { label: 'LIVE',    color: '#D32F2F', icon: 'circle' },
+    toss:               { label: 'TOSS',    color: '#F57C00', icon: 'circle-outline' },
+    completed:          { label: 'DONE',    color: '#2E7D32', icon: 'check-circle' },
+    scheduled:          { label: 'SOON',    color: '#1565C0', icon: 'clock-outline' },
+    pending_acceptance: { label: 'PENDING', color: PENDING_ORANGE, icon: 'clock-alert-outline' },
   };
   const c = config[status] ?? { label: status.toUpperCase(), color: '#9E9E9E', icon: 'circle-outline' };
   return (
@@ -56,11 +60,15 @@ export default function MatchesScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { matches, loading, loadMatches } = useMatchStore();
+  const { matches, loading, loadMatches, acceptMatchInvitation, declineMatchInvitation } = useMatchStore();
   const teams = useTeamStore(s => s.teams);
   const { canCreateMatch } = useRole();
+  const myPhone = useUserAuth(s => s.profile?.phone ?? null);
   const [cloudMatches, setCloudMatches] = useState<CloudMatchRow[]>([]);
   const [cloudLoading, setCloudLoading] = useState(false);
+  const [pendingInvitations, setPendingInvitations] = useState<MatchInvitation[]>([]);
+  const [respondingTo, setRespondingTo] = useState<string | null>(null);
+  const invUnsubRef = useRef<(() => void) | null>(null);
 
   const loadCloud = useCallback(async () => {
     if (!isCloudEnabled) return;
@@ -80,6 +88,35 @@ export default function MatchesScreen() {
     loadCloud();
   }, [loadCloud]));
 
+  // Subscribe to incoming match invitations (team2 admin view)
+  useEffect(() => {
+    if (!isCloudEnabled || !myPhone) return;
+    cloudMatchRepo.fetchPendingInvitations(myPhone).then(setPendingInvitations);
+    invUnsubRef.current = cloudMatchRepo.subscribeToInvitations(myPhone, setPendingInvitations);
+    return () => { invUnsubRef.current?.(); };
+  }, [myPhone]);
+
+  const handleAccept = async (inv: MatchInvitation) => {
+    setRespondingTo(inv.matchId);
+    try {
+      await acceptMatchInvitation(inv.matchId);
+      setPendingInvitations(prev => prev.filter(i => i.matchId !== inv.matchId));
+      router.push(`/match/${inv.matchId}/toss`);
+    } finally {
+      setRespondingTo(null);
+    }
+  };
+
+  const handleDecline = async (inv: MatchInvitation) => {
+    setRespondingTo(inv.matchId);
+    try {
+      await declineMatchInvitation(inv.matchId);
+      setPendingInvitations(prev => prev.filter(i => i.matchId !== inv.matchId));
+    } finally {
+      setRespondingTo(null);
+    }
+  };
+
   const fabBottom = Math.max(insets.bottom, 8) + 16;
 
   const handlePress = (item: MatchRow) => {
@@ -94,6 +131,68 @@ export default function MatchesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* ── Pending Invitations (team2 admin sees this) ── */}
+      {pendingInvitations.length > 0 && (
+        <View style={[styles.invSection, { borderBottomColor: theme.colors.outlineVariant }]}>
+          <View style={styles.invHeader}>
+            <MaterialCommunityIcons name="clock-alert-outline" size={16} color={PENDING_ORANGE} />
+            <Text variant="labelMedium" style={[styles.invHeaderText, { color: PENDING_ORANGE }]}>
+              Pending Invitations
+            </Text>
+          </View>
+          {pendingInvitations.map(inv => (
+            <Card key={inv.matchId} style={[styles.card, styles.invCard, { marginHorizontal: 16, marginBottom: 10 }]}>
+              <View style={[styles.liveStripe, { backgroundColor: PENDING_ORANGE }]} />
+              <Card.Content style={styles.cardContent}>
+                <View style={styles.cardTop}>
+                  <View style={[styles.formatBadge, { backgroundColor: '#FFF3E0' }]}>
+                    <Text style={[styles.formatText, { color: PENDING_ORANGE }]}>{inv.format.toUpperCase()}</Text>
+                  </View>
+                  <View style={[styles.badge, { backgroundColor: '#FFF3E018', borderColor: PENDING_ORANGE + '50', borderWidth: 1 }]}>
+                    <MaterialCommunityIcons name="clock-outline" size={9} color={PENDING_ORANGE} />
+                    <Text style={[styles.badgeText, { color: PENDING_ORANGE }]}>INVITED</Text>
+                  </View>
+                </View>
+                <Text variant="titleMedium" style={[styles.teamsText, { color: theme.colors.onSurface }]}>
+                  {inv.team1Name}{' '}
+                  <Text style={{ color: theme.colors.onSurfaceVariant, fontWeight: '400' }}>vs</Text>
+                  {' '}{inv.team2Name}
+                </Text>
+                {inv.venue ? (
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>{inv.venue}</Text>
+                ) : null}
+                <View style={styles.invActions}>
+                  <Button
+                    mode="contained"
+                    icon="check"
+                    onPress={() => handleAccept(inv)}
+                    loading={respondingTo === inv.matchId}
+                    disabled={respondingTo === inv.matchId}
+                    style={{ flex: 1, borderRadius: 10 }}
+                    buttonColor={theme.colors.primary}
+                    compact
+                  >
+                    Accept
+                  </Button>
+                  <Button
+                    mode="outlined"
+                    icon="close"
+                    onPress={() => handleDecline(inv)}
+                    loading={respondingTo === inv.matchId}
+                    disabled={respondingTo === inv.matchId}
+                    style={{ flex: 1, borderRadius: 10 }}
+                    textColor={theme.colors.error}
+                    compact
+                  >
+                    Decline
+                  </Button>
+                </View>
+              </Card.Content>
+            </Card>
+          ))}
+        </View>
+      )}
+
       <FlatList
         data={matches}
         keyExtractor={item => item.id}
@@ -248,4 +347,9 @@ const styles = StyleSheet.create({
   cloudSection: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, paddingBottom: 80 },
   cloudHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingBottom: 10 },
   cloudHeaderText: { fontWeight: '700', letterSpacing: 0.3 },
+  invSection: { borderBottomWidth: StyleSheet.hairlineWidth, paddingTop: 12, paddingBottom: 4 },
+  invHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingBottom: 8 },
+  invHeaderText: { fontWeight: '700', letterSpacing: 0.3 },
+  invCard: { elevation: 2, shadowColor: PENDING_ORANGE, shadowOpacity: 0.12, shadowRadius: 4 },
+  invActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
 });

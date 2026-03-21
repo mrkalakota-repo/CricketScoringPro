@@ -33,6 +33,19 @@ export default function TossScreen() {
     );
   }
 
+  if (match.status === 'pending_acceptance') {
+    return (
+      <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
+        <MaterialCommunityIcons name="clock-alert-outline" size={48} color="#F57C00" />
+        <Text variant="titleMedium" style={{ color: '#F57C00', marginTop: 12, fontWeight: '700' }}>Awaiting acceptance</Text>
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6, textAlign: 'center', paddingHorizontal: 24 }}>
+          The opposing team must accept the match before the toss can begin.
+        </Text>
+        <Button mode="text" icon="arrow-left" onPress={() => router.back()} style={{ marginTop: 16 }}>Go Back</Button>
+      </View>
+    );
+  }
+
   const handleConfirm = async () => {
     recordToss({ winnerId: winnerId!, decision });
 
