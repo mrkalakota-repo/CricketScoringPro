@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { PaperProvider } from 'react-native-paper';
 import { useColorScheme, Platform, View, ActivityIndicator, AppState } from 'react-native';
@@ -12,7 +12,6 @@ import { useUserAuth } from '../src/hooks/useUserAuth';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { stopDrainTimer } from '../src/db/repositories/cloud-match-repo';
 import LoginScreen from './login';
-import GuestScreen from './guest';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -21,7 +20,6 @@ export default function RootLayout() {
   const loadMatches = useMatchStore(s => s.loadMatches);
   const loadPrefs = usePrefsStore(s => s.loadPrefs);
   const { loadProfile, isLoading, isAuthenticated } = useUserAuth();
-  const [showLogin, setShowLogin] = useState(false);
 
   // Re-load data whenever auth resolves or the user logs in/out, so the
   // home screen stats (teams, matches, live) are always current without
@@ -85,10 +83,7 @@ export default function RootLayout() {
   }
 
   if (!isAuthenticated) {
-    const unauthContent = showLogin
-      ? <LoginScreen onBack={() => setShowLogin(false)} />
-      : <GuestScreen onSignIn={() => setShowLogin(true)} />;
-
+    const loginContent = <LoginScreen />;
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
@@ -96,10 +91,10 @@ export default function RootLayout() {
             {Platform.OS === 'web' ? (
               <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#C8E8CA' }}>
                 <View style={{ flex: 1, width: '100%', maxWidth: 480, backgroundColor: theme.colors.background }}>
-                  {unauthContent}
+                  {loginContent}
                 </View>
               </View>
-            ) : unauthContent}
+            ) : loginContent}
           </PaperProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
