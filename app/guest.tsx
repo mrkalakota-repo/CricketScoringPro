@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Button, Card, useTheme, ActivityIndicator, Surface, Portal, Dialog } from 'react-native-paper';
+import { Text, Button, Card, useTheme, ActivityIndicator, Surface } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLiveScoresStore } from '../src/store/live-scores-store';
 import { isCloudEnabled } from '../src/config/supabase';
 import { LIVE_RED } from '../src/components/NearbyLiveCard';
-import { formatOvers } from '../src/utils/formatters';
 import type { LiveMatchSummary } from '../src/db/repositories/cloud-match-repo';
 
 const TOSS_ORANGE = '#F57C00';
@@ -50,34 +49,10 @@ function MatchCard({ match, onPress }: { match: LiveMatchSummary; onPress: () =>
           {match.team1Short} vs {match.team2Short}
         </Text>
 
-        {/* Score details */}
-        {isLive && match.battingShort ? (
-          <View style={styles.scoreRow}>
-            <Text variant="bodyMedium" style={[styles.scoreText, { color: LIVE_RED }]}>
-              {match.battingShort}: {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
-            </Text>
-            {match.target ? (
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
-                Target: {match.target}  ·  Need {match.target - match.score} from remaining overs
-              </Text>
-            ) : null}
-          </View>
-        ) : isCompleted ? (
-          <View style={styles.scoreRow}>
-            {/* Last innings score */}
-            {match.battingShort ? (
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 3 }}>
-                {match.battingShort}: {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
-              </Text>
-            ) : null}
-            {/* Result string */}
-            {match.result ? (
-              <Text variant="bodyMedium" style={[styles.resultText, { color: theme.colors.primary }]}>
-                {match.result}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
+        {/* Sign-in prompt instead of score details */}
+        <Text variant="bodySmall" style={[styles.signInHint, { color: theme.colors.onSurfaceVariant }]}>
+          Sign in to view scores
+        </Text>
       </Card.Content>
     </Card>
   );
@@ -95,7 +70,6 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
   const subscribeLive = useLiveScoresStore(s => s.subscribe);
   const liveLoading = useLiveScoresStore(s => s.loading);
   const unsubscribeRef = useRef<(() => void) | null>(null);
-  const [selectedMatch, setSelectedMatch] = useState<LiveMatchSummary | null>(null);
 
   useEffect(() => {
     if (!isCloudEnabled) return;
@@ -175,7 +149,7 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
               </Text>
             </View>
           ) : (
-            nearbyMatches.map(m => <MatchCard key={m.id} match={m} onPress={() => setSelectedMatch(m)} />)
+            nearbyMatches.map(m => <MatchCard key={m.id} match={m} onPress={onSignIn} />)
           )}
         </View>
       ) : (
@@ -193,72 +167,12 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
       {/* Sign-in nudge at bottom */}
       <View style={[styles.footer, { borderTopColor: theme.colors.outlineVariant }]}>
         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 12 }}>
-          Sign in to score matches, manage teams, and create leagues
+          Sign in to view scores, manage teams, and create leagues
         </Text>
         <Button mode="outlined" onPress={onSignIn} icon="login">
           Sign In / Register
         </Button>
       </View>
-
-      {/* Score detail dialog */}
-      <Portal>
-        <Dialog visible={selectedMatch !== null} onDismiss={() => setSelectedMatch(null)}>
-          {selectedMatch && (() => {
-            const m = selectedMatch;
-            const isLive = m.status === 'in_progress';
-            const isToss = m.status === 'toss';
-            const isCompleted = m.status === 'completed';
-            const stripeColor = isCompleted ? theme.colors.primary : isToss ? TOSS_ORANGE : LIVE_RED;
-            return (
-              <>
-                <View style={[styles.dialogStripe, { backgroundColor: stripeColor }]} />
-                <Dialog.Title style={{ marginTop: 8 }}>
-                  {m.team1Short} vs {m.team2Short}
-                </Dialog.Title>
-                <Dialog.Content style={styles.dialogContent}>
-                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
-                    {m.format.toUpperCase()}{m.venue ? ` · ${m.venue}` : ''}
-                  </Text>
-
-                  {isLive && m.battingShort ? (
-                    <>
-                      <Text variant="bodyLarge" style={{ color: LIVE_RED, fontWeight: '700' }}>
-                        {m.battingShort}: {m.score}/{m.wickets} ({formatOvers(m.overs, m.balls)} ov)
-                      </Text>
-                      {m.target ? (
-                        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                          Target: {m.target}  ·  Need {m.target - m.score} runs
-                        </Text>
-                      ) : null}
-                    </>
-                  ) : isToss ? (
-                    <Text variant="bodyMedium" style={{ color: TOSS_ORANGE, fontWeight: '700' }}>
-                      Toss in progress
-                    </Text>
-                  ) : isCompleted ? (
-                    <>
-                      {m.battingShort ? (
-                        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                          {m.battingShort}: {m.score}/{m.wickets} ({formatOvers(m.overs, m.balls)} ov)
-                        </Text>
-                      ) : null}
-                      {m.result ? (
-                        <Text variant="bodyLarge" style={{ color: theme.colors.primary, fontWeight: '700', marginTop: 6 }}>
-                          {m.result}
-                        </Text>
-                      ) : null}
-                    </>
-                  ) : null}
-                </Dialog.Content>
-                <Dialog.Actions>
-                  <Button onPress={onSignIn} icon="account-circle">Sign in to score</Button>
-                  <Button onPress={() => setSelectedMatch(null)}>Close</Button>
-                </Dialog.Actions>
-              </>
-            );
-          })()}
-        </Dialog>
-      </Portal>
     </ScrollView>
   );
 }
@@ -294,10 +208,6 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   formatChip: { fontSize: 10, fontWeight: '600' },
   teams: { fontWeight: '800', fontSize: 16 },
-  scoreRow: { marginTop: 4 },
-  scoreText: { fontWeight: '700', fontSize: 14 },
-  resultText: { fontWeight: '700', fontSize: 14 },
+  signInHint: { marginTop: 4, fontStyle: 'italic' },
   footer: { marginTop: 24, marginHorizontal: 16, paddingTop: 20, borderTopWidth: StyleSheet.hairlineWidth, alignItems: 'center' },
-  dialogStripe: { height: 4, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
-  dialogContent: { gap: 2 },
 });
