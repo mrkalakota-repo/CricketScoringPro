@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Button, Card, useTheme, Surface, Portal, Dialog, ActivityIndicator } from 'react-native-paper';
+import { Text, Button, Card, useTheme, Surface, Portal, Dialog, ActivityIndicator, Divider, SegmentedButtons } from 'react-native-paper';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useMatchStore } from '../../../src/store/match-store';
 import { useTeamStore } from '../../../src/store/team-store';
@@ -9,7 +9,8 @@ import { usePrefsStore } from '../../../src/store/prefs-store';
 import { useUserAuth } from '../../../src/hooks/useUserAuth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { formatOvers } from '../../../src/utils/formatters';
+import { formatOvers, dismissalDescription } from '../../../src/utils/formatters';
+import { strikeRate, economyRate } from '../../../src/utils/cricket-math';
 import { LIVE_RED } from '../../../src/components/NearbyLiveCard';
 import type { LiveMatchSummary } from '../../../src/db/repositories/cloud-match-repo';
 import * as cloudMatchRepo from '../../../src/db/repositories/cloud-match-repo';
@@ -22,6 +23,8 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
   const insets = useSafeAreaInsets();
   const [cloudMatch, setCloudMatch] = useState<import('../../../src/engine/types').Match | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showScorecard, setShowScorecard] = useState(false);
+  const [scorecardInnings, setScorecardInnings] = useState('0');
 
   useEffect(() => {
     cloudMatchRepo.fetchCloudMatchState(matchId).then(m => {
@@ -101,6 +104,104 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
               </Card.Content>
             </Card>
           ) : null}
+
+          {cloudMatch.innings.length > 0 && (
+            <Button
+              mode="outlined"
+              icon={showScorecard ? 'chevron-up' : 'format-list-bulleted'}
+              onPress={() => setShowScorecard(v => !v)}
+              style={[styles.inningsCard, { borderRadius: 12, marginBottom: 0 }]}
+            >
+              {showScorecard ? 'Hide Scorecard' : 'View Scorecard'}
+            </Button>
+          )}
+
+          {showScorecard && cloudMatch.innings.length > 0 && (() => {
+            const getPlayerName = (playerId: string) => {
+              const all = [...cloudMatch.team1.players, ...cloudMatch.team2.players];
+              return all.find(p => p.id === playerId)?.name ?? '?';
+            };
+            const inn = cloudMatch.innings[parseInt(scorecardInnings)] ?? cloudMatch.innings[0];
+            const battingTeam = inn.battingTeamId === cloudMatch.team1.id ? cloudMatch.team1.name : cloudMatch.team2.name;
+            const bowlingTeam = inn.bowlingTeamId === cloudMatch.team1.id ? cloudMatch.team1.name : cloudMatch.team2.name;
+            return (
+              <View style={{ marginTop: 10 }}>
+                {cloudMatch.innings.length > 1 && (
+                  <SegmentedButtons
+                    value={scorecardInnings}
+                    onValueChange={setScorecardInnings}
+                    buttons={cloudMatch.innings.map((si, idx) => {
+                      const s = si.battingTeamId === cloudMatch.team1.id ? cloudMatch.team1.shortName : cloudMatch.team2.shortName;
+                      return { value: String(idx), label: `${s} ${si.totalRuns}/${si.totalWickets}` };
+                    })}
+                    style={{ marginBottom: 8 }}
+                  />
+                )}
+                {/* Batting */}
+                <Surface style={[styles.scorecardSurface, { backgroundColor: theme.colors.surface }]} elevation={1}>
+                  <Text variant="labelMedium" style={[styles.scorecardTitle, { color: theme.colors.onSurfaceVariant }]}>{battingTeam} — Batting</Text>
+                  <View style={[styles.scorecardHeaderRow, { backgroundColor: theme.colors.surfaceVariant }]}>
+                    {['Batter', 'R', 'B', '4s', '6s', 'SR'].map((h, hi) => (
+                      <Text key={hi} style={[styles.scHdr, hi === 0 ? { flex: 3 } : { flex: 1, textAlign: 'center' }, { color: theme.colors.onSurfaceVariant }]}>{h}</Text>
+                    ))}
+                  </View>
+                  <Divider />
+                  {inn.batters.map((b, bi) => (
+                    <View key={b.playerId}>
+                      <View style={styles.scorecardRow}>
+                        <View style={{ flex: 3 }}>
+                          <Text style={[styles.scPlayer, { color: theme.colors.onSurface }]}>{getPlayerName(b.playerId)}{!b.dismissal ? '*' : ''}</Text>
+                          <Text style={[styles.scDismissal, { color: theme.colors.onSurfaceVariant }]}>
+                            {b.dismissal
+                              ? `${dismissalDescription(b.dismissal.type)} b ${getPlayerName(b.dismissal.bowlerId)}`
+                              : 'not out'}
+                          </Text>
+                        </View>
+                        <Text style={[styles.scData, { flex: 1, fontWeight: '700', color: theme.colors.onSurface }]}>{b.runs}</Text>
+                        <Text style={[styles.scData, { flex: 1, color: theme.colors.onSurface }]}>{b.ballsFaced}</Text>
+                        <Text style={[styles.scData, { flex: 1, color: theme.colors.onSurface }]}>{b.fours}</Text>
+                        <Text style={[styles.scData, { flex: 1, color: theme.colors.onSurface }]}>{b.sixes}</Text>
+                        <Text style={[styles.scData, { flex: 1, color: theme.colors.onSurface }]}>{strikeRate(b.runs, b.ballsFaced).toFixed(1)}</Text>
+                      </View>
+                      {bi < inn.batters.length - 1 && <Divider />}
+                    </View>
+                  ))}
+                  <Divider />
+                  <View style={styles.scorecardRow}>
+                    <Text style={[{ flex: 3, fontSize: 11, color: theme.colors.onSurfaceVariant }]}>Extras</Text>
+                    <Text style={[{ flex: 3, fontSize: 11, color: theme.colors.onSurface }]}>
+                      {inn.extras.wides + inn.extras.noBalls + inn.extras.byes + inn.extras.legByes + inn.extras.penalties}
+                      {' '}(w {inn.extras.wides}, nb {inn.extras.noBalls}, b {inn.extras.byes}, lb {inn.extras.legByes})
+                    </Text>
+                  </View>
+                </Surface>
+                {/* Bowling */}
+                <Surface style={[styles.scorecardSurface, { backgroundColor: theme.colors.surface, marginTop: 8 }]} elevation={1}>
+                  <Text variant="labelMedium" style={[styles.scorecardTitle, { color: theme.colors.onSurfaceVariant }]}>{bowlingTeam} — Bowling</Text>
+                  <View style={[styles.scorecardHeaderRow, { backgroundColor: theme.colors.surfaceVariant }]}>
+                    {['Bowler', 'O', 'M', 'R', 'W', 'Econ'].map((h, hi) => (
+                      <Text key={hi} style={[styles.scHdr, hi === 0 ? { flex: 3 } : { flex: 1, textAlign: 'center' }, { color: theme.colors.onSurfaceVariant }]}>{h}</Text>
+                    ))}
+                  </View>
+                  <Divider />
+                  {inn.bowlers.map((bw, bi) => (
+                    <View key={bw.playerId}>
+                      <View style={styles.scorecardRow}>
+                        <Text style={[styles.scPlayer, { flex: 3, color: theme.colors.onSurface }]}>{getPlayerName(bw.playerId)}</Text>
+                        <Text style={[styles.scData, { flex: 1, color: theme.colors.onSurface }]}>{formatOvers(bw.overs, bw.ballsBowled)}</Text>
+                        <Text style={[styles.scData, { flex: 1, color: theme.colors.onSurface }]}>{bw.maidens}</Text>
+                        <Text style={[styles.scData, { flex: 1, color: theme.colors.onSurface }]}>{bw.runsConceded}</Text>
+                        <Text style={[styles.scData, { flex: 1, fontWeight: '700', color: theme.colors.onSurface }]}>{bw.wickets}</Text>
+                        <Text style={[styles.scData, { flex: 1, color: theme.colors.onSurface }]}>{economyRate(bw.runsConceded, bw.overs, bw.ballsBowled).toFixed(1)}</Text>
+                      </View>
+                      {bi < inn.bowlers.length - 1 && <Divider />}
+                    </View>
+                  ))}
+                </Surface>
+              </View>
+            );
+          })()}
+
           <Button mode="text" icon="arrow-left" onPress={() => router.back()} style={{ marginTop: 8 }}>Back</Button>
         </View>
       </ScrollView>
@@ -524,4 +625,12 @@ const styles = StyleSheet.create({
   actions: { marginTop: 8, gap: 8 },
   actionButton: {},
   pendingCard: { marginBottom: 10, borderRadius: 14, borderWidth: 1 },
+  scorecardSurface: { borderRadius: 12, overflow: 'hidden' },
+  scorecardTitle: { fontWeight: '700', padding: 10, paddingBottom: 6 },
+  scorecardHeaderRow: { flexDirection: 'row', paddingHorizontal: 10, paddingVertical: 5 },
+  scHdr: { fontSize: 10, fontWeight: '600' },
+  scorecardRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 7 },
+  scPlayer: { fontSize: 12, fontWeight: '600' },
+  scDismissal: { fontSize: 10, marginTop: 1 },
+  scData: { fontSize: 12, textAlign: 'center' },
 });

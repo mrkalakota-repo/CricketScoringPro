@@ -345,6 +345,42 @@ export async function fetchRecentCloudMatches(days = 7): Promise<CloudMatchRow[]
   }
 }
 
+export async function fetchMyCloudMatches(ownerPhone: string, days = 30): Promise<CloudMatchRow[]> {
+  if (!isCloudEnabled || !supabase) return [];
+  try {
+    const since = Date.now() - days * 24 * 60 * 60 * 1000;
+    const { data, error } = await supabase
+      .from('cloud_match_states')
+      .select('id, team1_name, team1_short, team2_name, team2_short, format, venue, status, result, owner_phone, match_date, updated_at')
+      .eq('owner_phone', ownerPhone)
+      .gte('updated_at', since)
+      .order('updated_at', { ascending: false })
+      .limit(50);
+    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    return (data ?? []).map((r: Record<string, unknown>) => ({
+      id: r.id as string,
+      team1Name: r.team1_name as string,
+      team1Short: r.team1_short as string,
+      team2Name: r.team2_name as string,
+      team2Short: r.team2_short as string,
+      format: r.format as string,
+      venue: r.venue as string,
+      status: r.status as string,
+      result: r.result as string | null,
+      ownerPhone: r.owner_phone as string | null,
+      matchStateJson: '',
+      matchDate: r.match_date as number,
+      updatedAt: r.updated_at as number,
+    }));
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    if (code !== 'PGRST205') {
+      console.error('[cloud-match-repo] fetchMyCloudMatches failed:', (err as Error).message);
+    }
+    return [];
+  }
+}
+
 export async function fetchCloudMatchState(matchId: string): Promise<Match | null> {
   if (!isCloudEnabled || !supabase) return null;
   try {
