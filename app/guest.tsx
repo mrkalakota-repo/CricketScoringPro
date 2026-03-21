@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Button, Card, useTheme, ActivityIndicator, Surface } from 'react-native-paper';
+import { Text, Button, Card, useTheme, ActivityIndicator, Surface, Portal, Dialog } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLiveScoresStore } from '../src/store/live-scores-store';
@@ -11,7 +11,7 @@ import type { LiveMatchSummary } from '../src/db/repositories/cloud-match-repo';
 
 const TOSS_ORANGE = '#F57C00';
 
-function MatchCard({ match }: { match: LiveMatchSummary }) {
+function MatchCard({ match, onPress }: { match: LiveMatchSummary; onPress: () => void }) {
   const theme = useTheme();
   const isLive = match.status === 'in_progress';
   const isToss = match.status === 'toss';
@@ -27,7 +27,7 @@ function MatchCard({ match }: { match: LiveMatchSummary }) {
   const badgeLabel = isToss ? 'TOSS' : isLive ? 'LIVE' : 'RESULT';
 
   return (
-    <Card style={[styles.matchCard, (isLive || isToss) && styles.liveMatchCard]}>
+    <Card style={[styles.matchCard, (isLive || isToss) && styles.liveMatchCard]} onPress={onPress}>
       <View style={[styles.liveStripe, { backgroundColor: stripeColor }]} />
       <Card.Content style={styles.cardContent}>
         {/* Top row: badge + format + venue */}
@@ -95,6 +95,7 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
   const subscribeLive = useLiveScoresStore(s => s.subscribe);
   const liveLoading = useLiveScoresStore(s => s.loading);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<LiveMatchSummary | null>(null);
 
   useEffect(() => {
     if (!isCloudEnabled) return;
@@ -174,7 +175,7 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
               </Text>
             </View>
           ) : (
-            nearbyMatches.map(m => <MatchCard key={m.id} match={m} />)
+            nearbyMatches.map(m => <MatchCard key={m.id} match={m} onPress={() => setSelectedMatch(m)} />)
           )}
         </View>
       ) : (
@@ -198,6 +199,66 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
           Sign In / Register
         </Button>
       </View>
+
+      {/* Score detail dialog */}
+      <Portal>
+        <Dialog visible={selectedMatch !== null} onDismiss={() => setSelectedMatch(null)}>
+          {selectedMatch && (() => {
+            const m = selectedMatch;
+            const isLive = m.status === 'in_progress';
+            const isToss = m.status === 'toss';
+            const isCompleted = m.status === 'completed';
+            const stripeColor = isCompleted ? theme.colors.primary : isToss ? TOSS_ORANGE : LIVE_RED;
+            return (
+              <>
+                <View style={[styles.dialogStripe, { backgroundColor: stripeColor }]} />
+                <Dialog.Title style={{ marginTop: 8 }}>
+                  {m.team1Short} vs {m.team2Short}
+                </Dialog.Title>
+                <Dialog.Content style={styles.dialogContent}>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
+                    {m.format.toUpperCase()}{m.venue ? ` · ${m.venue}` : ''}
+                  </Text>
+
+                  {isLive && m.battingShort ? (
+                    <>
+                      <Text variant="bodyLarge" style={{ color: LIVE_RED, fontWeight: '700' }}>
+                        {m.battingShort}: {m.score}/{m.wickets} ({formatOvers(m.overs, m.balls)} ov)
+                      </Text>
+                      {m.target ? (
+                        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                          Target: {m.target}  ·  Need {m.target - m.score} runs
+                        </Text>
+                      ) : null}
+                    </>
+                  ) : isToss ? (
+                    <Text variant="bodyMedium" style={{ color: TOSS_ORANGE, fontWeight: '700' }}>
+                      Toss in progress
+                    </Text>
+                  ) : isCompleted ? (
+                    <>
+                      {m.battingShort ? (
+                        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                          {m.battingShort}: {m.score}/{m.wickets} ({formatOvers(m.overs, m.balls)} ov)
+                        </Text>
+                      ) : null}
+                      {m.result ? (
+                        <Text variant="bodyLarge" style={{ color: theme.colors.primary, fontWeight: '700', marginTop: 6 }}>
+                          {m.result}
+                        </Text>
+                      ) : null}
+                    </>
+                  ) : null}
+                </Dialog.Content>
+                <Dialog.Actions>
+                  <Button onPress={onSignIn} icon="account-circle">Sign in to score</Button>
+                  <Button onPress={() => setSelectedMatch(null)}>Close</Button>
+                </Dialog.Actions>
+              </>
+            );
+          })()}
+        </Dialog>
+      </Portal>
     </ScrollView>
   );
 }
@@ -237,4 +298,6 @@ const styles = StyleSheet.create({
   scoreText: { fontWeight: '700', fontSize: 14 },
   resultText: { fontWeight: '700', fontSize: 14 },
   footer: { marginTop: 24, marginHorizontal: 16, paddingTop: 20, borderTopWidth: StyleSheet.hairlineWidth, alignItems: 'center' },
+  dialogStripe: { height: 4, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  dialogContent: { gap: 2 },
 });
