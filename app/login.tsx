@@ -120,6 +120,7 @@ export default function LoginScreen() {
                   { value: 'scorer'       as UserRole, label: 'Scorer',       icon: 'scoreboard-outline', desc: 'Score live matches' },
                   { value: 'team_admin'   as UserRole, label: 'Team Admin',   icon: 'shield-account',     desc: 'Manage teams & players' },
                   { value: 'league_admin' as UserRole, label: 'League Admin', icon: 'shield-crown',       desc: 'Run tournaments' },
+                  { value: 'viewer'       as UserRole, label: 'Viewer',       icon: 'eye-outline',        desc: 'Follow matches & live scores' },
                 ] as { value: UserRole; label: string; icon: string; desc: string }[]
               ).map(r => {
                 const selected = role === r.value;

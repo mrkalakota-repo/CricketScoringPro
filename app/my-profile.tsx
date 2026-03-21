@@ -1,11 +1,19 @@
 import { useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, TextInput, Button, useTheme, Divider, HelperText, Portal, Dialog } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserAuth } from '../src/hooks/useUserAuth';
 import { useRole } from '../src/hooks/useRole';
+import type { UserRole } from '../src/engine/types';
+
+const ROLE_OPTIONS: { value: UserRole; label: string; icon: string; color: string; desc: string }[] = [
+  { value: 'viewer',       label: 'Viewer',       icon: 'eye-outline',        color: '#6D4C41', desc: 'Follow matches & live scores' },
+  { value: 'scorer',       label: 'Scorer',       icon: 'scoreboard-outline', color: '#2E7D32', desc: 'Score live matches' },
+  { value: 'team_admin',   label: 'Team Admin',   icon: 'shield-account',     color: '#1565C0', desc: 'Manage teams & players' },
+  { value: 'league_admin', label: 'League Admin', icon: 'shield-crown',       color: '#7B1FA2', desc: 'Run tournaments' },
+];
 
 export default function MyProfileScreen() {
   const theme = useTheme();
@@ -25,6 +33,10 @@ export default function MyProfileScreen() {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [pinError, setPinError] = useState('');
+
+  // Change Role
+  const [showRoleSection, setShowRoleSection] = useState(false);
+  const [pendingRole, setPendingRole] = useState<UserRole>(profile?.role ?? 'scorer');
 
   // Logout confirm
   const [logoutVisible, setLogoutVisible] = useState(false);
@@ -65,6 +77,18 @@ export default function MyProfileScreen() {
       setCurrentPin(''); setNewPin(''); setConfirmPin('');
       setShowPinSection(false);
       setSavedMsg('PIN changed!');
+      setTimeout(() => setSavedMsg(''), 2500);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveRole = async () => {
+    setSaving(true);
+    try {
+      await updateProfile(profile.name, undefined, pendingRole);
+      setShowRoleSection(false);
+      setSavedMsg('Role updated!');
       setTimeout(() => setSavedMsg(''), 2500);
     } finally {
       setSaving(false);
@@ -199,6 +223,72 @@ export default function MyProfileScreen() {
 
         <Divider style={styles.divider} />
 
+        {/* Change Role */}
+        {!showRoleSection ? (
+          <Button
+            mode="outlined"
+            icon="account-convert"
+            onPress={() => { setPendingRole(profile.role); setShowRoleSection(true); }}
+            style={styles.button}
+          >
+            Change Role
+          </Button>
+        ) : (
+          <>
+            <Text variant="labelLarge" style={[styles.sectionLabel, { color: theme.colors.onSurface }]}>
+              Change Role
+            </Text>
+            <View style={styles.roleGrid}>
+              {ROLE_OPTIONS.map(r => {
+                const selected = pendingRole === r.value;
+                return (
+                  <TouchableOpacity
+                    key={r.value}
+                    onPress={() => setPendingRole(r.value)}
+                    style={[
+                      styles.roleCard,
+                      {
+                        borderColor: selected ? r.color : theme.colors.outlineVariant,
+                        backgroundColor: selected ? r.color + '18' : theme.colors.surface,
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name={r.icon as any} size={22} color={selected ? r.color : theme.colors.onSurfaceVariant} />
+                    <Text variant="labelMedium" style={{ color: selected ? r.color : theme.colors.onSurface, fontWeight: '700', textAlign: 'center' }}>
+                      {r.label}
+                    </Text>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', fontSize: 10 }} numberOfLines={2}>
+                      {r.desc}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <View style={styles.row}>
+              <Button
+                mode="contained"
+                onPress={handleSaveRole}
+                loading={saving}
+                disabled={saving || pendingRole === profile.role}
+                style={[styles.button, { flex: 1 }]}
+                icon="content-save"
+              >
+                Save Role
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() => setShowRoleSection(false)}
+                style={[styles.button, { flex: 1 }]}
+              >
+                Cancel
+              </Button>
+            </View>
+          </>
+        )}
+
+        <Divider style={styles.divider} />
+
         {/* Logout */}
         <Button
           mode="outlined"
@@ -251,4 +341,6 @@ const styles = StyleSheet.create({
   button: { marginTop: 6 },
   divider: { marginVertical: 20 },
   row: { flexDirection: 'row', gap: 8 },
+  roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  roleCard: { flex: 1, minWidth: '44%', maxWidth: '48%', borderWidth: 2, borderRadius: 12, padding: 10, alignItems: 'center', gap: 4 },
 });

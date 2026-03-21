@@ -57,8 +57,8 @@ interface UserAuthStore {
   /** Reset restoreStatus back to idle (e.g. when user closes the restore form). */
   resetRestoreStatus: () => void;
 
-  /** Update display name and optionally change PIN. Saves locally + syncs to cloud. */
-  updateProfile: (name: string, newPin?: string) => Promise<void>;
+  /** Update display name, optionally change PIN, and/or change role. Saves locally + syncs to cloud. */
+  updateProfile: (name: string, newPin?: string, newRole?: UserRole) => Promise<void>;
 
   /** Sign out — clear in-memory session (profile stays in local DB + cloud). */
   logout: () => void;
@@ -164,11 +164,12 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
 
   resetRestoreStatus: () => set({ restoreStatus: 'idle', restoreErrorMessage: '' }),
 
-  updateProfile: async (name, newPin) => {
+  updateProfile: async (name, newPin, newRole) => {
     const { profile } = get();
     if (!profile) return;
     const pinHash = newPin ? await hashPin(newPin) : profile.pinHash;
-    const updated: UserProfile = { ...profile, name: name.trim(), pinHash };
+    const role: UserRole = newRole ?? profile.role;
+    const updated: UserProfile = { ...profile, name: name.trim(), pinHash, role };
     await prefsRepo.setUserProfile({ phone: updated.phone, name: updated.name, pinHash: updated.pinHash, role: updated.role });
     set({ profile: updated });
     cloudUserRepo.pushUserProfile({ phone: updated.phone, name: updated.name, pinHash: updated.pinHash, role: updated.role }).catch(() => {});
