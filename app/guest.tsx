@@ -5,14 +5,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLiveScoresStore } from '../src/store/live-scores-store';
 import { isCloudEnabled } from '../src/config/supabase';
+import { LIVE_RED } from '../src/components/NearbyLiveCard';
+import { formatOvers } from '../src/utils/formatters';
 import type { LiveMatchSummary } from '../src/db/repositories/cloud-match-repo';
 
-const LIVE_RED = '#D32F2F';
 const TOSS_ORANGE = '#F57C00';
-
-function formatOvers(overs: number, balls: number): string {
-  return `${overs}.${balls}`;
-}
 
 function MatchCard({ match }: { match: LiveMatchSummary }) {
   const theme = useTheme();
