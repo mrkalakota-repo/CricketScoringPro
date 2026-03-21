@@ -8,9 +8,9 @@ import { useLiveScoresStore } from '../../src/store/live-scores-store';
 import { isCloudEnabled } from '../../src/config/supabase';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { MatchRow } from '../../src/db/repositories/match-repo';
-import type { LiveMatchSummary } from '../../src/db/repositories/cloud-match-repo';
 import { useUserAuth } from '../../src/hooks/useUserAuth';
 import { useRole } from '../../src/hooks/useRole';
+import { NearbyLiveCard, LIVE_RED } from '../../src/components/NearbyLiveCard';
 
 function getMatchDisplayInfo(row: MatchRow): { teams: string; score: string | null } {
   if (!row.match_state_json) {
@@ -28,48 +28,6 @@ function getMatchDisplayInfo(row: MatchRow): { teams: string; score: string | nu
   } catch {
     return { teams: `${row.format.toUpperCase()} Match`, score: null };
   }
-}
-
-function formatOvers(overs: number, balls: number): string {
-  return `${overs}.${balls}`;
-}
-
-function NearbyLiveCard({ match }: { match: LiveMatchSummary }) {
-  const theme = useTheme();
-  const isLive = match.status === 'in_progress' || match.status === 'toss';
-  const stripeColor = match.status === 'completed' ? theme.colors.primary : '#D32F2F';
-
-  return (
-    <Card style={[styles.matchCard, isLive && styles.liveMatchCard]}>
-      <View style={[styles.liveStripe, { backgroundColor: stripeColor }]} />
-      <Card.Content style={styles.liveCardContent}>
-        <View style={styles.liveTop}>
-          <View style={[styles.liveBadge, { backgroundColor: isLive ? '#FFEBEE' : theme.colors.primaryContainer }]}>
-            {isLive && <View style={[styles.liveDot, { backgroundColor: stripeColor }]} />}
-            <Text style={[styles.liveBadgeText, { color: isLive ? '#D32F2F' : theme.colors.onPrimaryContainer }]}>
-              {match.status === 'toss' ? 'TOSS' : match.status === 'in_progress' ? 'LIVE' : 'RESULT'}
-            </Text>
-          </View>
-          <Text style={[styles.formatChip, { color: theme.colors.onSurfaceVariant }]}>
-            {match.format.toUpperCase()} · {match.venue || 'Unknown venue'}
-          </Text>
-        </View>
-        <Text variant="titleMedium" style={[styles.liveTeams, { color: theme.colors.onSurface }]}>
-          {match.team1Short} vs {match.team2Short}
-        </Text>
-        {match.status === 'completed' && match.result ? (
-          <Text variant="bodyMedium" style={[styles.liveScore, { color: theme.colors.primary }]}>
-            {match.result}
-          </Text>
-        ) : match.status === 'in_progress' && match.battingShort ? (
-          <Text variant="bodyMedium" style={[styles.liveScore, { color: '#D32F2F' }]}>
-            {match.battingShort}: {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
-            {match.target ? `  •  Target: ${match.target}` : ''}
-          </Text>
-        ) : null}
-      </Card.Content>
-    </Card>
-  );
 }
 
 export default function HomeScreen() {
@@ -167,8 +125,8 @@ export default function HomeScreen() {
           <Text variant="bodySmall" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Matches</Text>
         </Surface>
         <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
-          <MaterialCommunityIcons name="broadcast" size={22} color={liveMatches.length > 0 ? '#D32F2F' : theme.colors.primary} />
-          <Text variant="headlineMedium" style={[styles.statNum, { color: liveMatches.length > 0 ? '#D32F2F' : theme.colors.primary }]}>
+          <MaterialCommunityIcons name="broadcast" size={22} color={liveMatches.length > 0 ? LIVE_RED : theme.colors.primary} />
+          <Text variant="headlineMedium" style={[styles.statNum, { color: liveMatches.length > 0 ? LIVE_RED : theme.colors.primary }]}>
             {liveMatches.length}
           </Text>
           <Text variant="bodySmall" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Live</Text>
@@ -190,12 +148,12 @@ export default function HomeScreen() {
                 style={[styles.matchCard, styles.liveMatchCard]}
                 onPress={() => handleLiveMatchPress(match)}
               >
-                <View style={[styles.liveStripe, { backgroundColor: match.status === 'toss' ? '#F57C00' : '#D32F2F' }]} />
+                <View style={[styles.liveStripe, { backgroundColor: match.status === 'toss' ? '#F57C00' : LIVE_RED }]} />
                 <Card.Content style={styles.liveCardContent}>
                   <View style={styles.liveTop}>
                     <View style={[styles.liveBadge, { backgroundColor: match.status === 'toss' ? '#FFF3E0' : '#FFEBEE' }]}>
-                      <View style={[styles.liveDot, { backgroundColor: match.status === 'toss' ? '#F57C00' : '#D32F2F' }]} />
-                      <Text style={[styles.liveBadgeText, { color: match.status === 'toss' ? '#F57C00' : '#D32F2F' }]}>
+                      <View style={[styles.liveDot, { backgroundColor: match.status === 'toss' ? '#F57C00' : LIVE_RED }]} />
+                      <Text style={[styles.liveBadgeText, { color: match.status === 'toss' ? '#F57C00' : LIVE_RED }]}>
                         {match.status === 'toss' ? 'TOSS' : 'LIVE'}
                       </Text>
                     </View>
@@ -331,9 +289,10 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 16, paddingTop: 16 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   sectionTitle: { fontWeight: '800' },
-  liveHeaderDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#D32F2F' },
+  liveHeaderDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: LIVE_RED },
   matchCard: { marginBottom: 10, borderRadius: 16, overflow: 'hidden' },
-  liveMatchCard: { elevation: 4, shadowColor: '#D32F2F', shadowOpacity: 0.15, shadowRadius: 6 },
+  liveMatchCard: { elevation: 4, shadowColor: LIVE_RED, shadowOpacity: 0.15, shadowRadius: 6 },
+  // Local live card styles (for matches scored on this device — full card with venue)
   liveStripe: { height: 4 },
   liveCardContent: { paddingTop: 10 },
   liveTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },

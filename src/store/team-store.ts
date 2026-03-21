@@ -48,30 +48,53 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       now - _lastCloudSync < CLOUD_SYNC_COOLDOWN_MS && _lastCloudSyncPhone === (phone ?? '');
     if (cooldownActive) return;
 
-    // Restore myTeamIds from cloud — reset to exactly what the cloud says this
-    // user owns. This prevents a previous user's myTeamIds persisting on the
-    // same device after an account switch.
+    // Restore myTeamIds/playerTeamIds from cloud — reset to exactly what the
+    // cloud says. This prevents a previous user's IDs persisting after a switch.
     if (phone) {
       _lastCloudSync = now;
       _lastCloudSyncPhone = phone;
-      const ownedIds = await cloudRepo.fetchTeamIdsByOwner(phone);
-      await prefsStore.setMyTeamIds(ownedIds);
 
-      // Import any owned teams that don't exist locally yet (e.g. seeded via
-      // script or created on another device before this device ever logged in).
-      const localIds = new Set(localTeams.map(t => t.id));
-      const missingIds = ownedIds.filter(id => !localIds.has(id));
+      // Fetch owned teams and player-member teams in parallel
+      const [ownedIds, memberIds] = await Promise.all([
+        cloudRepo.fetchTeamIdsByOwner(phone),
+        cloudRepo.fetchTeamIdsByPlayerPhone(phone),
+      ]);
+
+      // Player-only IDs = member teams not also owned (no dups in UI)
+      const ownedSet = new Set(ownedIds);
+      const playerOnlyIds = memberIds.filter(id => !ownedSet.has(id));
+
+      // Reconcile owned teams: delete stale local records no longer in cloud
+      const prevMyIds = prefsStore.myTeamIds;
+      for (const id of prevMyIds.filter(id => !ownedSet.has(id))) {
+        await teamRepo.deleteTeam(id);
+      }
+
+      // Reconcile player teams: delete stale local records no longer in cloud
+      const prevPlayerIds = prefsStore.playerTeamIds;
+      const playerOnlySet = new Set(playerOnlyIds);
+      for (const id of prevPlayerIds.filter(id => !playerOnlySet.has(id) && !ownedSet.has(id))) {
+        await teamRepo.deleteTeam(id);
+      }
+
+      await prefsStore.setMyTeamIds(ownedIds);
+      await prefsStore.setPlayerTeamIds(playerOnlyIds);
+
+      // Import any cloud teams that don't exist locally yet
+      const localIdsNow = new Set((await teamRepo.getAllTeams()).map(t => t.id));
+      const missingIds = [...ownedIds, ...playerOnlyIds].filter(id => !localIdsNow.has(id));
       if (missingIds.length > 0) {
         const cloudTeams = await cloudRepo.fetchTeamsByIds(missingIds);
         for (const team of cloudTeams) {
           await teamRepo.importCloudTeam(team);
         }
-        const refreshed = await teamRepo.getAllTeams();
-        set({ teams: refreshed });
       }
+      const refreshed = await teamRepo.getAllTeams();
+      set({ teams: refreshed });
     } else {
-      // No logged-in user — clear any stale myTeamIds from a previous session.
+      // No logged-in user — clear any stale IDs from a previous session.
       await prefsStore.setMyTeamIds([]);
+      await prefsStore.setPlayerTeamIds([]);
     }
   },
 
@@ -171,14 +194,35 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
   },
 
   importCloudTeams: async (cloudTeams, myTeamIds) => {
-    // Only import teams we don't own locally — preserve our admin access
-    const teamsToImport = cloudTeams.filter(ct => !myTeamIds.includes(ct.id));
-    if (teamsToImport.length === 0) return;
+    const prefsStore = usePrefsStore.getState();
 
+    // Protected IDs — never delete these (owned, player-member, delegate)
+    const protectedIds = new Set([
+      ...myTeamIds,
+      ...prefsStore.playerTeamIds,
+      ...prefsStore.delegateTeamIds,
+    ]);
+
+    // Incoming cloud IDs from this sync batch
+    const incomingIds = new Set(cloudTeams.map(ct => ct.id));
+
+    // Delete any locally-stored transient (nearby-imported) teams whose cloud
+    // record is no longer in the incoming batch. This removes stale duplicates
+    // left by re-seeds that generate new UUIDs for the same team name.
+    const allLocal = await teamRepo.getAllTeams();
+    for (const local of allLocal) {
+      if (!protectedIds.has(local.id) && !incomingIds.has(local.id)) {
+        await teamRepo.deleteTeam(local.id);
+      }
+    }
+
+    // Import / upsert incoming teams (skip protected so we don't overwrite
+    // local admin pins or ownership data)
+    const teamsToImport = cloudTeams.filter(ct => !protectedIds.has(ct.id));
     for (const team of teamsToImport) {
       await teamRepo.importCloudTeam(team);
     }
-    // Refresh local state to include imported teams
+
     const teams = await teamRepo.getAllTeams();
     set({ teams });
   },

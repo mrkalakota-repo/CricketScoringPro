@@ -43,6 +43,24 @@ export async function setMyTeamIds(teamIds: string[]): Promise<void> {
   await setStringPref(MY_TEAM_IDS_KEY, JSON.stringify(teamIds));
 }
 
+// ── Player Team IDs ───────────────────────────────────────────────────────────
+// Teams the user is listed as a player on (not owner). View-only access.
+
+const PLAYER_TEAM_IDS_KEY = 'player_team_ids';
+
+export async function getPlayerTeamIds(): Promise<string[]> {
+  try {
+    const raw = await getStringPref(PLAYER_TEAM_IDS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function setPlayerTeamIds(teamIds: string[]): Promise<void> {
+  await setStringPref(PLAYER_TEAM_IDS_KEY, JSON.stringify(teamIds));
+}
+
 // ── My League IDs ─────────────────────────────────────────────────────────────
 
 const MY_LEAGUE_IDS_KEY = 'my_league_ids';

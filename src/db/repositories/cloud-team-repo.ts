@@ -83,6 +83,29 @@ export async function fetchTeamIdsByOwner(ownerPhone: string): Promise<string[]>
   }
 }
 
+/**
+ * Return the IDs of teams where the given phone number is listed as a player.
+ */
+export async function fetchTeamIdsByPlayerPhone(playerPhone: string): Promise<string[]> {
+  if (!isCloudEnabled || !supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('cloud_players')
+      .select('team_id')
+      .eq('phone_number', playerPhone);
+    if (error) {
+      if ((error as { code?: string }).code !== 'PGRST205') {
+        console.error('[cloud-team-repo] fetchTeamIdsByPlayerPhone failed:', error.message);
+      }
+      return [];
+    }
+    return [...new Set((data ?? []).map((r: { team_id: string }) => r.team_id))];
+  } catch (err) {
+    console.error('[cloud-team-repo] fetchTeamIdsByPlayerPhone failed:', (err as Error).message);
+    return [];
+  }
+}
+
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 
 export async function fetchTeamsByIds(ids: string[]): Promise<Team[]> {

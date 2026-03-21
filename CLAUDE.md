@@ -69,9 +69,9 @@ Test files live in `src/engine/__tests__/` (`match-engine.test.ts` — unit test
 
 ### Store Pattern
 All mutations go through Zustand stores, never directly through repos.
-- `useTeamStore` — team/player CRUD
+- `useTeamStore` — team/player CRUD; `loadTeams` also does cloud ownership sync (60 s cooldown per phone)
 - `useMatchStore` — match lifecycle, scoring engine, undo, auto-save after every ball
-- `usePrefsStore` — device-local prefs (`myTeamIds`, `delegateTeamIds`)
+- `usePrefsStore` — device-local prefs: `myTeamIds` (owned), `playerTeamIds` (player-member, view-only), `delegateTeamIds`
 - `useLeagueStore` — leagues and fixtures; syncs to/from Supabase `cloud_leagues`/`cloud_league_fixtures` when the user is authenticated (owner-scoped by phone). `loadLeagues` fetches from cloud and upserts locally on every call.
 - `useChatStore` — real-time per-team chat
 - `useLiveScoresStore` — nearby live match scores (Supabase real-time, 50-mile radius)
@@ -85,6 +85,9 @@ Key behaviours:
 - `login()` re-pushes the profile to Supabase on every successful local sign-in, recovering profiles whose initial push was dropped (e.g. table didn't exist at registration time).
 - `sessionExpired: boolean` — set when web `sessionStorage` is missing the PIN hash (tab closed and reopened). UI auto-switches to the restore form with phone pre-filled; local login is impossible in this state.
 - `restoreErrorMessage` — propagated from `verifyUserProfile` RPC so the UI can show actionable errors.
+- `verifyUserProfile` in `cloud-user-repo.ts` auto-retries up to 3× with a 2.5 s delay on Supabase schema-cache cold-start errors (`PGRST205` / "schema cache" phrase) before returning a friendly "Server is waking up" message.
+
+**Phone format:** US-only 10-digit input with a `+1` affix. Strip non-digits and validate `length === 10` before any auth call. Stored as bare 10 digits (no country code) in both local prefs and Supabase.
 
 `src/hooks/useRole.ts` — pure function of `profile.role`; returns `RolePermissions` object. Use this for all gate checks; never inspect `profile.role` directly in UI.
 
@@ -123,8 +126,9 @@ When writing test helpers that bowl multiple overs, use a **pool of ≥5 bowlers
 - Team creator auto-authenticated after creation
 
 ### Access Control (Team Edit)
-- `isMyTeam` — team created on this device (stored in `myTeamIds` pref)
-- `isDelegate` — granted editor access via 6-char delegate code
+- `isMyTeam` — team owned by this account (stored in `myTeamIds` pref; sourced from `cloud_teams.owner_phone`)
+- `isPlayerTeam` — user is listed as a player on the team (`cloud_players.phone_number`); stored in `playerTeamIds` pref; shown in "My Teams" section with a **PLAYER** badge but gives no edit access
+- `isDelegate` — granted editor access via 6-char delegate code; stored in `delegateTeamIds`
 - `hasEditAccess = isMyTeam || isDelegate`
 - Owners with a PIN must unlock (`adminUnlocked`) to reach roster/edit; no-PIN owners go straight through
 
@@ -140,7 +144,9 @@ When writing test helpers that bowl multiple overs, use a **pool of ≥5 bowlers
 Call `addMyTeam(teamId)` after every `createTeam()`. Stored in `user_prefs`.
 
 ### Proximity (Teams Tab)
-Haversine, 50-mile radius. My Teams first, up to 10 nearby others, rest search-only.
+Haversine, 50-mile radius. "My Teams" section shows owned + player-member teams. Up to 10 nearby others in a separate section; rest search-only.
+
+`importCloudTeams` **purges** any locally-stored transient team (not in `myTeamIds`/`playerTeamIds`/`delegateTeamIds`) that is absent from the incoming cloud batch before upserting — this prevents duplicate rows accumulating after seed re-runs that generate new UUIDs.
 
 ### SQLite Initialization (Critical)
 `PRAGMA` statements must be separate `execAsync` calls — Android SQLite skips subsequent
@@ -233,10 +239,29 @@ Supported key formats: legacy JWT (`length > 100`) **or** new publishable format
 
 ---
 
-## Shared Utilities
+## Shared Utilities & Components
 
 - `src/utils/player-icons.ts` — `bowlingIcon(style)` and `battingIcon(style)` — use these instead of local icon lookups in UI files
 - `src/utils/avatar.ts` — `getAvatarColor(name)` and `AVATAR_COLORS` constant — use for team/player avatar backgrounds
+- `src/components/NearbyLiveCard.tsx` — shared card for nearby live match display (used by home tab + guest screen). Also exports `LIVE_RED = '#D32F2F'` — use this constant anywhere live/in-progress status needs a red color instead of hardcoding the hex.
+
+---
+
+## EAS Build (Play Store / App Store)
+
+`eas.json` defines two profiles:
+- `preview` → APK (`android.buildType: "apk"`) — for direct device install / testing
+- `production` → AAB (`android.buildType: "app-bundle"`) — for Play Store submission
+
+`.npmrc` sets `legacy-peer-deps=true` (required — EAS npm install fails without it).
+`.easignore` excludes `scripts/` from the build tarball (avoids `sharp` native binary errors).
+
+```bash
+eas build --profile preview --platform android    # Build APK
+eas build --profile production --platform android # Build AAB
+```
+
+Android package: `com.gullycricket.scorer` · versionCode: bump in `app.json` before each store upload.
 
 ---
 

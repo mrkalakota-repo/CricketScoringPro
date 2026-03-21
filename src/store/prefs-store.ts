@@ -3,12 +3,14 @@ import * as prefsRepo from '../db/repositories/prefs-repo';
 
 interface PrefsStore {
   myTeamIds: string[];
+  playerTeamIds: string[];
   delegateTeamIds: string[];
   myLeagueIds: string[];
   loadPrefs: () => Promise<void>;
   addMyTeam: (teamId: string) => Promise<void>;
   removeMyTeam: (teamId: string) => Promise<void>;
   setMyTeamIds: (teamIds: string[]) => Promise<void>;
+  setPlayerTeamIds: (teamIds: string[]) => Promise<void>;
   addDelegateTeam: (teamId: string) => Promise<void>;
   removeDelegateTeam: (teamId: string) => Promise<void>;
   addMyLeague: (leagueId: string) => Promise<void>;
@@ -18,19 +20,21 @@ interface PrefsStore {
 
 export const usePrefsStore = create<PrefsStore>((set, get) => ({
   myTeamIds: [],
+  playerTeamIds: [],
   delegateTeamIds: [],
   myLeagueIds: [],
 
   loadPrefs: async () => {
     try {
-      const [myTeamIds, delegateTeamIds, myLeagueIds] = await Promise.all([
+      const [myTeamIds, playerTeamIds, delegateTeamIds, myLeagueIds] = await Promise.all([
         prefsRepo.getMyTeamIds(),
+        prefsRepo.getPlayerTeamIds(),
         prefsRepo.getDelegateTeamIds(),
         prefsRepo.getMyLeagueIds(),
       ]);
-      set({ myTeamIds, delegateTeamIds, myLeagueIds });
+      set({ myTeamIds, playerTeamIds, delegateTeamIds, myLeagueIds });
     } catch {
-      set({ myTeamIds: [], delegateTeamIds: [], myLeagueIds: [] });
+      set({ myTeamIds: [], playerTeamIds: [], delegateTeamIds: [], myLeagueIds: [] });
     }
   },
 
@@ -53,6 +57,13 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
     try {
       await prefsRepo.setMyTeamIds(teamIds);
       set({ myTeamIds: teamIds });
+    } catch { /* ignore */ }
+  },
+
+  setPlayerTeamIds: async (teamIds) => {
+    try {
+      await prefsRepo.setPlayerTeamIds(teamIds);
+      set({ playerTeamIds: teamIds });
     } catch { /* ignore */ }
   },
 

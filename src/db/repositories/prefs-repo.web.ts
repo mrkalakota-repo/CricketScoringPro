@@ -28,6 +28,21 @@ export async function setMyTeamIds(teamIds: string[]): Promise<void> {
   localStorage.setItem(MY_TEAM_IDS_KEY, JSON.stringify(teamIds));
 }
 
+// ── Player Team IDs ───────────────────────────────────────────────────────────
+
+const PLAYER_TEAM_IDS_KEY = 'player_team_ids';
+
+function loadPlayerTeamIds(): string[] {
+  try { return JSON.parse(localStorage.getItem(PLAYER_TEAM_IDS_KEY) ?? '[]'); }
+  catch { return []; }
+}
+
+export async function getPlayerTeamIds(): Promise<string[]> { return loadPlayerTeamIds(); }
+
+export async function setPlayerTeamIds(teamIds: string[]): Promise<void> {
+  localStorage.setItem(PLAYER_TEAM_IDS_KEY, JSON.stringify(teamIds));
+}
+
 // ── My League IDs ─────────────────────────────────────────────────────────────
 
 const MY_LEAGUE_IDS_KEY = 'my_league_ids';
