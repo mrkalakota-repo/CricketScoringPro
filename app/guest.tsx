@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Button, Card, useTheme, ActivityIndicator, Surface } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,42 +7,79 @@ import { useLiveScoresStore } from '../src/store/live-scores-store';
 import { isCloudEnabled } from '../src/config/supabase';
 import type { LiveMatchSummary } from '../src/db/repositories/cloud-match-repo';
 
+const LIVE_RED = '#D32F2F';
+const TOSS_ORANGE = '#F57C00';
+
 function formatOvers(overs: number, balls: number): string {
   return `${overs}.${balls}`;
 }
 
-function NearbyLiveCard({ match }: { match: LiveMatchSummary }) {
+function MatchCard({ match }: { match: LiveMatchSummary }) {
   const theme = useTheme();
-  const isLive = match.status === 'in_progress' || match.status === 'toss';
-  const stripeColor = match.status === 'completed' ? theme.colors.primary : '#D32F2F';
+  const isLive = match.status === 'in_progress';
+  const isToss = match.status === 'toss';
+  const isCompleted = match.status === 'completed';
+
+  const stripeColor = isCompleted ? theme.colors.primary : isToss ? TOSS_ORANGE : LIVE_RED;
+  const badgeBg = isCompleted
+    ? theme.colors.primaryContainer
+    : isToss ? '#FFF3E0' : '#FFEBEE';
+  const badgeColor = isCompleted
+    ? theme.colors.onPrimaryContainer
+    : isToss ? TOSS_ORANGE : LIVE_RED;
+  const badgeLabel = isToss ? 'TOSS' : isLive ? 'LIVE' : 'RESULT';
 
   return (
-    <Card style={[styles.matchCard, isLive && styles.liveMatchCard]}>
+    <Card style={[styles.matchCard, (isLive || isToss) && styles.liveMatchCard]}>
       <View style={[styles.liveStripe, { backgroundColor: stripeColor }]} />
-      <Card.Content style={styles.liveCardContent}>
-        <View style={styles.liveTop}>
-          <View style={[styles.liveBadge, { backgroundColor: isLive ? '#FFEBEE' : theme.colors.primaryContainer }]}>
-            {isLive && <View style={[styles.liveDot, { backgroundColor: stripeColor }]} />}
-            <Text style={[styles.liveBadgeText, { color: isLive ? '#D32F2F' : theme.colors.onPrimaryContainer }]}>
-              {match.status === 'toss' ? 'TOSS' : match.status === 'in_progress' ? 'LIVE' : 'RESULT'}
-            </Text>
+      <Card.Content style={styles.cardContent}>
+        {/* Top row: badge + format + venue */}
+        <View style={styles.cardTop}>
+          <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+            {(isLive || isToss) && <View style={[styles.liveDot, { backgroundColor: stripeColor }]} />}
+            {isCompleted && (
+              <MaterialCommunityIcons name="check-circle" size={10} color={badgeColor} />
+            )}
+            <Text style={[styles.badgeText, { color: badgeColor }]}>{badgeLabel}</Text>
           </View>
           <Text style={[styles.formatChip, { color: theme.colors.onSurfaceVariant }]}>
-            {match.format.toUpperCase()} · {match.venue || 'Unknown venue'}
+            {match.format.toUpperCase()}
+            {match.venue ? ` · ${match.venue}` : ''}
           </Text>
         </View>
-        <Text variant="titleMedium" style={[styles.liveTeams, { color: theme.colors.onSurface }]}>
+
+        {/* Teams */}
+        <Text variant="titleMedium" style={[styles.teams, { color: theme.colors.onSurface }]}>
           {match.team1Short} vs {match.team2Short}
         </Text>
-        {match.status === 'completed' && match.result ? (
-          <Text variant="bodyMedium" style={[styles.liveScore, { color: theme.colors.primary }]}>
-            {match.result}
-          </Text>
-        ) : match.status === 'in_progress' && match.battingShort ? (
-          <Text variant="bodyMedium" style={[styles.liveScore, { color: '#D32F2F' }]}>
-            {match.battingShort}: {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
-            {match.target ? `  •  Target: ${match.target}` : ''}
-          </Text>
+
+        {/* Score details */}
+        {isLive && match.battingShort ? (
+          <View style={styles.scoreRow}>
+            <Text variant="bodyMedium" style={[styles.scoreText, { color: LIVE_RED }]}>
+              {match.battingShort}: {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
+            </Text>
+            {match.target ? (
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+                Target: {match.target}  ·  Need {match.target - match.score} from remaining overs
+              </Text>
+            ) : null}
+          </View>
+        ) : isCompleted ? (
+          <View style={styles.scoreRow}>
+            {/* Last innings score */}
+            {match.battingShort ? (
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 3 }}>
+                {match.battingShort}: {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
+              </Text>
+            ) : null}
+            {/* Result string */}
+            {match.result ? (
+              <Text variant="bodyMedium" style={[styles.resultText, { color: theme.colors.primary }]}>
+                {match.result}
+              </Text>
+            ) : null}
+          </View>
         ) : null}
       </Card.Content>
     </Card>
@@ -56,7 +93,7 @@ interface GuestScreenProps {
 export default function GuestScreen({ onSignIn }: GuestScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const nearbyLive = useLiveScoresStore(s => s.matches);
+  const nearbyMatches = useLiveScoresStore(s => s.matches);
   const loadNearby = useLiveScoresStore(s => s.loadNearby);
   const subscribeLive = useLiveScoresStore(s => s.subscribe);
   const liveLoading = useLiveScoresStore(s => s.loading);
@@ -70,6 +107,9 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
     return () => { unsubscribeRef.current?.(); };
   }, []);
 
+  const liveCount = nearbyMatches.filter(m => m.status === 'in_progress' || m.status === 'toss').length;
+  const completedCount = nearbyMatches.filter(m => m.status === 'completed').length;
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -79,7 +119,7 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
       <Surface style={[styles.hero, { backgroundColor: theme.colors.primary }]} elevation={3}>
         <MaterialCommunityIcons name="cricket" size={52} color="rgba(255,255,255,0.9)" />
         <Text variant="headlineMedium" style={styles.heroTitle}>Gully Cricket Scorer</Text>
-        <Text variant="bodyMedium" style={styles.heroSubtitle}>Live scores near you</Text>
+        <Text variant="bodyMedium" style={styles.heroSubtitle}>Live scores & results near you</Text>
         <Button
           mode="contained"
           onPress={onSignIn}
@@ -93,7 +133,7 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
         </Button>
       </Surface>
 
-      {/* Nearby Live Scores */}
+      {/* Nearby Matches */}
       {isCloudEnabled ? (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -106,20 +146,38 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
             </Text>
           </View>
 
-          {liveLoading && nearbyLive.length === 0 ? (
+          {/* Summary chips when matches are loaded */}
+          {nearbyMatches.length > 0 && (
+            <View style={styles.chipRow}>
+              {liveCount > 0 && (
+                <View style={[styles.chip, { backgroundColor: '#FFEBEE' }]}>
+                  <View style={[styles.chipDot, { backgroundColor: LIVE_RED }]} />
+                  <Text style={[styles.chipText, { color: LIVE_RED }]}>{liveCount} live</Text>
+                </View>
+              )}
+              {completedCount > 0 && (
+                <View style={[styles.chip, { backgroundColor: theme.colors.primaryContainer }]}>
+                  <MaterialCommunityIcons name="check-circle" size={10} color={theme.colors.primary} />
+                  <Text style={[styles.chipText, { color: theme.colors.primary }]}>{completedCount} completed</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {liveLoading && nearbyMatches.length === 0 ? (
             <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginVertical: 24 }} />
-          ) : nearbyLive.length === 0 ? (
+          ) : nearbyMatches.length === 0 ? (
             <View style={styles.empty}>
               <MaterialCommunityIcons name="broadcast-off" size={40} color={theme.colors.outlineVariant} />
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, textAlign: 'center' }}>
-                No live matches nearby right now
+                No matches nearby in the last 24 hours
               </Text>
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4, textAlign: 'center' }}>
-                Check back soon or sign in to start scoring
+                Sign in to start scoring your own match
               </Text>
             </View>
           ) : (
-            nearbyLive.map(m => <NearbyLiveCard key={m.id} match={m} />)
+            nearbyMatches.map(m => <MatchCard key={m.id} match={m} />)
           )}
         </View>
       ) : (
@@ -161,19 +219,25 @@ const styles = StyleSheet.create({
   heroSubtitle: { color: 'rgba(255,255,255,0.85)', marginBottom: 8 },
   heroButton: { marginTop: 12, borderRadius: 24 },
   section: { padding: 16 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   sectionTitle: { fontWeight: '700' },
+  chipRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  chipDot: { width: 6, height: 6, borderRadius: 3 },
+  chipText: { fontSize: 11, fontWeight: '700' },
   empty: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24 },
-  matchCard: { marginBottom: 10, borderRadius: 12, overflow: 'hidden' },
-  liveMatchCard: { elevation: 3 },
-  liveStripe: { height: 4, width: '100%' },
-  liveCardContent: { paddingTop: 10 },
-  liveTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
+  matchCard: { marginBottom: 10, borderRadius: 14, overflow: 'hidden' },
+  liveMatchCard: { elevation: 3, shadowColor: LIVE_RED, shadowOpacity: 0.1, shadowRadius: 4 },
+  liveStripe: { height: 4 },
+  cardContent: { paddingTop: 10, gap: 4 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
   liveDot: { width: 6, height: 6, borderRadius: 3 },
-  liveBadgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
-  formatChip: { fontSize: 11, fontWeight: '600' },
-  liveTeams: { fontWeight: '700', marginBottom: 4 },
-  liveScore: { fontWeight: '600', marginBottom: 2 },
+  badgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
+  formatChip: { fontSize: 10, fontWeight: '600' },
+  teams: { fontWeight: '800', fontSize: 16 },
+  scoreRow: { marginTop: 4 },
+  scoreText: { fontWeight: '700', fontSize: 14 },
+  resultText: { fontWeight: '700', fontSize: 14 },
   footer: { marginTop: 24, marginHorizontal: 16, paddingTop: 20, borderTopWidth: StyleSheet.hairlineWidth, alignItems: 'center' },
 });
