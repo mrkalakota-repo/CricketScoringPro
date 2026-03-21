@@ -4,8 +4,132 @@ import { Text, Button, Card, useTheme, Surface, Portal, Dialog } from 'react-nat
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useMatchStore } from '../../../src/store/match-store';
 import { useTeamStore } from '../../../src/store/team-store';
+import { useLiveScoresStore } from '../../../src/store/live-scores-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { formatOvers } from '../../../src/utils/formatters';
+import { LIVE_RED } from '../../../src/components/NearbyLiveCard';
+import type { LiveMatchSummary } from '../../../src/db/repositories/cloud-match-repo';
+
+function NearbyMatchDetail({ match }: { match: LiveMatchSummary }) {
+  const theme = useTheme();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const isLive = match.status === 'in_progress';
+  const isCompleted = match.status === 'completed';
+  const isToss = match.status === 'toss';
+  const has2ndInnings = match.inningsNum >= 2 && match.target != null;
+  const bowlingShort = match.battingShort === match.team1Short ? match.team2Short : match.team1Short;
+
+  const statusColor = isLive ? LIVE_RED : isToss ? '#F57C00' : theme.colors.primary;
+  const statusLabel = isLive ? 'LIVE' : isToss ? 'TOSS' : 'RESULT';
+
+  return (
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Stack.Screen options={{ title: `${match.team1Short} vs ${match.team2Short}` }} />
+
+      <Surface style={[styles.header, { backgroundColor: theme.colors.primary }]} elevation={2}>
+        <Text style={styles.format}>{match.format.toUpperCase()} Match</Text>
+        <Text style={styles.versus}>{match.team1Short} vs {match.team2Short}</Text>
+        <Text style={styles.teamFull}>{match.team1Name} · {match.team2Name}</Text>
+        {match.venue ? <Text style={styles.venue}>{match.venue}</Text> : null}
+        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+          <Text style={styles.statusText}>{statusLabel}</Text>
+        </View>
+      </Surface>
+
+      <View style={[styles.content, { paddingBottom: Math.max(insets.bottom, 8) + 16 }]}>
+        {/* Score cards */}
+        {(isLive || isCompleted) && match.battingShort ? (
+          has2ndInnings ? (
+            <>
+              <Card style={styles.inningsCard}>
+                <Card.Content>
+                  <View style={styles.inningsRow}>
+                    <View>
+                      <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, fontWeight: '600' }}>
+                        {bowlingShort} — Innings 1
+                      </Text>
+                      <Text variant="headlineMedium" style={{ fontWeight: '900', color: theme.colors.onSurface, letterSpacing: -0.5 }}>
+                        {match.target! - 1}
+                      </Text>
+                    </View>
+                  </View>
+                </Card.Content>
+              </Card>
+              <Card style={[styles.inningsCard, isLive && styles.liveInningsCard]}>
+                <Card.Content>
+                  <View style={styles.inningsRow}>
+                    <View>
+                      <Text variant="labelMedium" style={{ color: isLive ? LIVE_RED : theme.colors.onSurfaceVariant, fontWeight: '600' }}>
+                        {match.battingShort} — Innings 2{isLive ? ' (batting)' : ''}
+                      </Text>
+                      <Text variant="headlineMedium" style={{ fontWeight: '900', color: isLive ? LIVE_RED : theme.colors.onSurface, letterSpacing: -0.5 }}>
+                        {match.score}/{match.wickets}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                        {formatOvers(match.overs, match.balls)} overs
+                      </Text>
+                      {isLive && match.target && (
+                        <Text variant="bodySmall" style={{ color: LIVE_RED, marginTop: 4, fontWeight: '700' }}>
+                          Need {match.target - match.score} more
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </Card.Content>
+              </Card>
+            </>
+          ) : (
+            <Card style={[styles.inningsCard, isLive && styles.liveInningsCard]}>
+              <Card.Content>
+                <View style={styles.inningsRow}>
+                  <View>
+                    <Text variant="labelMedium" style={{ color: isLive ? LIVE_RED : theme.colors.onSurfaceVariant, fontWeight: '600' }}>
+                      {match.battingShort} — Innings 1{isLive ? ' (batting)' : ''}
+                    </Text>
+                    <Text variant="headlineMedium" style={{ fontWeight: '900', color: isLive ? LIVE_RED : theme.colors.onSurface, letterSpacing: -0.5 }}>
+                      {match.score}/{match.wickets}
+                    </Text>
+                  </View>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    {formatOvers(match.overs, match.balls)} overs
+                  </Text>
+                </View>
+              </Card.Content>
+            </Card>
+          )
+        ) : isToss ? (
+          <Card style={styles.inningsCard}>
+            <Card.Content style={{ alignItems: 'center', paddingVertical: 16 }}>
+              <MaterialCommunityIcons name="circle-outline" size={36} color="#F57C00" />
+              <Text variant="titleMedium" style={{ color: '#F57C00', marginTop: 8, fontWeight: '700' }}>
+                Toss in progress
+              </Text>
+            </Card.Content>
+          </Card>
+        ) : null}
+
+        {isCompleted && match.result ? (
+          <Card style={[styles.resultCard, { backgroundColor: theme.colors.primaryContainer }]}>
+            <Card.Content style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <MaterialCommunityIcons name="trophy" size={24} color={theme.colors.onPrimaryContainer} />
+              <Text variant="titleSmall" style={{ fontWeight: '700', color: theme.colors.onPrimaryContainer, flex: 1 }}>
+                {match.result}
+              </Text>
+            </Card.Content>
+          </Card>
+        ) : null}
+
+        <Button mode="text" icon="arrow-left" onPress={() => router.back()} style={{ marginTop: 8 }}>
+          Back
+        </Button>
+      </View>
+    </ScrollView>
+  );
+}
 
 export default function MatchDetailScreen() {
   const router = useRouter();
@@ -15,6 +139,7 @@ export default function MatchDetailScreen() {
   const matchId = Array.isArray(id) ? id[0] : id;
   const { engine, matches, loadMatch, deleteMatch } = useMatchStore();
   const teams = useTeamStore(s => s.teams);
+  const nearbyMatches = useLiveScoresStore(s => s.matches);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   useEffect(() => {
@@ -25,12 +150,18 @@ export default function MatchDetailScreen() {
 
   const match = engine != null && engine.getMatch().id === matchId ? engine.getMatch() : null;
   const row = matches.find(m => m.id === matchId);
+  const nearbyMatch = nearbyMatches.find(m => m.id === matchId);
 
   const doDelete = async () => {
     setShowDeleteDialog(false);
     await deleteMatch(matchId);
     router.back();
   };
+
+  // Nearby match (from another device via Supabase) — show read-only summary
+  if (!row && nearbyMatch) {
+    return <NearbyMatchDetail match={nearbyMatch} />;
+  }
 
   if (!row) {
     return (
@@ -240,6 +371,8 @@ const styles = StyleSheet.create({
   statusText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
   content: { padding: 16 },
   inningsCard: { marginBottom: 10, borderRadius: 14 },
+  liveInningsCard: { borderWidth: 1, borderColor: LIVE_RED + '40' },
+  inningsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   resultCard: { marginBottom: 10, borderRadius: 14 },
   alertCard: { marginBottom: 12, borderRadius: 14 },
   actions: { marginTop: 8, gap: 8 },

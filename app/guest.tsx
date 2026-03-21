@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Button, Card, useTheme, ActivityIndicator, Surface, Portal, Dialog } from 'react-native-paper';
+import { Text, Button, Card, useTheme, ActivityIndicator, Surface } from 'react-native-paper';
+import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLiveScoresStore } from '../src/store/live-scores-store';
@@ -119,7 +120,7 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
   const subscribeLive = useLiveScoresStore(s => s.subscribe);
   const liveLoading = useLiveScoresStore(s => s.loading);
   const unsubscribeRef = useRef<(() => void) | null>(null);
-  const [selectedMatch, setSelectedMatch] = useState<LiveMatchSummary | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (!isCloudEnabled) return;
@@ -131,8 +132,6 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
 
   const liveCount = nearbyMatches.filter(m => m.status === 'in_progress' || m.status === 'toss').length;
   const completedCount = nearbyMatches.filter(m => m.status === 'completed').length;
-
-  const sel = selectedMatch;
 
   return (
     <>
@@ -203,7 +202,7 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
               </View>
             ) : (
               nearbyMatches.map(m => (
-                <MatchCard key={m.id} match={m} onPress={() => setSelectedMatch(m)} />
+                <MatchCard key={m.id} match={m} onPress={() => router.push(`/match/${m.id}`)} />
               ))
             )}
           </View>
@@ -230,53 +229,6 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
         </View>
       </ScrollView>
 
-      {/* Score detail dialog */}
-      <Portal>
-        <Dialog visible={!!selectedMatch} onDismiss={() => setSelectedMatch(null)}>
-          {sel && (
-            <>
-              <Dialog.Title>
-                {sel.team1Short} vs {sel.team2Short}
-              </Dialog.Title>
-              <Dialog.Content>
-                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
-                  {sel.format.toUpperCase()}{sel.venue ? ` · ${sel.venue}` : ''}
-                </Text>
-
-                {sel.status === 'in_progress' && sel.battingShort ? (
-                  <>
-                    <View style={styles.scoreRow}>
-                      <Text variant="titleLarge" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
-                        {sel.battingShort}: {sel.score}/{sel.wickets}
-                      </Text>
-                      <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                        ({formatOvers(sel.overs, sel.balls)} ov)
-                      </Text>
-                    </View>
-                    {sel.target && (
-                      <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, marginTop: 4 }}>
-                        Target: {sel.target} · Need {sel.target - sel.score} more
-                      </Text>
-                    )}
-                  </>
-                ) : sel.status === 'toss' ? (
-                  <Text variant="bodyMedium" style={{ color: TOSS_ORANGE }}>Toss in progress</Text>
-                ) : sel.status === 'completed' && sel.result ? (
-                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
-                    {sel.result}
-                  </Text>
-                ) : null}
-              </Dialog.Content>
-              <Dialog.Actions>
-                <Button onPress={() => setSelectedMatch(null)}>Close</Button>
-                <Button mode="contained" onPress={() => { setSelectedMatch(null); onSignIn(); }} icon="login">
-                  Sign In for Full Scorecard
-                </Button>
-              </Dialog.Actions>
-            </>
-          )}
-        </Dialog>
-      </Portal>
     </>
   );
 }

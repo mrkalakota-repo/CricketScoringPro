@@ -224,7 +224,9 @@ export default function HomeScreen() {
           {liveLoading && nearbyLive.length === 0 ? (
             <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginVertical: 12 }} />
           ) : (
-            nearbyLive.map(m => <NearbyLiveCard key={m.id} match={m} />)
+            nearbyLive.map(m => (
+              <NearbyLiveCard key={m.id} match={m} onPress={() => router.push(`/match/${m.id}`)} />
+            ))
           )}
         </View>
       )}
