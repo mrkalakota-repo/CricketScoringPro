@@ -83,6 +83,7 @@ All mutations go through Zustand stores, never directly through repos.
 
 Key behaviours:
 - `login()` re-pushes the profile to Supabase on every successful local sign-in, recovering profiles whose initial push was dropped (e.g. table didn't exist at registration time).
+- `updateProfile(name, newPin?)` — updates name and/or PIN locally + cloud; used by `app/my-profile.tsx` (the logged-in user's own profile screen, with name edit, PIN change, and sign-out).
 - `sessionExpired: boolean` — set when web `sessionStorage` is missing the PIN hash (tab closed and reopened). UI auto-switches to the restore form with phone pre-filled; local login is impossible in this state.
 - `restoreErrorMessage` — propagated from `verifyUserProfile` RPC so the UI can show actionable errors.
 - `verifyUserProfile` in `cloud-user-repo.ts` auto-retries up to 3× with a 2.5 s delay on Supabase schema-cache cold-start errors (`PGRST205` / "schema cache" phrase) before returning a friendly "Server is waking up" message.
@@ -102,7 +103,7 @@ Roles and permissions matrix:
 | Delete Match | ✅ | ❌ | ❌ | ❌ |
 | View Live Scores | ✅ | ✅ | ✅ | ✅ |
 
-Default role on registration: `scorer`. `useRole()` returns all-false + `role: null` when not authenticated.
+Available roles at registration: `scorer`, `team_admin`, `league_admin` — **viewer is not offered**. Unauthenticated users browse as guests with viewer-equivalent read-only access. `useRole()` returns all-false + `role: null` when not authenticated.
 
 ### Sync Status
 `src/hooks/useSyncStatus.ts` — subscribes to cloud match repo sync events. States: `synced` | `syncing` | `offline` | `disabled`. Used for the scoring-screen cloud indicator.
@@ -243,6 +244,7 @@ Supported key formats: legacy JWT (`length > 100`) **or** new publishable format
 
 - `src/utils/player-icons.ts` — `bowlingIcon(style)` and `battingIcon(style)` — use these instead of local icon lookups in UI files
 - `src/utils/avatar.ts` — `getAvatarColor(name)` and `AVATAR_COLORS` constant — use for team/player avatar backgrounds
+- `src/utils/formatters.ts` — `formatOvers(overs, balls)` (e.g. `"3.2"`) and other display formatters — import from here, do not redefine locally
 - `src/components/NearbyLiveCard.tsx` — shared card for nearby live match display (used by home tab + guest screen). Also exports `LIVE_RED = '#D32F2F'` — use this constant anywhere live/in-progress status needs a red color instead of hardcoding the hex.
 
 ---
