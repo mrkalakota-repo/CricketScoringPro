@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Button, Card, useTheme, Surface, Portal, Dialog } from 'react-native-paper';
+import { Text, Button, Card, useTheme, Surface, Portal, Dialog, ActivityIndicator } from 'react-native-paper';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useMatchStore } from '../../../src/store/match-store';
 import { useTeamStore } from '../../../src/store/team-store';
@@ -10,124 +10,202 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatOvers } from '../../../src/utils/formatters';
 import { LIVE_RED } from '../../../src/components/NearbyLiveCard';
 import type { LiveMatchSummary } from '../../../src/db/repositories/cloud-match-repo';
+import * as cloudMatchRepo from '../../../src/db/repositories/cloud-match-repo';
 
-function NearbyMatchDetail({ match }: { match: LiveMatchSummary }) {
+function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: LiveMatchSummary | null }) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const isLive = match.status === 'in_progress';
-  const isCompleted = match.status === 'completed';
-  const isToss = match.status === 'toss';
-  const has2ndInnings = match.inningsNum >= 2 && match.target != null;
-  const bowlingShort = match.battingShort === match.team1Short ? match.team2Short : match.team1Short;
+  const [cloudMatch, setCloudMatch] = useState<import('../../../src/engine/types').Match | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const statusColor = isLive ? LIVE_RED : isToss ? '#F57C00' : theme.colors.primary;
-  const statusLabel = isLive ? 'LIVE' : isToss ? 'TOSS' : 'RESULT';
+  useEffect(() => {
+    cloudMatchRepo.fetchCloudMatchState(matchId).then(m => {
+      setCloudMatch(m);
+      setLoading(false);
+    });
+  }, [matchId]);
 
-  return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Stack.Screen options={{ title: `${match.team1Short} vs ${match.team2Short}` }} />
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
+        <Stack.Screen options={{ title: fallback ? `${fallback.team1Short} vs ${fallback.team2Short}` : 'Match Details' }} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>Loading match…</Text>
+      </View>
+    );
+  }
 
-      <Surface style={[styles.header, { backgroundColor: theme.colors.primary }]} elevation={2}>
-        <Text style={styles.format}>{match.format.toUpperCase()} Match</Text>
-        <Text style={styles.versus}>{match.team1Short} vs {match.team2Short}</Text>
-        <Text style={styles.teamFull}>{match.team1Name} · {match.team2Name}</Text>
-        {match.venue ? <Text style={styles.venue}>{match.venue}</Text> : null}
-        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-          <Text style={styles.statusText}>{statusLabel}</Text>
-        </View>
-      </Surface>
-
-      <View style={[styles.content, { paddingBottom: Math.max(insets.bottom, 8) + 16 }]}>
-        {/* Score cards */}
-        {(isLive || isCompleted) && match.battingShort ? (
-          has2ndInnings ? (
-            <>
-              <Card style={styles.inningsCard}>
+  // Full state from cloud — render same as local match
+  if (cloudMatch) {
+    const getStatusColor = () => {
+      switch (cloudMatch.status) {
+        case 'in_progress': return LIVE_RED;
+        case 'completed': return '#2E7D32';
+        default: return '#1565C0';
+      }
+    };
+    return (
+      <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Stack.Screen options={{ title: `${cloudMatch.team1.shortName} vs ${cloudMatch.team2.shortName}` }} />
+        <Surface style={[styles.header, { backgroundColor: theme.colors.primary }]} elevation={2}>
+          <Text style={styles.format}>{cloudMatch.config.format.toUpperCase()} Match</Text>
+          <Text style={styles.versus}>{cloudMatch.team1.shortName} vs {cloudMatch.team2.shortName}</Text>
+          <Text style={styles.teamFull}>{cloudMatch.team1.name} · {cloudMatch.team2.name}</Text>
+          {cloudMatch.venue ? <Text style={styles.venue}>{cloudMatch.venue}</Text> : null}
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor() }]}>
+            <Text style={styles.statusText}>{cloudMatch.status.replace('_', ' ').toUpperCase()}</Text>
+          </View>
+        </Surface>
+        <View style={[styles.content, { paddingBottom: Math.max(insets.bottom, 8) + 16 }]}>
+          {cloudMatch.innings.map((inn, i) => {
+            const teamShort = inn.battingTeamId === cloudMatch.team1.id ? cloudMatch.team1.shortName : cloudMatch.team2.shortName;
+            return (
+              <Card key={i} style={styles.inningsCard}>
                 <Card.Content>
                   <View style={styles.inningsRow}>
                     <View>
                       <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, fontWeight: '600' }}>
-                        {bowlingShort} — Innings 1
+                        {teamShort} — Innings {i + 1}
                       </Text>
-                      <Text variant="headlineMedium" style={{ fontWeight: '900', color: theme.colors.onSurface, letterSpacing: -0.5 }}>
-                        {match.target! - 1}
-                      </Text>
-                    </View>
-                  </View>
-                </Card.Content>
-              </Card>
-              <Card style={[styles.inningsCard, isLive && styles.liveInningsCard]}>
-                <Card.Content>
-                  <View style={styles.inningsRow}>
-                    <View>
-                      <Text variant="labelMedium" style={{ color: isLive ? LIVE_RED : theme.colors.onSurfaceVariant, fontWeight: '600' }}>
-                        {match.battingShort} — Innings 2{isLive ? ' (batting)' : ''}
-                      </Text>
-                      <Text variant="headlineMedium" style={{ fontWeight: '900', color: isLive ? LIVE_RED : theme.colors.onSurface, letterSpacing: -0.5 }}>
-                        {match.score}/{match.wickets}
+                      <Text variant="headlineMedium" style={{ fontWeight: '900', color: theme.colors.primary, letterSpacing: -0.5 }}>
+                        {inn.totalRuns}/{inn.totalWickets}
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                        {formatOvers(match.overs, match.balls)} overs
+                        {inn.totalOvers}.{inn.totalBalls} overs
                       </Text>
-                      {isLive && match.target && (
-                        <Text variant="bodySmall" style={{ color: LIVE_RED, marginTop: 4, fontWeight: '700' }}>
-                          Need {match.target - match.score} more
+                      {inn.totalBalls > 0 && (
+                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+                          RR: {((inn.totalRuns / (inn.totalOvers + inn.totalBalls / 6)) || 0).toFixed(2)}
                         </Text>
                       )}
                     </View>
                   </View>
                 </Card.Content>
               </Card>
-            </>
-          ) : (
-            <Card style={[styles.inningsCard, isLive && styles.liveInningsCard]}>
-              <Card.Content>
-                <View style={styles.inningsRow}>
-                  <View>
-                    <Text variant="labelMedium" style={{ color: isLive ? LIVE_RED : theme.colors.onSurfaceVariant, fontWeight: '600' }}>
-                      {match.battingShort} — Innings 1{isLive ? ' (batting)' : ''}
-                    </Text>
-                    <Text variant="headlineMedium" style={{ fontWeight: '900', color: isLive ? LIVE_RED : theme.colors.onSurface, letterSpacing: -0.5 }}>
-                      {match.score}/{match.wickets}
-                    </Text>
-                  </View>
-                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                    {formatOvers(match.overs, match.balls)} overs
-                  </Text>
-                </View>
+            );
+          })}
+          {cloudMatch.result ? (
+            <Card style={[styles.resultCard, { backgroundColor: theme.colors.primaryContainer }]}>
+              <Card.Content style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <MaterialCommunityIcons name="trophy" size={24} color={theme.colors.onPrimaryContainer} />
+                <Text variant="titleSmall" style={{ fontWeight: '700', color: theme.colors.onPrimaryContainer, flex: 1 }}>
+                  {cloudMatch.result}
+                </Text>
               </Card.Content>
             </Card>
-          )
-        ) : isToss ? (
-          <Card style={styles.inningsCard}>
-            <Card.Content style={{ alignItems: 'center', paddingVertical: 16 }}>
-              <MaterialCommunityIcons name="circle-outline" size={36} color="#F57C00" />
-              <Text variant="titleMedium" style={{ color: '#F57C00', marginTop: 8, fontWeight: '700' }}>
-                Toss in progress
-              </Text>
-            </Card.Content>
-          </Card>
-        ) : null}
+          ) : null}
+          <Button mode="text" icon="arrow-left" onPress={() => router.back()} style={{ marginTop: 8 }}>Back</Button>
+        </View>
+      </ScrollView>
+    );
+  }
 
-        {isCompleted && match.result ? (
-          <Card style={[styles.resultCard, { backgroundColor: theme.colors.primaryContainer }]}>
-            <Card.Content style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <MaterialCommunityIcons name="trophy" size={24} color={theme.colors.onPrimaryContainer} />
-              <Text variant="titleSmall" style={{ fontWeight: '700', color: theme.colors.onPrimaryContainer, flex: 1 }}>
-                {match.result}
-              </Text>
-            </Card.Content>
-          </Card>
-        ) : null}
+  // Fallback: show summary from LiveMatchSummary (limited data)
+  if (fallback) {
+    const isLive = fallback.status === 'in_progress';
+    const isCompleted = fallback.status === 'completed';
+    const isToss = fallback.status === 'toss';
+    const has2ndInnings = fallback.inningsNum >= 2 && fallback.target != null;
+    const bowlingShort = fallback.battingShort === fallback.team1Short ? fallback.team2Short : fallback.team1Short;
+    const statusColor = isLive ? LIVE_RED : isToss ? '#F57C00' : theme.colors.primary;
+    const statusLabel = isLive ? 'LIVE' : isToss ? 'TOSS' : 'RESULT';
 
-        <Button mode="text" icon="arrow-left" onPress={() => router.back()} style={{ marginTop: 8 }}>
-          Back
-        </Button>
-      </View>
-    </ScrollView>
+    return (
+      <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Stack.Screen options={{ title: `${fallback.team1Short} vs ${fallback.team2Short}` }} />
+        <Surface style={[styles.header, { backgroundColor: theme.colors.primary }]} elevation={2}>
+          <Text style={styles.format}>{fallback.format.toUpperCase()} Match</Text>
+          <Text style={styles.versus}>{fallback.team1Short} vs {fallback.team2Short}</Text>
+          <Text style={styles.teamFull}>{fallback.team1Name} · {fallback.team2Name}</Text>
+          {fallback.venue ? <Text style={styles.venue}>{fallback.venue}</Text> : null}
+          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+            <Text style={styles.statusText}>{statusLabel}</Text>
+          </View>
+        </Surface>
+        <View style={[styles.content, { paddingBottom: Math.max(insets.bottom, 8) + 16 }]}>
+          {(isLive || isCompleted) && fallback.battingShort ? (
+            has2ndInnings ? (
+              <>
+                <Card style={styles.inningsCard}>
+                  <Card.Content>
+                    <View style={styles.inningsRow}>
+                      <View>
+                        <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, fontWeight: '600' }}>{bowlingShort} — Innings 1</Text>
+                        <Text variant="headlineMedium" style={{ fontWeight: '900', color: theme.colors.onSurface, letterSpacing: -0.5 }}>{fallback.target! - 1}</Text>
+                      </View>
+                    </View>
+                  </Card.Content>
+                </Card>
+                <Card style={[styles.inningsCard, isLive && styles.liveInningsCard]}>
+                  <Card.Content>
+                    <View style={styles.inningsRow}>
+                      <View>
+                        <Text variant="labelMedium" style={{ color: isLive ? LIVE_RED : theme.colors.onSurfaceVariant, fontWeight: '600' }}>
+                          {fallback.battingShort} — Innings 2{isLive ? ' (batting)' : ''}
+                        </Text>
+                        <Text variant="headlineMedium" style={{ fontWeight: '900', color: isLive ? LIVE_RED : theme.colors.onSurface, letterSpacing: -0.5 }}>
+                          {fallback.score}/{fallback.wickets}
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{formatOvers(fallback.overs, fallback.balls)} overs</Text>
+                        {isLive && fallback.target && (
+                          <Text variant="bodySmall" style={{ color: LIVE_RED, marginTop: 4, fontWeight: '700' }}>Need {fallback.target - fallback.score} more</Text>
+                        )}
+                      </View>
+                    </View>
+                  </Card.Content>
+                </Card>
+              </>
+            ) : (
+              <Card style={[styles.inningsCard, isLive && styles.liveInningsCard]}>
+                <Card.Content>
+                  <View style={styles.inningsRow}>
+                    <View>
+                      <Text variant="labelMedium" style={{ color: isLive ? LIVE_RED : theme.colors.onSurfaceVariant, fontWeight: '600' }}>
+                        {fallback.battingShort} — Innings 1{isLive ? ' (batting)' : ''}
+                      </Text>
+                      <Text variant="headlineMedium" style={{ fontWeight: '900', color: isLive ? LIVE_RED : theme.colors.onSurface, letterSpacing: -0.5 }}>
+                        {fallback.score}/{fallback.wickets}
+                      </Text>
+                    </View>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{formatOvers(fallback.overs, fallback.balls)} overs</Text>
+                  </View>
+                </Card.Content>
+              </Card>
+            )
+          ) : isToss ? (
+            <Card style={styles.inningsCard}>
+              <Card.Content style={{ alignItems: 'center', paddingVertical: 16 }}>
+                <MaterialCommunityIcons name="circle-outline" size={36} color="#F57C00" />
+                <Text variant="titleMedium" style={{ color: '#F57C00', marginTop: 8, fontWeight: '700' }}>Toss in progress</Text>
+              </Card.Content>
+            </Card>
+          ) : null}
+          {isCompleted && fallback.result ? (
+            <Card style={[styles.resultCard, { backgroundColor: theme.colors.primaryContainer }]}>
+              <Card.Content style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <MaterialCommunityIcons name="trophy" size={24} color={theme.colors.onPrimaryContainer} />
+                <Text variant="titleSmall" style={{ fontWeight: '700', color: theme.colors.onPrimaryContainer, flex: 1 }}>{fallback.result}</Text>
+              </Card.Content>
+            </Card>
+          ) : null}
+          <Button mode="text" icon="arrow-left" onPress={() => router.back()} style={{ marginTop: 8 }}>Back</Button>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  return (
+    <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
+      <Stack.Screen options={{ title: 'Match Details' }} />
+      <MaterialCommunityIcons name="alert-circle-outline" size={48} color={theme.colors.outlineVariant} />
+      <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>Match details unavailable</Text>
+      <Button mode="text" onPress={() => router.back()} style={{ marginTop: 8 }}>Go Back</Button>
+    </View>
   );
 }
 
@@ -158,19 +236,8 @@ export default function MatchDetailScreen() {
     router.back();
   };
 
-  // Nearby match (from another device via Supabase) — show read-only summary
-  if (!row && nearbyMatch) {
-    return <NearbyMatchDetail match={nearbyMatch} />;
-  }
-
   if (!row) {
-    return (
-      <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
-        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={theme.colors.outlineVariant} />
-        <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>Match not found</Text>
-        <Button mode="text" onPress={() => router.back()} style={{ marginTop: 8 }}>Go Back</Button>
-      </View>
-    );
+    return <CloudMatchDetail matchId={matchId} fallback={nearbyMatch ?? null} />;
   }
 
   const hasStateJson = !!row.match_state_json;

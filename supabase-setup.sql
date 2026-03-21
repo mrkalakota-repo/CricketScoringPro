@@ -362,3 +362,49 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN
   CREATE POLICY "public_delete_cloud_fixtures" ON public.cloud_league_fixtures FOR DELETE USING (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ── Cloud Match States (full match history, cross-device) ─────────────────────
+-- Stores the complete match engine state JSON for every match.
+-- Updated on every ball (same cadence as live_matches).
+-- Retained for 7 days; cleanup is the responsibility of scheduled Supabase jobs
+-- or the app (delete on match deletion).
+
+CREATE TABLE IF NOT EXISTS public.cloud_match_states (
+  id               TEXT   PRIMARY KEY,
+  team1_name       TEXT   NOT NULL,
+  team1_short      TEXT   NOT NULL,
+  team2_name       TEXT   NOT NULL,
+  team2_short      TEXT   NOT NULL,
+  format           TEXT   NOT NULL,
+  venue            TEXT   NOT NULL DEFAULT '',
+  status           TEXT   NOT NULL DEFAULT 'in_progress',
+  result           TEXT,
+  owner_phone      TEXT,
+  match_state_json TEXT   NOT NULL,
+  match_date       BIGINT NOT NULL DEFAULT 0,
+  updated_at       BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_cloud_match_states_updated
+  ON public.cloud_match_states (updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_cloud_match_states_owner
+  ON public.cloud_match_states (owner_phone);
+
+ALTER TABLE public.cloud_match_states ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "public_select_match_states" ON public.cloud_match_states FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_insert_match_states" ON public.cloud_match_states FOR INSERT WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_update_match_states" ON public.cloud_match_states FOR UPDATE USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "public_delete_match_states" ON public.cloud_match_states FOR DELETE USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

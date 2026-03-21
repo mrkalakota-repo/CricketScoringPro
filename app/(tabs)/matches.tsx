@@ -1,7 +1,10 @@
-import { useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { Text, Card, FAB, useTheme } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
+import * as cloudMatchRepo from '../../src/db/repositories/cloud-match-repo';
+import type { CloudMatchRow } from '../../src/db/repositories/cloud-match-repo';
+import { isCloudEnabled } from '../../src/config/supabase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
@@ -56,8 +59,26 @@ export default function MatchesScreen() {
   const { matches, loading, loadMatches } = useMatchStore();
   const teams = useTeamStore(s => s.teams);
   const { canCreateMatch } = useRole();
+  const [cloudMatches, setCloudMatches] = useState<CloudMatchRow[]>([]);
+  const [cloudLoading, setCloudLoading] = useState(false);
+
+  const loadCloud = useCallback(async () => {
+    if (!isCloudEnabled) return;
+    setCloudLoading(true);
+    try {
+      const all = await cloudMatchRepo.fetchRecentCloudMatches(7);
+      const localIds = new Set(matches.map(m => m.id));
+      setCloudMatches(all.filter(m => !localIds.has(m.id)));
+    } finally {
+      setCloudLoading(false);
+    }
+  }, [matches]);
 
   useFocusEffect(useCallback(() => { loadMatches(); }, []));
+
+  useFocusEffect(useCallback(() => {
+    loadCloud();
+  }, [loadCloud]));
 
   const fabBottom = Math.max(insets.bottom, 8) + 16;
 
@@ -134,6 +155,64 @@ export default function MatchesScreen() {
           );
         }}
       />
+      {(cloudMatches.length > 0 || cloudLoading) && (
+        <View style={[styles.cloudSection, { borderTopColor: theme.colors.outlineVariant }]}>
+          <View style={styles.cloudHeader}>
+            <MaterialCommunityIcons name="cloud-outline" size={16} color={theme.colors.onSurfaceVariant} />
+            <Text variant="labelMedium" style={[styles.cloudHeaderText, { color: theme.colors.onSurfaceVariant }]}>
+              Cloud · Last 7 Days
+            </Text>
+          </View>
+          {cloudLoading && (
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 16, paddingBottom: 8 }}>
+              Loading…
+            </Text>
+          )}
+          {cloudMatches.map(item => (
+            <Card
+              key={item.id}
+              style={[styles.card, { marginHorizontal: 16 }]}
+              onPress={() => router.push(`/match/${item.id}`)}
+            >
+              <Card.Content style={styles.cardContent}>
+                <View style={styles.cardTop}>
+                  <View style={[styles.formatBadge, { backgroundColor: theme.colors.primaryContainer }]}>
+                    <Text style={[styles.formatText, { color: theme.colors.onPrimaryContainer }]}>
+                      {item.format.toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={[styles.badge, { backgroundColor: '#1565C018', borderColor: '#1565C050', borderWidth: 1 }]}>
+                    <MaterialCommunityIcons name="cloud-outline" size={9} color="#1565C0" />
+                    <Text style={[styles.badgeText, { color: '#1565C0' }]}>CLOUD</Text>
+                  </View>
+                </View>
+                <Text variant="titleMedium" style={[styles.teamsText, { color: theme.colors.onSurface }]}>
+                  {item.team1Short}{' '}
+                  <Text style={{ color: theme.colors.onSurfaceVariant, fontWeight: '400' }}>vs</Text>
+                  {' '}{item.team2Short}
+                </Text>
+                {item.result ? (
+                  <Text variant="bodySmall" style={[styles.result, { color: theme.colors.primary }]}>{item.result}</Text>
+                ) : null}
+                <View style={[styles.cardFooter, { borderTopColor: theme.colors.outlineVariant }]}>
+                  {item.venue ? (
+                    <View style={styles.footerItem}>
+                      <MaterialCommunityIcons name="map-marker-outline" size={12} color={theme.colors.onSurfaceVariant} />
+                      <Text variant="bodySmall" style={[styles.footerText, { color: theme.colors.onSurfaceVariant }]}>{item.venue}</Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.footerItem}>
+                    <MaterialCommunityIcons name="calendar-outline" size={12} color={theme.colors.onSurfaceVariant} />
+                    <Text variant="bodySmall" style={[styles.footerText, { color: theme.colors.onSurfaceVariant }]}>
+                      {new Date(item.matchDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    </Text>
+                  </View>
+                </View>
+              </Card.Content>
+            </Card>
+          ))}
+        </View>
+      )}
       {canCreateMatch && (
         <FAB
           icon="plus"
@@ -166,4 +245,7 @@ const styles = StyleSheet.create({
   footerText: { fontSize: 11 },
   emptyState: { alignItems: 'center', padding: 64 },
   fab: { position: 'absolute', right: 16, borderRadius: 28 },
+  cloudSection: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, paddingBottom: 80 },
+  cloudHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingBottom: 10 },
+  cloudHeaderText: { fontWeight: '700', letterSpacing: 0.3 },
 });

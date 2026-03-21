@@ -4,6 +4,7 @@ import { MatchEngine, createNewMatch } from '../engine/match-engine';
 import * as matchRepo from '../db/repositories/match-repo';
 import type { MatchRow } from '../db/repositories/match-repo';
 import * as cloudMatchRepo from '../db/repositories/cloud-match-repo';
+import { useUserAuth } from '../hooks/useUserAuth';
 
 interface MatchStore {
   // Active match state
@@ -75,7 +76,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (!engine) return;
     const newEngine = engine.startMatch(battingTeamId, bowlingTeamId);
     set({ engine: newEngine });
-    cloudMatchRepo.publishLiveMatch(newEngine.getMatch());
+    const _m0 = newEngine.getMatch();
+    cloudMatchRepo.publishLiveMatch(_m0);
+    cloudMatchRepo.publishMatchState(_m0, useUserAuth.getState().profile?.phone ?? undefined);
   },
 
   setOpeners: (strikerId, nonStrikerId) => {
@@ -116,6 +119,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
         console.error('[match-store] auto-save after recordBall failed:', (err as Error).message);
       });
       cloudMatchRepo.publishLiveMatch(m);
+      cloudMatchRepo.publishMatchState(m, useUserAuth.getState().profile?.phone ?? undefined);
     }
   },
 
@@ -131,6 +135,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
         console.error('[match-store] auto-save after undoLastBall failed:', (err as Error).message);
       });
       cloudMatchRepo.publishLiveMatch(m);
+      cloudMatchRepo.publishMatchState(m, useUserAuth.getState().profile?.phone ?? undefined);
     }
   },
 
@@ -152,7 +157,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (!engine) return;
     const newEngine = engine.startNextInnings();
     set({ engine: newEngine });
-    cloudMatchRepo.publishLiveMatch(newEngine.getMatch());
+    const _m1 = newEngine.getMatch();
+    cloudMatchRepo.publishLiveMatch(_m1);
+    cloudMatchRepo.publishMatchState(_m1, useUserAuth.getState().profile?.phone ?? undefined);
   },
 
   startSuperOver: () => {
@@ -163,7 +170,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     matchRepo.saveMatchState(matchId, newEngine.getMatch()).catch(err => {
       console.error('[match-store] auto-save after startSuperOver failed:', (err as Error).message);
     });
-    cloudMatchRepo.publishLiveMatch(newEngine.getMatch());
+    const _m2 = newEngine.getMatch();
+    cloudMatchRepo.publishLiveMatch(_m2);
+    cloudMatchRepo.publishMatchState(_m2, useUserAuth.getState().profile?.phone ?? undefined);
   },
 
   declareInnings: () => {
@@ -171,7 +180,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (!engine) return;
     const newEngine = engine.declareInnings();
     set({ engine: newEngine });
-    cloudMatchRepo.publishLiveMatch(newEngine.getMatch());
+    const _m3 = newEngine.getMatch();
+    cloudMatchRepo.publishLiveMatch(_m3);
+    cloudMatchRepo.publishMatchState(_m3, useUserAuth.getState().profile?.phone ?? undefined);
   },
 
   saveMatch: async () => {
@@ -185,6 +196,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   deleteMatch: async (id) => {
     await matchRepo.deleteMatch(id);
     cloudMatchRepo.removeLiveMatch(id);
+    cloudMatchRepo.removeMatchState(id);
     set({ matches: get().matches.filter(m => m.id !== id) });
     if (get().matchId === id) {
       set({ engine: null, matchId: null });

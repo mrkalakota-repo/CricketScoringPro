@@ -247,3 +247,117 @@ export function subscribeToNearbyLiveMatches(
 
   return () => { supabase!.removeChannel(channel); };
 }
+
+// ---------------------------------------------------------------------------
+// Full match state — cross-device history
+// ---------------------------------------------------------------------------
+
+export interface CloudMatchRow {
+  id: string;
+  team1Name: string;
+  team1Short: string;
+  team2Name: string;
+  team2Short: string;
+  format: string;
+  venue: string;
+  status: string;
+  result: string | null;
+  ownerPhone: string | null;
+  matchStateJson: string;
+  matchDate: number;
+  updatedAt: number;
+}
+
+function matchToCloudRow(match: Match, ownerPhone?: string) {
+  return {
+    id: match.id,
+    team1_name: match.team1.name,
+    team1_short: match.team1.shortName,
+    team2_name: match.team2.name,
+    team2_short: match.team2.shortName,
+    format: match.config.format,
+    venue: match.venue ?? '',
+    status: match.status,
+    result: match.result ?? null,
+    owner_phone: ownerPhone ?? null,
+    match_state_json: JSON.stringify(match),
+    match_date: match.createdAt ?? Date.now(),
+    updated_at: Date.now(),
+  };
+}
+
+export async function publishMatchState(match: Match, ownerPhone?: string): Promise<void> {
+  if (!isCloudEnabled || !supabase) return;
+  if (match.status === 'scheduled') return;
+  try {
+    const { error } = await supabase
+      .from('cloud_match_states')
+      .upsert(matchToCloudRow(match, ownerPhone));
+    if (error && (error as { code?: string }).code !== 'PGRST205') {
+      console.error('[cloud-match-repo] publishMatchState failed:', error.message);
+    }
+  } catch (err) {
+    console.error('[cloud-match-repo] publishMatchState error:', (err as Error).message);
+  }
+}
+
+export async function removeMatchState(matchId: string): Promise<void> {
+  if (!isCloudEnabled || !supabase) return;
+  try {
+    await supabase.from('cloud_match_states').delete().eq('id', matchId);
+  } catch (err) {
+    console.error('[cloud-match-repo] removeMatchState failed:', (err as Error).message);
+  }
+}
+
+export async function fetchRecentCloudMatches(days = 7): Promise<CloudMatchRow[]> {
+  if (!isCloudEnabled || !supabase) return [];
+  try {
+    const since = Date.now() - days * 24 * 60 * 60 * 1000;
+    const { data, error } = await supabase
+      .from('cloud_match_states')
+      .select('id, team1_name, team1_short, team2_name, team2_short, format, venue, status, result, owner_phone, match_date, updated_at')
+      .gte('updated_at', since)
+      .order('updated_at', { ascending: false })
+      .limit(50);
+    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    return (data ?? []).map((r: Record<string, unknown>) => ({
+      id: r.id as string,
+      team1Name: r.team1_name as string,
+      team1Short: r.team1_short as string,
+      team2Name: r.team2_name as string,
+      team2Short: r.team2_short as string,
+      format: r.format as string,
+      venue: r.venue as string,
+      status: r.status as string,
+      result: r.result as string | null,
+      ownerPhone: r.owner_phone as string | null,
+      matchStateJson: '',
+      matchDate: r.match_date as number,
+      updatedAt: r.updated_at as number,
+    }));
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    if (code !== 'PGRST205') {
+      console.error('[cloud-match-repo] fetchRecentCloudMatches failed:', (err as Error).message);
+    }
+    return [];
+  }
+}
+
+export async function fetchCloudMatchState(matchId: string): Promise<Match | null> {
+  if (!isCloudEnabled || !supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('cloud_match_states')
+      .select('match_state_json')
+      .eq('id', matchId)
+      .single();
+    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    if (!data?.match_state_json) return null;
+    return JSON.parse(data.match_state_json) as Match;
+  } catch (err) {
+    console.error('[cloud-match-repo] fetchCloudMatchState failed:', (err as Error).message);
+    return null;
+  }
+}
