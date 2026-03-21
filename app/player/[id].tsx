@@ -108,7 +108,7 @@ export default function PlayerProfileScreen() {
               <Chip compact icon="crown-outline" style={{ backgroundColor: '#FFF8E1' }} textStyle={{ color: '#F9A825', fontSize: 11 }}>Vice Captain</Chip>
             )}
             {player.isWicketKeeper && (
-              <Chip compact icon="shield-account" style={{ backgroundColor: 'rgba(255,255,255,0.25)' }} textStyle={{ color: '#FFF', fontSize: 11 }}>Wicket Keeper</Chip>
+              <Chip compact icon="shield-account" style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 0 }} textStyle={{ color: '#1B6B28', fontSize: 11, fontWeight: '700' }}>Wicket Keeper</Chip>
             )}
             {player.isAllRounder && (
               <Chip compact icon="star-four-points" style={{ backgroundColor: '#A5D6A7' }} textStyle={{ color: '#1B5E20', fontSize: 11 }}>All-Rounder</Chip>

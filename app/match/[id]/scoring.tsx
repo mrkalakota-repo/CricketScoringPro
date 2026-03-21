@@ -381,11 +381,23 @@ export default function ScoringScreen() {
 
       {/* View-only banner for non-scorers */}
       {!canScore && !isMatchComplete && (
-        <View style={[styles.viewOnlyBanner, { backgroundColor: theme.colors.surfaceVariant }]}>
-          <MaterialCommunityIcons name="eye-outline" size={16} color={theme.colors.onSurfaceVariant} />
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, flex: 1 }}>
+        <View style={[styles.viewOnlyBanner, { backgroundColor: '#E65100' }]}>
+          <MaterialCommunityIcons name="eye-outline" size={16} color="#FFFFFF" />
+          <Text variant="bodySmall" style={{ color: '#FFFFFF', flex: 1, fontWeight: '700' }}>
             View only — your role does not have scoring permissions
           </Text>
+          <Button
+            mode="contained-tonal"
+            compact
+            icon="arrow-left"
+            onPress={() => router.back()}
+            style={{ marginLeft: 8, borderRadius: 8 }}
+            labelStyle={{ fontSize: 11 }}
+            buttonColor="rgba(255,255,255,0.25)"
+            textColor="#FFFFFF"
+          >
+            Exit
+          </Button>
         </View>
       )}
 

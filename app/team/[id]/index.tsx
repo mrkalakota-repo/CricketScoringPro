@@ -242,16 +242,16 @@ export default function TeamDetailScreen() {
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
             <Chip
               compact icon="eye-outline"
-              textStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.9)' }}
-              style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+              textStyle={{ fontSize: 10, color: '#FFFFFF', fontWeight: '700' }}
+              style={{ backgroundColor: 'rgba(255,255,255,0.25)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' }}
             >
               View Only
             </Chip>
             {!isDelegate && (
               <Chip
                 compact icon="account-key"
-                textStyle={{ fontSize: 10, color: 'rgba(255,255,255,0.9)' }}
-                style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+                textStyle={{ fontSize: 10, color: '#FFFFFF', fontWeight: '700' }}
+                style={{ backgroundColor: '#E65100', borderWidth: 0 }}
                 onPress={() => setShowClaimModal(true)}
               >
                 Claim Access
