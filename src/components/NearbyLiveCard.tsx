@@ -17,7 +17,7 @@ export function NearbyLiveCard({ match, onPress }: { match: LiveMatchSummary; on
 
   // Derive bowling team from batting team
   const bowlingShort = match.battingShort === match.team1Short ? match.team2Short : match.team1Short;
-  const inning2 = isLive && match.inningsNum >= 2 && match.target != null;
+  const has2ndInnings = match.inningsNum >= 2 && match.target != null;
 
   return (
     <Card style={[styles.matchCard, (isLive || isToss) && styles.liveMatchCard]} onPress={onPress}>
@@ -41,40 +41,49 @@ export function NearbyLiveCard({ match, onPress }: { match: LiveMatchSummary; on
           {match.team1Short} vs {match.team2Short}
         </Text>
 
-        {/* Team-level scores */}
-        {isLive && match.battingShort ? (
+        {/* Team-level scores — shown for both in-progress and completed */}
+        {(isLive || isCompleted) && match.battingShort ? (
           <View style={styles.scoreBlock}>
-            {inning2 ? (
-              // 2nd innings: show 1st innings total + current chase
+            {has2ndInnings ? (
               <>
                 <View style={styles.scoreLine}>
                   <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant }]}>{bowlingShort}</Text>
                   <Text style={[styles.scoreValue, { color: theme.colors.onSurfaceVariant }]}>{match.target! - 1}</Text>
                 </View>
                 <View style={styles.scoreLine}>
-                  <Text style={[styles.scoreTeam, { color: LIVE_RED }]}>{match.battingShort} *</Text>
-                  <Text style={[styles.scoreValue, { color: LIVE_RED }]}>
+                  <Text style={[styles.scoreTeam, { color: isLive ? LIVE_RED : theme.colors.onSurface }]}>
+                    {match.battingShort}{isLive ? ' *' : ''}
+                  </Text>
+                  <Text style={[styles.scoreValue, { color: isLive ? LIVE_RED : theme.colors.onSurface }]}>
                     {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
                   </Text>
                 </View>
-                <Text style={[styles.chaseText, { color: theme.colors.onSurfaceVariant }]}>
-                  Need {match.target! - match.score} more
-                </Text>
+                {isLive && (
+                  <Text style={[styles.chaseText, { color: theme.colors.onSurfaceVariant }]}>
+                    Need {match.target! - match.score} more
+                  </Text>
+                )}
               </>
             ) : (
-              // 1st innings: batting team score + "Yet to bat"
               <>
                 <View style={styles.scoreLine}>
-                  <Text style={[styles.scoreTeam, { color: LIVE_RED }]}>{match.battingShort} *</Text>
-                  <Text style={[styles.scoreValue, { color: LIVE_RED }]}>
+                  <Text style={[styles.scoreTeam, { color: isLive ? LIVE_RED : theme.colors.onSurface }]}>
+                    {match.battingShort}{isLive ? ' *' : ''}
+                  </Text>
+                  <Text style={[styles.scoreValue, { color: isLive ? LIVE_RED : theme.colors.onSurface }]}>
                     {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
                   </Text>
                 </View>
-                <View style={styles.scoreLine}>
-                  <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant }]}>{bowlingShort}</Text>
-                  <Text style={[styles.scoreValue, { color: theme.colors.onSurfaceVariant }]}>Yet to bat</Text>
-                </View>
+                {isLive && (
+                  <View style={styles.scoreLine}>
+                    <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant }]}>{bowlingShort}</Text>
+                    <Text style={[styles.scoreValue, { color: theme.colors.onSurfaceVariant }]}>Yet to bat</Text>
+                  </View>
+                )}
               </>
+            )}
+            {isCompleted && match.result && (
+              <Text style={[styles.resultText, { color: theme.colors.primary }]}>{match.result}</Text>
             )}
           </View>
         ) : isToss ? (

@@ -50,49 +50,58 @@ function MatchCard({ match, onPress }: { match: LiveMatchSummary; onPress: () =>
           {match.team1Short} vs {match.team2Short}
         </Text>
 
-        {/* Team-level scores */}
-        {isLive && match.battingShort ? (() => {
+        {/* Team-level scores — shown for both live and completed */}
+        {(isLive || isCompleted) && match.battingShort ? (() => {
           const bowlingShort = match.battingShort === match.team1Short ? match.team2Short : match.team1Short;
-          const inning2 = match.inningsNum >= 2 && match.target != null;
+          const has2ndInnings = match.inningsNum >= 2 && match.target != null;
           return (
             <View style={styles.scoreBlock}>
-              {inning2 ? (
+              {has2ndInnings ? (
                 <>
                   <View style={styles.scoreLine}>
                     <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant }]}>{bowlingShort}</Text>
                     <Text style={[styles.scoreVal, { color: theme.colors.onSurfaceVariant }]}>{match.target! - 1}</Text>
                   </View>
                   <View style={styles.scoreLine}>
-                    <Text style={[styles.scoreTeam, { color: LIVE_RED }]}>{match.battingShort} *</Text>
-                    <Text style={[styles.scoreVal, { color: LIVE_RED }]}>
+                    <Text style={[styles.scoreTeam, { color: isLive ? LIVE_RED : theme.colors.onSurface }]}>
+                      {match.battingShort}{isLive ? ' *' : ''}
+                    </Text>
+                    <Text style={[styles.scoreVal, { color: isLive ? LIVE_RED : theme.colors.onSurface }]}>
                       {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
                     </Text>
                   </View>
-                  <Text style={[styles.chaseText, { color: theme.colors.onSurfaceVariant }]}>
-                    Need {match.target! - match.score} more
-                  </Text>
+                  {isLive && (
+                    <Text style={[styles.chaseText, { color: theme.colors.onSurfaceVariant }]}>
+                      Need {match.target! - match.score} more
+                    </Text>
+                  )}
                 </>
               ) : (
                 <>
                   <View style={styles.scoreLine}>
-                    <Text style={[styles.scoreTeam, { color: LIVE_RED }]}>{match.battingShort} *</Text>
-                    <Text style={[styles.scoreVal, { color: LIVE_RED }]}>
+                    <Text style={[styles.scoreTeam, { color: isLive ? LIVE_RED : theme.colors.onSurface }]}>
+                      {match.battingShort}{isLive ? ' *' : ''}
+                    </Text>
+                    <Text style={[styles.scoreVal, { color: isLive ? LIVE_RED : theme.colors.onSurface }]}>
                       {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
                     </Text>
                   </View>
-                  <View style={styles.scoreLine}>
-                    <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant }]}>{bowlingShort}</Text>
-                    <Text style={[styles.scoreVal, { color: theme.colors.onSurfaceVariant }]}>Yet to bat</Text>
-                  </View>
+                  {isLive && (
+                    <View style={styles.scoreLine}>
+                      <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant }]}>{bowlingShort}</Text>
+                      <Text style={[styles.scoreVal, { color: theme.colors.onSurfaceVariant }]}>Yet to bat</Text>
+                    </View>
+                  )}
                 </>
+              )}
+              {isCompleted && match.result && (
+                <Text style={[styles.chaseText, { color: theme.colors.primary, fontWeight: '600' }]} numberOfLines={2}>
+                  {match.result}
+                </Text>
               )}
             </View>
           );
-        })() : isCompleted && match.result ? (
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={2}>
-            {match.result}
-          </Text>
-        ) : null}
+        })() : null}
       </Card.Content>
     </Card>
   );
