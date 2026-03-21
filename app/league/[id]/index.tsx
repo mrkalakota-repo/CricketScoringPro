@@ -7,6 +7,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLeagueStore } from '../../../src/store/league-store';
 import { useTeamStore } from '../../../src/store/team-store';
 import { usePrefsStore } from '../../../src/store/prefs-store';
+import { useRole } from '../../../src/hooks/useRole';
 import type { LeagueFixture, LeagueStandingRow } from '../../../src/engine/types';
 
 type Tab = 'teams' | 'standings' | 'fixtures' | 'bracket';
@@ -29,8 +30,11 @@ export default function LeagueDetailScreen() {
   const teams = useTeamStore(s => s.teams);
   const myLeagueIds = usePrefsStore(s => s.myLeagueIds);
 
+  const { canCreateLeague } = useRole();
   const league = leagues.find(l => l.id === id);
   const isOwner = league ? myLeagueIds.includes(league.id) : false;
+  // Can manage only if both the league belongs to this user AND their role permits it
+  const canManage = isOwner && canCreateLeague;
   const fixtures = allFixtures[id ?? ''] ?? [];
   const standings: LeagueStandingRow[] = league ? computeStandings(id!) : [];
 
@@ -80,7 +84,7 @@ export default function LeagueDetailScreen() {
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen options={{
         title: league.name,
-        headerRight: () => isOwner ? (
+        headerRight: () => canManage ? (
           <IconButton icon="delete-outline" iconColor="#FFFFFF" size={22} onPress={() => setShowDeleteDialog(true)} />
         ) : null,
       }} />
@@ -170,7 +174,7 @@ export default function LeagueDetailScreen() {
           data={leagueTeams}
           keyExtractor={t => t.id}
           contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 8) + 80 }}
-          ListHeaderComponent={isOwner ? (
+          ListHeaderComponent={canManage ? (
             <Button mode="contained" icon="plus" onPress={() => setShowAddTeam(true)} style={styles.addBtn}>
               Add Team
             </Button>
@@ -191,7 +195,7 @@ export default function LeagueDetailScreen() {
                   <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>{item.name}</Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{item.players.length} players</Text>
                 </View>
-                {isOwner && <IconButton icon="close" size={18} iconColor={theme.colors.error} onPress={() => setRemoveTeamId(item.id)} />}
+                {canManage && <IconButton icon="close" size={18} iconColor={theme.colors.error} onPress={() => setRemoveTeamId(item.id)} />}
               </Card.Content>
             </Card>
           )}
@@ -200,7 +204,7 @@ export default function LeagueDetailScreen() {
 
       {tab === 'bracket' && (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 8) + 80 }}>
-          {isOwner && (
+          {canManage && (
             <Button mode="contained" icon="plus" onPress={() => router.push(`/league/${id}/schedule`)} style={[styles.addBtn, { marginBottom: 16 }]}>
               Add / Generate Bracket
             </Button>
@@ -257,7 +261,7 @@ export default function LeagueDetailScreen() {
                             {f.result}
                           </Text>
                         )}
-                        {f.status === 'completed' && isOwner && (
+                        {f.status === 'completed' && canManage && (
                           <Button
                             mode="outlined"
                             compact
@@ -342,7 +346,7 @@ export default function LeagueDetailScreen() {
           ]}
           keyExtractor={(item, idx) => item.type === 'header' ? `hdr-${idx}` : item.fixture.id}
           contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 8) + 80 }}
-          ListHeaderComponent={isOwner ? (
+          ListHeaderComponent={canManage ? (
             <Button mode="contained" icon="calendar-plus" onPress={() => router.push(`/league/${id}/schedule`)} style={styles.addBtn}>
               Add / Generate Fixtures
             </Button>
@@ -396,7 +400,7 @@ export default function LeagueDetailScreen() {
                       {f.result}
                     </Text>
                   )}
-                  {f.status === 'completed' && isOwner && (
+                  {f.status === 'completed' && canManage && (
                     <Button
                       mode="outlined"
                       compact
