@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMatchStore } from '../../src/store/match-store';
 
 const APP_NAME = 'Gully Cricket Scorer';
 
@@ -16,6 +17,7 @@ function TabIcon({ name, activeName, color, size, focused }: {
 export default function TabsLayout() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const pendingInvitationCount = useMatchStore(s => s.pendingInvitationCount);
 
   const tabBarHeight = 60 + Math.max(insets.bottom, 4);
 
@@ -57,6 +59,7 @@ export default function TabsLayout() {
         name="matches"
         options={{
           title: 'Matches',
+          tabBarBadge: pendingInvitationCount > 0 ? pendingInvitationCount : undefined,
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="trophy-outline" activeName="trophy" color={color} size={size} focused={focused} />
           ),

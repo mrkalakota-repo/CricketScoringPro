@@ -15,6 +15,13 @@ const ROLE_OPTIONS: { value: UserRole; label: string; icon: string; color: strin
   { value: 'league_admin', label: 'League Admin', icon: 'shield-crown',       color: '#7B1FA2', desc: 'Run tournaments' },
 ];
 
+const ROLE_RANK: Record<UserRole, number> = {
+  viewer: 0,
+  scorer: 1,
+  team_admin: 2,
+  league_admin: 3,
+};
+
 export default function MyProfileScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -40,6 +47,9 @@ export default function MyProfileScreen() {
 
   // Logout confirm
   const [logoutVisible, setLogoutVisible] = useState(false);
+
+  // Role downgrade confirm
+  const [downgradeVisible, setDowngradeVisible] = useState(false);
 
   if (!profile) {
     return null; // shouldn't reach here — _layout guards auth
@@ -83,7 +93,14 @@ export default function MyProfileScreen() {
     }
   };
 
+  const isDowngrade = ROLE_RANK[pendingRole] < ROLE_RANK[profile.role];
+
   const handleSaveRole = async () => {
+    if (isDowngrade && !downgradeVisible) {
+      setDowngradeVisible(true);
+      return;
+    }
+    setDowngradeVisible(false);
     setSaving(true);
     try {
       await updateProfile(profile.name, undefined, pendingRole);
@@ -300,6 +317,23 @@ export default function MyProfileScreen() {
           Sign Out
         </Button>
       </View>
+
+      {/* Role downgrade warning dialog */}
+      <Portal>
+        <Dialog visible={downgradeVisible} onDismiss={() => setDowngradeVisible(false)}>
+          <Dialog.Title>Reduce permissions?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              Changing to <Text style={{ fontWeight: '700' }}>{ROLE_OPTIONS.find(r => r.value === pendingRole)?.label}</Text> will
+              remove some of your current capabilities. You can change your role again later.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDowngradeVisible(false)}>Cancel</Button>
+            <Button textColor={theme.colors.error} onPress={handleSaveRole}>Confirm</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
       {/* Logout confirm dialog */}
       <Portal>

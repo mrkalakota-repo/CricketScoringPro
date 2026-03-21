@@ -14,6 +14,7 @@ interface MatchStore {
   // Match list
   matches: MatchRow[];
   loading: boolean;
+  pendingInvitationCount: number;
 
   // Actions
   loadMatches: () => Promise<void>;
@@ -34,6 +35,7 @@ interface MatchStore {
   saveMatch: () => Promise<void>;
   deleteMatch: (id: string) => Promise<void>;
   clearActiveMatch: () => void;
+  setPendingInvitationCount: (count: number) => void;
 }
 
 export const useMatchStore = create<MatchStore>((set, get) => ({
@@ -41,6 +43,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   matchId: null,
   matches: [],
   loading: false,
+  pendingInvitationCount: 0,
 
   loadMatches: async () => {
     set({ loading: true });
@@ -207,6 +210,10 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
 
   clearActiveMatch: () => {
     set({ engine: null, matchId: null });
+  },
+
+  setPendingInvitationCount: (count) => {
+    set({ pendingInvitationCount: count });
   },
 
   acceptMatchInvitation: async (matchId) => {

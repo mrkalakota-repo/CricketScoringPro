@@ -40,6 +40,8 @@ export default function ScoringScreen() {
   const [isBye, setIsBye] = useState(false);
   const [isLegBye, setIsLegBye] = useState(false);
 
+  const [recording, setRecording] = useState(false);
+
   // Modals
   const [wicketModal, setWicketModal] = useState(false);
   const [bowlerModal, setBowlerModal] = useState(false);
@@ -132,6 +134,8 @@ export default function ScoringScreen() {
   };
 
   const handleRun = (runs: number) => {
+    if (recording) return;
+    setRecording(true);
     const input: BallInput = {
       runs,
       isWide,
@@ -146,6 +150,7 @@ export default function ScoringScreen() {
 
     // Check post-ball state
     setTimeout(() => {
+      setRecording(false);
       const currentEngine = useMatchStore.getState().engine;
       if (!currentEngine) return;
       const currentInnings = currentEngine.getCurrentInnings();
@@ -158,7 +163,7 @@ export default function ScoringScreen() {
       } else if (!currentInnings.currentStrikerId || !currentInnings.currentNonStrikerId) {
         setNewBatterModal(true);
       }
-    }, 100);
+    }, 300);
   };
 
   const handleWicket = () => {
@@ -169,6 +174,7 @@ export default function ScoringScreen() {
   };
 
   const confirmWicket = () => {
+    setRecording(true);
     const input: BallInput = {
       runs: 0,
       isWide: false,
@@ -197,7 +203,8 @@ export default function ScoringScreen() {
       } else if (!currentInnings.currentStrikerId || !currentInnings.currentNonStrikerId) {
         setNewBatterModal(true);
       }
-    }, 100);
+      setRecording(false);
+    }, 300);
   };
 
   const handleUndo = () => {
@@ -418,7 +425,8 @@ export default function ScoringScreen() {
             {[0, 1, 2, 3].map(runs => (
               <Pressable
                 key={runs}
-                style={[styles.runButton, { backgroundColor: runs === 0 ? theme.colors.surfaceVariant : theme.colors.primaryContainer }]}
+                disabled={recording}
+                style={[styles.runButton, { backgroundColor: runs === 0 ? theme.colors.surfaceVariant : theme.colors.primaryContainer, opacity: recording ? 0.5 : 1 }]}
                 onPress={() => handleRun(runs)}
               >
                 <Text style={[styles.runText, { color: theme.colors.onSurface }]}>{runs}</Text>
@@ -429,8 +437,10 @@ export default function ScoringScreen() {
             {[4, 5, 6].map(runs => (
               <Pressable
                 key={runs}
+                disabled={recording}
                 style={[styles.runButton, {
-                  backgroundColor: runs === 4 ? '#C8E8C8' : runs === 6 ? '#FFE0B2' : theme.colors.primaryContainer
+                  backgroundColor: runs === 4 ? '#C8E8C8' : runs === 6 ? '#FFE0B2' : theme.colors.primaryContainer,
+                  opacity: recording ? 0.5 : 1,
                 }]}
                 onPress={() => handleRun(runs)}
               >
@@ -438,7 +448,8 @@ export default function ScoringScreen() {
               </Pressable>
             ))}
             <Pressable
-              style={[styles.runButton, { backgroundColor: '#FFCDD2' }]}
+              disabled={recording}
+              style={[styles.runButton, { backgroundColor: '#FFCDD2', opacity: recording ? 0.5 : 1 }]}
               onPress={handleWicket}
             >
               <Text style={[styles.runText, { color: colors.wicket }]}>W</Text>

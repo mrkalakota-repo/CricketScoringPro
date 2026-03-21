@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, Card, useTheme, TouchableRipple, Chip } from 'react-native-paper';
+import { Text, Card, useTheme, TouchableRipple, Chip, Button } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -51,6 +51,7 @@ function TeamChatRow({ team, isDelegate, messageCount }: { team: Team; isDelegat
 }
 
 export default function ChatTab() {
+  const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const teams = useTeamStore(s => s.teams);
@@ -88,6 +89,14 @@ export default function ChatTab() {
         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
           Create or join a team to start chatting with your squad.
         </Text>
+        <Button
+          mode="contained"
+          icon="shield-account"
+          onPress={() => router.push('/(tabs)/teams')}
+          style={{ marginTop: 20 }}
+        >
+          Go to Teams
+        </Button>
       </View>
     );
   }

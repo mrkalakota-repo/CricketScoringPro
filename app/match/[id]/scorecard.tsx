@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, StyleSheet, ScrollView, Share } from 'react-native';
-import { Text, useTheme, SegmentedButtons, Divider, Surface, IconButton } from 'react-native-paper';
+import { Text, useTheme, SegmentedButtons, Divider, Surface, IconButton, Button } from 'react-native-paper';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMatchStore } from '../../../src/store/match-store';
 import { formatOvers, formatBatterScore, formatBowlerFigures, dismissalDescription } from '../../../src/utils/formatters';
@@ -197,21 +197,14 @@ export default function ScorecardScreen() {
       )}
       {/* Share Button */}
       <View style={{ padding: 16, paddingBottom: 32 }}>
-        <Surface style={{ borderRadius: 20, overflow: 'hidden' }} elevation={1}>
-          <Text
-            onPress={handleShare}
-            style={{
-              textAlign: 'center',
-              padding: 14,
-              fontWeight: '700',
-              fontSize: 14,
-              color: theme.colors.primary,
-              letterSpacing: 0.3,
-            }}
-          >
-            ↑  Share Scorecard
-          </Text>
-        </Surface>
+        <Button
+          mode="contained"
+          icon="share-variant"
+          onPress={handleShare}
+          contentStyle={{ paddingVertical: 4 }}
+        >
+          Share Scorecard
+        </Button>
       </View>
     </ScrollView>
   );

@@ -81,7 +81,7 @@ export default function MatchesScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { matches, loading, loadMatches, acceptMatchInvitation, declineMatchInvitation } = useMatchStore();
+  const { matches, loading, loadMatches, acceptMatchInvitation, declineMatchInvitation, setPendingInvitationCount } = useMatchStore();
   const teams = useTeamStore(s => s.teams);
   const { canCreateMatch } = useRole();
   const myPhone = useUserAuth(s => s.profile?.phone ?? null);
@@ -123,8 +123,14 @@ export default function MatchesScreen() {
   // Subscribe to incoming match invitations (team2 admin view)
   useEffect(() => {
     if (!isCloudEnabled || !myPhone) return;
-    cloudMatchRepo.fetchPendingInvitations(myPhone).then(setPendingInvitations);
-    invUnsubRef.current = cloudMatchRepo.subscribeToInvitations(myPhone, setPendingInvitations);
+    cloudMatchRepo.fetchPendingInvitations(myPhone).then(invs => {
+      setPendingInvitations(invs);
+      setPendingInvitationCount(invs.length);
+    });
+    invUnsubRef.current = cloudMatchRepo.subscribeToInvitations(myPhone, invs => {
+      setPendingInvitations(invs);
+      setPendingInvitationCount(invs.length);
+    });
     return () => { invUnsubRef.current?.(); };
   }, [myPhone]);
 
@@ -132,7 +138,11 @@ export default function MatchesScreen() {
     setRespondingTo(inv.matchId);
     try {
       await acceptMatchInvitation(inv.matchId);
-      setPendingInvitations(prev => prev.filter(i => i.matchId !== inv.matchId));
+      setPendingInvitations(prev => {
+        const updated = prev.filter(i => i.matchId !== inv.matchId);
+        setPendingInvitationCount(updated.length);
+        return updated;
+      });
       router.push(`/match/${inv.matchId}/toss`);
     } finally {
       setRespondingTo(null);
@@ -143,7 +153,11 @@ export default function MatchesScreen() {
     setRespondingTo(inv.matchId);
     try {
       await declineMatchInvitation(inv.matchId);
-      setPendingInvitations(prev => prev.filter(i => i.matchId !== inv.matchId));
+      setPendingInvitations(prev => {
+        const updated = prev.filter(i => i.matchId !== inv.matchId);
+        setPendingInvitationCount(updated.length);
+        return updated;
+      });
     } finally {
       setRespondingTo(null);
     }

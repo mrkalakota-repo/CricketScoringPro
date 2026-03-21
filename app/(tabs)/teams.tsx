@@ -140,8 +140,16 @@ export default function TeamsScreen() {
   const [locState, setLocState] = useState<LocationState>('loading');
   const [cloudState, setCloudState] = useState<CloudState>('idle');
   const syncedRef = useRef(false); // prevent re-sync on every focus
+  const lastSyncTimeRef = useRef(0);
+  const SYNC_COOLDOWN_MS = 60_000; // re-sync at most once per minute on tab focus
 
-  useFocusEffect(useCallback(() => { loadTeams(); }, []));
+  useFocusEffect(useCallback(() => {
+    loadTeams();
+    const now = Date.now();
+    if (now - lastSyncTimeRef.current > SYNC_COOLDOWN_MS) {
+      syncedRef.current = false;
+    }
+  }, []));
 
   // Request location once on mount
   useEffect(() => {
@@ -171,6 +179,7 @@ export default function TeamsScreen() {
         );
         await importCloudTeams(cloudTeams, myTeamIds);
         setCloudState('done');
+        lastSyncTimeRef.current = Date.now();
       } catch {
         setCloudState('error');
       }
