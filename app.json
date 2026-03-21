@@ -23,6 +23,7 @@
     "android": {
       "package": "com.gullycricket.scorer",
       "versionCode": 2,
+      "enableProguardInReleaseBuilds": true,
       "adaptiveIcon": {
         "backgroundColor": "#00695C",
         "foregroundImage": "./assets/android-icon-foreground.png",
