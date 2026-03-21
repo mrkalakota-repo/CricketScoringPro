@@ -84,7 +84,7 @@ export default function HomeScreen() {
   const subscribeLive = useLiveScoresStore(s => s.subscribe);
   const liveLoading = useLiveScoresStore(s => s.loading);
   const profile = useUserAuth(s => s.profile);
-  const { roleLabel, roleIcon, roleColor } = useRole();
+  const { roleLabel, roleIcon, roleColor, canCreateMatch } = useRole();
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
   useFocusEffect(useCallback(() => { loadMatches(); }, []));
@@ -130,17 +130,19 @@ export default function HomeScreen() {
             </Text>
           </View>
         )}
-        <Button
-          mode="contained"
-          onPress={() => router.push('/match/create')}
-          style={styles.heroButton}
-          buttonColor="rgba(255,255,255,0.95)"
-          textColor={theme.colors.primary}
-          icon="plus-circle"
-          contentStyle={{ paddingHorizontal: 8 }}
-        >
-          New Match
-        </Button>
+        {canCreateMatch && (
+          <Button
+            mode="contained"
+            onPress={() => router.push('/match/create')}
+            style={styles.heroButton}
+            buttonColor="rgba(255,255,255,0.95)"
+            textColor={theme.colors.primary}
+            icon="plus-circle"
+            contentStyle={{ paddingHorizontal: 8 }}
+          >
+            New Match
+          </Button>
+        )}
       </Surface>
 
       {/* Quick Actions Row */}

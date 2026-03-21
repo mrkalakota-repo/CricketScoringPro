@@ -10,7 +10,7 @@
  *   Record Ball Data     |      ❌      |     ❌     |   ✅   |   ❌
  *   View Live Scores     |      ✅      |     ✅     |   ✅   |   ✅
  *   Delete Match         |      ✅      |     ❌     |   ❌   |   ❌
- *   Create/Start Match   |      ✅      |     ✅     |   ✅   |   ❌
+ *   Create/Start Match   |      ✅      |     ✅     |   ❌   |   ❌
  *   Create Team          |      ✅      |     ✅     |   ❌   |   ❌
  */
 
@@ -64,7 +64,7 @@ export function useRole(): RolePermissions {
     role,
     canCreateLeague: role === 'league_admin',
     canManageTeams:  role === 'league_admin' || role === 'team_admin',
-    canCreateMatch:  role === 'league_admin' || role === 'team_admin' || role === 'scorer',
+    canCreateMatch:  role === 'league_admin' || role === 'team_admin',
     canScore:        role === 'league_admin' || role === 'scorer',
     canDeleteMatch:  role === 'league_admin',
     canViewLive:     role !== null,
