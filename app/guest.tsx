@@ -1,11 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Button, Card, useTheme, ActivityIndicator, Surface } from 'react-native-paper';
+import { Text, Button, Card, useTheme, ActivityIndicator, Surface, Portal, Dialog } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLiveScoresStore } from '../src/store/live-scores-store';
 import { isCloudEnabled } from '../src/config/supabase';
 import { LIVE_RED } from '../src/components/NearbyLiveCard';
+import { formatOvers } from '../src/utils/formatters';
 import type { LiveMatchSummary } from '../src/db/repositories/cloud-match-repo';
 
 const TOSS_ORANGE = '#F57C00';
@@ -49,10 +50,17 @@ function MatchCard({ match, onPress }: { match: LiveMatchSummary; onPress: () =>
           {match.team1Short} vs {match.team2Short}
         </Text>
 
-        {/* Sign-in prompt instead of score details */}
-        <Text variant="bodySmall" style={[styles.signInHint, { color: theme.colors.onSurfaceVariant }]}>
-          Sign in to view scores
-        </Text>
+        {/* Score summary */}
+        {isLive && match.battingShort ? (
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+            {match.battingShort}: {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
+            {match.target ? ` · need ${match.target - match.score} from ${match.target - 1 - match.score} balls` : ''}
+          </Text>
+        ) : isCompleted && match.result ? (
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={2}>
+            {match.result}
+          </Text>
+        ) : null}
       </Card.Content>
     </Card>
   );
@@ -70,6 +78,7 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
   const subscribeLive = useLiveScoresStore(s => s.subscribe);
   const liveLoading = useLiveScoresStore(s => s.loading);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<LiveMatchSummary | null>(null);
 
   useEffect(() => {
     if (!isCloudEnabled) return;
@@ -82,98 +91,152 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
   const liveCount = nearbyMatches.filter(m => m.status === 'in_progress' || m.status === 'toss').length;
   const completedCount = nearbyMatches.filter(m => m.status === 'completed').length;
 
-  return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 16 }}
-    >
-      {/* Branding */}
-      <Surface style={[styles.hero, { backgroundColor: theme.colors.primary }]} elevation={3}>
-        <MaterialCommunityIcons name="cricket" size={52} color="rgba(255,255,255,0.9)" />
-        <Text variant="headlineMedium" style={styles.heroTitle}>Gully Cricket Scorer</Text>
-        <Text variant="bodyMedium" style={styles.heroSubtitle}>Live scores & results near you</Text>
-        <Button
-          mode="contained"
-          onPress={onSignIn}
-          style={styles.heroButton}
-          buttonColor="rgba(255,255,255,0.95)"
-          textColor={theme.colors.primary}
-          icon="account-circle"
-          contentStyle={{ paddingHorizontal: 8 }}
-        >
-          Sign In / Register
-        </Button>
-      </Surface>
+  const sel = selectedMatch;
 
-      {/* Nearby Matches */}
-      {isCloudEnabled ? (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MaterialCommunityIcons name="map-marker-radius" size={16} color={theme.colors.primary} />
-            <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-              Nearby Matches
+  return (
+    <>
+      <ScrollView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 16 }}
+      >
+        {/* Branding */}
+        <Surface style={[styles.hero, { backgroundColor: theme.colors.primary }]} elevation={3}>
+          <MaterialCommunityIcons name="cricket" size={52} color="rgba(255,255,255,0.9)" />
+          <Text variant="headlineMedium" style={styles.heroTitle}>Gully Cricket Scorer</Text>
+          <Text variant="bodyMedium" style={styles.heroSubtitle}>Live scores & results near you</Text>
+          <Button
+            mode="contained"
+            onPress={onSignIn}
+            style={styles.heroButton}
+            buttonColor="rgba(255,255,255,0.95)"
+            textColor={theme.colors.primary}
+            icon="account-circle"
+            contentStyle={{ paddingHorizontal: 8 }}
+          >
+            Sign In / Register
+          </Button>
+        </Surface>
+
+        {/* Nearby Matches */}
+        {isCloudEnabled ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons name="map-marker-radius" size={16} color={theme.colors.primary} />
+              <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+                Nearby Matches
+              </Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 'auto' }}>
+                within 50 miles
+              </Text>
+            </View>
+
+            {/* Summary chips when matches are loaded */}
+            {nearbyMatches.length > 0 && (
+              <View style={styles.chipRow}>
+                {liveCount > 0 && (
+                  <View style={[styles.chip, { backgroundColor: '#FFEBEE' }]}>
+                    <View style={[styles.chipDot, { backgroundColor: LIVE_RED }]} />
+                    <Text style={[styles.chipText, { color: LIVE_RED }]}>{liveCount} live</Text>
+                  </View>
+                )}
+                {completedCount > 0 && (
+                  <View style={[styles.chip, { backgroundColor: theme.colors.primaryContainer }]}>
+                    <MaterialCommunityIcons name="check-circle" size={10} color={theme.colors.primary} />
+                    <Text style={[styles.chipText, { color: theme.colors.primary }]}>{completedCount} completed</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {liveLoading && nearbyMatches.length === 0 ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginVertical: 24 }} />
+            ) : nearbyMatches.length === 0 ? (
+              <View style={styles.empty}>
+                <MaterialCommunityIcons name="broadcast-off" size={40} color={theme.colors.outlineVariant} />
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, textAlign: 'center' }}>
+                  No matches nearby in the last 24 hours
+                </Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4, textAlign: 'center' }}>
+                  Sign in to start scoring your own match
+                </Text>
+              </View>
+            ) : (
+              nearbyMatches.map(m => (
+                <MatchCard key={m.id} match={m} onPress={() => setSelectedMatch(m)} />
+              ))
+            )}
+          </View>
+        ) : (
+          <View style={styles.empty}>
+            <MaterialCommunityIcons name="cloud-off-outline" size={40} color={theme.colors.outlineVariant} />
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, textAlign: 'center' }}>
+              Cloud not configured
             </Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 'auto' }}>
-              within 50 miles
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4, textAlign: 'center' }}>
+              Sign in to access scoring and team management
             </Text>
           </View>
+        )}
 
-          {/* Summary chips when matches are loaded */}
-          {nearbyMatches.length > 0 && (
-            <View style={styles.chipRow}>
-              {liveCount > 0 && (
-                <View style={[styles.chip, { backgroundColor: '#FFEBEE' }]}>
-                  <View style={[styles.chipDot, { backgroundColor: LIVE_RED }]} />
-                  <Text style={[styles.chipText, { color: LIVE_RED }]}>{liveCount} live</Text>
-                </View>
-              )}
-              {completedCount > 0 && (
-                <View style={[styles.chip, { backgroundColor: theme.colors.primaryContainer }]}>
-                  <MaterialCommunityIcons name="check-circle" size={10} color={theme.colors.primary} />
-                  <Text style={[styles.chipText, { color: theme.colors.primary }]}>{completedCount} completed</Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          {liveLoading && nearbyMatches.length === 0 ? (
-            <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginVertical: 24 }} />
-          ) : nearbyMatches.length === 0 ? (
-            <View style={styles.empty}>
-              <MaterialCommunityIcons name="broadcast-off" size={40} color={theme.colors.outlineVariant} />
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, textAlign: 'center' }}>
-                No matches nearby in the last 24 hours
-              </Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4, textAlign: 'center' }}>
-                Sign in to start scoring your own match
-              </Text>
-            </View>
-          ) : (
-            nearbyMatches.map(m => <MatchCard key={m.id} match={m} onPress={onSignIn} />)
-          )}
-        </View>
-      ) : (
-        <View style={styles.empty}>
-          <MaterialCommunityIcons name="cloud-off-outline" size={40} color={theme.colors.outlineVariant} />
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, textAlign: 'center' }}>
-            Cloud not configured
+        {/* Sign-in nudge at bottom */}
+        <View style={[styles.footer, { borderTopColor: theme.colors.outlineVariant }]}>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 12 }}>
+            Sign in to manage teams, create matches, and join leagues
           </Text>
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4, textAlign: 'center' }}>
-            Sign in to access scoring and team management
-          </Text>
+          <Button mode="outlined" onPress={onSignIn} icon="login">
+            Sign In / Register
+          </Button>
         </View>
-      )}
+      </ScrollView>
 
-      {/* Sign-in nudge at bottom */}
-      <View style={[styles.footer, { borderTopColor: theme.colors.outlineVariant }]}>
-        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 12 }}>
-          Sign in to view scores, manage teams, and create leagues
-        </Text>
-        <Button mode="outlined" onPress={onSignIn} icon="login">
-          Sign In / Register
-        </Button>
-      </View>
-    </ScrollView>
+      {/* Score detail dialog */}
+      <Portal>
+        <Dialog visible={!!selectedMatch} onDismiss={() => setSelectedMatch(null)}>
+          {sel && (
+            <>
+              <Dialog.Title>
+                {sel.team1Short} vs {sel.team2Short}
+              </Dialog.Title>
+              <Dialog.Content>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
+                  {sel.format.toUpperCase()}{sel.venue ? ` · ${sel.venue}` : ''}
+                </Text>
+
+                {sel.status === 'in_progress' && sel.battingShort ? (
+                  <>
+                    <View style={styles.scoreRow}>
+                      <Text variant="titleLarge" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
+                        {sel.battingShort}: {sel.score}/{sel.wickets}
+                      </Text>
+                      <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                        ({formatOvers(sel.overs, sel.balls)} ov)
+                      </Text>
+                    </View>
+                    {sel.target && (
+                      <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, marginTop: 4 }}>
+                        Target: {sel.target} · Need {sel.target - sel.score} more
+                      </Text>
+                    )}
+                  </>
+                ) : sel.status === 'toss' ? (
+                  <Text variant="bodyMedium" style={{ color: TOSS_ORANGE }}>Toss in progress</Text>
+                ) : sel.status === 'completed' && sel.result ? (
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
+                    {sel.result}
+                  </Text>
+                ) : null}
+              </Dialog.Content>
+              <Dialog.Actions>
+                <Button onPress={() => setSelectedMatch(null)}>Close</Button>
+                <Button mode="contained" onPress={() => { setSelectedMatch(null); onSignIn(); }} icon="login">
+                  Sign In for Full Scorecard
+                </Button>
+              </Dialog.Actions>
+            </>
+          )}
+        </Dialog>
+      </Portal>
+    </>
   );
 }
 
@@ -208,6 +271,6 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   formatChip: { fontSize: 10, fontWeight: '600' },
   teams: { fontWeight: '800', fontSize: 16 },
-  signInHint: { marginTop: 4, fontStyle: 'italic' },
+  scoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4 },
   footer: { marginTop: 24, marginHorizontal: 16, paddingTop: 20, borderTopWidth: StyleSheet.hairlineWidth, alignItems: 'center' },
 });
