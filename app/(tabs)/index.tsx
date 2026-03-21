@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, Card, Button, useTheme, Surface, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useMatchStore } from '../../src/store/match-store';
@@ -45,7 +45,7 @@ export default function HomeScreen() {
   const { roleLabel, roleIcon, roleColor } = useRole();
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  useFocusEffect(useCallback(() => { loadMatches(); }, []));
+  useFocusEffect(useCallback(() => { loadMatches(); loadTeams(); }, []));
 
   // Load nearby live matches and subscribe to real-time updates
   useEffect(() => {
@@ -103,34 +103,40 @@ export default function HomeScreen() {
 
       {/* Quick Actions Row */}
       <View style={styles.quickActions}>
-        <Button compact mode="text" icon="account-search" onPress={() => router.push('/profile')} labelStyle={styles.actionLabel}>
+        <Button compact mode="text" icon="account-circle" onPress={() => router.push('/my-profile')} labelStyle={styles.actionLabel}>
           My Profile
         </Button>
       </View>
 
       {/* Quick Stats */}
       <View style={styles.statsRow}>
-        <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
-          <MaterialCommunityIcons name="shield-account" size={22} color={theme.colors.primary} />
-          <Text variant="headlineMedium" style={[styles.statNum, { color: theme.colors.primary }]}>
-            {teams.length}
-          </Text>
-          <Text variant="bodySmall" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Teams</Text>
-        </Surface>
-        <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
-          <MaterialCommunityIcons name="trophy" size={22} color={theme.colors.primary} />
-          <Text variant="headlineMedium" style={[styles.statNum, { color: theme.colors.primary }]}>
-            {matches.length}
-          </Text>
-          <Text variant="bodySmall" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Matches</Text>
-        </Surface>
-        <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
-          <MaterialCommunityIcons name="broadcast" size={22} color={liveMatches.length > 0 ? LIVE_RED : theme.colors.primary} />
-          <Text variant="headlineMedium" style={[styles.statNum, { color: liveMatches.length > 0 ? LIVE_RED : theme.colors.primary }]}>
-            {liveMatches.length}
-          </Text>
-          <Text variant="bodySmall" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Live</Text>
-        </Surface>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/teams')} activeOpacity={0.75} style={styles.statTouchable}>
+          <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
+            <MaterialCommunityIcons name="shield-account" size={22} color={theme.colors.primary} />
+            <Text variant="headlineMedium" style={[styles.statNum, { color: theme.colors.primary }]}>
+              {teams.length}
+            </Text>
+            <Text variant="bodySmall" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Teams</Text>
+          </Surface>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/matches')} activeOpacity={0.75} style={styles.statTouchable}>
+          <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
+            <MaterialCommunityIcons name="trophy" size={22} color={theme.colors.primary} />
+            <Text variant="headlineMedium" style={[styles.statNum, { color: theme.colors.primary }]}>
+              {matches.length}
+            </Text>
+            <Text variant="bodySmall" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Matches</Text>
+          </Surface>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/matches')} activeOpacity={0.75} style={styles.statTouchable}>
+          <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
+            <MaterialCommunityIcons name="broadcast" size={22} color={liveMatches.length > 0 ? LIVE_RED : theme.colors.primary} />
+            <Text variant="headlineMedium" style={[styles.statNum, { color: liveMatches.length > 0 ? LIVE_RED : theme.colors.primary }]}>
+              {liveMatches.length}
+            </Text>
+            <Text variant="bodySmall" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Live</Text>
+          </Surface>
+        </TouchableOpacity>
       </View>
 
       {/* Live Matches */}
@@ -272,12 +278,14 @@ const styles = StyleSheet.create({
   actionLabel: { fontSize: 11 },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 8,
     marginTop: -16,
   },
+  statTouchable: { flex: 1 },
   statCard: {
+    flex: 1,
     alignItems: 'center',
     padding: 14,
     paddingHorizontal: 20,
