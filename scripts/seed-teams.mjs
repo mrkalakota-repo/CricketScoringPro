@@ -5,11 +5,11 @@
  * to Supabase (cloud_teams + cloud_players).
  *
  * Usage:
- *   node scripts/seed-teams.mjs --owner +919876543210
- *   node scripts/seed-teams.mjs --owner +919876543210 --lat 37.7749 --lon -122.4194
+ *   node scripts/seed-teams.mjs --owner1 7046089917 --owner2 4049065277
+ *   node scripts/seed-teams.mjs --owner 7046089917 --lat 35.0656 --lon -80.7198
  *
  * Options:
- *   --owner  <phone>   (required) Phone number of the team owner, e.g. +919876543210
+ *   --owner  <phone>   (required) 10-digit US phone number, e.g. 7046089917
  *   --lat    <number>  Latitude for proximity discovery (optional)
  *   --lon    <number>  Longitude for proximity discovery (optional)
  *   --url    <url>     Supabase project URL (defaults to EXPO_PUBLIC_SUPABASE_URL from .env)
@@ -62,8 +62,8 @@ const supabaseKey = argVal('--key') || envVars['EXPO_PUBLIC_SUPABASE_ANON_KEY'];
 
 if (!owner1Phone || !owner2Phone) {
   console.error('Error: owner phone(s) are required');
-  console.error('Usage: node scripts/seed-teams.mjs --owner1 +1234 --owner2 +5678');
-  console.error('       node scripts/seed-teams.mjs --owner +1234  (same owner for both)');
+  console.error('Usage: node scripts/seed-teams.mjs --owner1 7046089917 --owner2 4049065277');
+  console.error('       node scripts/seed-teams.mjs --owner 7046089917  (same owner for both)');
   process.exit(1);
 }
 if (!supabaseUrl || !supabaseKey) {
@@ -81,17 +81,17 @@ const TEAMS = [
     lat: 35.0656,
     lon: -80.7198,
     players: [
-      { name: 'Rohit Sharma',     phone: '+911000000001', batting: 'right', bowling: 'Right-arm medium',    keeper: false, allRounder: false, captain: true,  vc: false },
-      { name: 'Shubman Gill',     phone: '+911000000002', batting: 'right', bowling: 'none',                keeper: false, allRounder: false, captain: false, vc: false },
-      { name: 'Virat Kohli',      phone: '+911000000003', batting: 'right', bowling: 'Right-arm medium',    keeper: false, allRounder: false, captain: false, vc: true  },
-      { name: 'Suryakumar Yadav', phone: '+911000000004', batting: 'right', bowling: 'none',                keeper: false, allRounder: false, captain: false, vc: false },
-      { name: 'Hardik Pandya',    phone: '+911000000005', batting: 'right', bowling: 'Right-arm fast',      keeper: false, allRounder: true,  captain: false, vc: false },
-      { name: 'MS Dhoni',         phone: '+911000000006', batting: 'right', bowling: 'none',                keeper: true,  allRounder: false, captain: false, vc: false },
-      { name: 'Ravindra Jadeja',  phone: '+911000000007', batting: 'left',  bowling: 'Left-arm orthodox',   keeper: false, allRounder: true,  captain: false, vc: false },
-      { name: 'Jasprit Bumrah',   phone: '+911000000008', batting: 'right', bowling: 'Right-arm fast',      keeper: false, allRounder: false, captain: false, vc: false },
-      { name: 'Mohammed Shami',   phone: '+911000000009', batting: 'right', bowling: 'Right-arm fast',      keeper: false, allRounder: false, captain: false, vc: false },
-      { name: 'Kuldeep Yadav',    phone: '+911000000010', batting: 'left',  bowling: 'Left-arm chinaman',   keeper: false, allRounder: false, captain: false, vc: false },
-      { name: 'Arshdeep Singh',   phone: '+911000000011', batting: 'left',  bowling: 'Left-arm fast',       keeper: false, allRounder: false, captain: false, vc: false },
+      { name: 'Rohit Sharma',     phone: '1000000001', batting: 'right', bowling: 'Right-arm medium',    keeper: false, allRounder: false, captain: true,  vc: false },
+      { name: 'Shubman Gill',     phone: '1000000002', batting: 'right', bowling: 'none',                keeper: false, allRounder: false, captain: false, vc: false },
+      { name: 'Virat Kohli',      phone: '1000000003', batting: 'right', bowling: 'Right-arm medium',    keeper: false, allRounder: false, captain: false, vc: true  },
+      { name: 'Suryakumar Yadav', phone: '1000000004', batting: 'right', bowling: 'none',                keeper: false, allRounder: false, captain: false, vc: false },
+      { name: 'Hardik Pandya',    phone: '1000000005', batting: 'right', bowling: 'Right-arm fast',      keeper: false, allRounder: true,  captain: false, vc: false },
+      { name: 'MS Dhoni',         phone: '1000000006', batting: 'right', bowling: 'none',                keeper: true,  allRounder: false, captain: false, vc: false },
+      { name: 'Ravindra Jadeja',  phone: '1000000007', batting: 'left',  bowling: 'Left-arm orthodox',   keeper: false, allRounder: true,  captain: false, vc: false },
+      { name: 'Jasprit Bumrah',   phone: '1000000008', batting: 'right', bowling: 'Right-arm fast',      keeper: false, allRounder: false, captain: false, vc: false },
+      { name: 'Mohammed Shami',   phone: '1000000009', batting: 'right', bowling: 'Right-arm fast',      keeper: false, allRounder: false, captain: false, vc: false },
+      { name: 'Kuldeep Yadav',    phone: '1000000010', batting: 'left',  bowling: 'Left-arm chinaman',   keeper: false, allRounder: false, captain: false, vc: false },
+      { name: 'Arshdeep Singh',   phone: '1000000011', batting: 'left',  bowling: 'Left-arm fast',       keeper: false, allRounder: false, captain: false, vc: false },
     ],
   },
   {
@@ -100,17 +100,17 @@ const TEAMS = [
     lat: 35.2269,
     lon: -80.8431,
     players: [
-      { name: 'KL Rahul',          phone: '+912000000001', batting: 'right', bowling: 'none',                keeper: true,  allRounder: false, captain: true,  vc: false },
-      { name: 'Prithvi Shaw',      phone: '+912000000002', batting: 'right', bowling: 'Right-arm off-break', keeper: false, allRounder: false, captain: false, vc: false },
-      { name: 'Shreyas Iyer',      phone: '+912000000003', batting: 'right', bowling: 'none',                keeper: false, allRounder: false, captain: false, vc: true  },
-      { name: 'Rishabh Pant',      phone: '+912000000004', batting: 'left',  bowling: 'none',                keeper: false, allRounder: false, captain: false, vc: false },
-      { name: 'Axar Patel',        phone: '+912000000005', batting: 'left',  bowling: 'Left-arm orthodox',   keeper: false, allRounder: true,  captain: false, vc: false },
-      { name: 'Harshal Patel',     phone: '+912000000006', batting: 'right', bowling: 'Right-arm medium',    keeper: false, allRounder: false, captain: false, vc: false },
-      { name: 'Anrich Nortje',     phone: '+912000000007', batting: 'right', bowling: 'Right-arm fast',      keeper: false, allRounder: false, captain: false, vc: false },
-      { name: 'Ishant Sharma',     phone: '+912000000008', batting: 'right', bowling: 'Right-arm fast',      keeper: false, allRounder: false, captain: false, vc: false },
-      { name: 'Shardul Thakur',    phone: '+912000000009', batting: 'right', bowling: 'Right-arm medium',    keeper: false, allRounder: true,  captain: false, vc: false },
-      { name: 'Yuzvendra Chahal',  phone: '+912000000010', batting: 'right', bowling: 'Right-arm leg-break', keeper: false, allRounder: false, captain: false, vc: false },
-      { name: 'Avesh Khan',        phone: '+912000000011', batting: 'right', bowling: 'Right-arm fast',      keeper: false, allRounder: false, captain: false, vc: false },
+      { name: 'KL Rahul',          phone: '2000000001', batting: 'right', bowling: 'none',                keeper: true,  allRounder: false, captain: true,  vc: false },
+      { name: 'Prithvi Shaw',      phone: '2000000002', batting: 'right', bowling: 'Right-arm off-break', keeper: false, allRounder: false, captain: false, vc: false },
+      { name: 'Shreyas Iyer',      phone: '2000000003', batting: 'right', bowling: 'none',                keeper: false, allRounder: false, captain: false, vc: true  },
+      { name: 'Rishabh Pant',      phone: '2000000004', batting: 'left',  bowling: 'none',                keeper: false, allRounder: false, captain: false, vc: false },
+      { name: 'Axar Patel',        phone: '2000000005', batting: 'left',  bowling: 'Left-arm orthodox',   keeper: false, allRounder: true,  captain: false, vc: false },
+      { name: 'Harshal Patel',     phone: '2000000006', batting: 'right', bowling: 'Right-arm medium',    keeper: false, allRounder: false, captain: false, vc: false },
+      { name: 'Anrich Nortje',     phone: '2000000007', batting: 'right', bowling: 'Right-arm fast',      keeper: false, allRounder: false, captain: false, vc: false },
+      { name: 'Ishant Sharma',     phone: '2000000008', batting: 'right', bowling: 'Right-arm fast',      keeper: false, allRounder: false, captain: false, vc: false },
+      { name: 'Shardul Thakur',    phone: '2000000009', batting: 'right', bowling: 'Right-arm medium',    keeper: false, allRounder: true,  captain: false, vc: false },
+      { name: 'Yuzvendra Chahal',  phone: '2000000010', batting: 'right', bowling: 'Right-arm leg-break', keeper: false, allRounder: false, captain: false, vc: false },
+      { name: 'Avesh Khan',        phone: '2000000011', batting: 'right', bowling: 'Right-arm fast',      keeper: false, allRounder: false, captain: false, vc: false },
     ],
   },
 ];
