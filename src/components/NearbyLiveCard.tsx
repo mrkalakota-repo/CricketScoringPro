@@ -8,13 +8,13 @@ function formatOvers(overs: number, balls: number): string {
   return `${overs}.${balls}`;
 }
 
-export function NearbyLiveCard({ match }: { match: LiveMatchSummary }) {
+export function NearbyLiveCard({ match, onPress }: { match: LiveMatchSummary; onPress?: () => void }) {
   const theme = useTheme();
   const isLive = match.status === 'in_progress' || match.status === 'toss';
   const stripeColor = match.status === 'completed' ? theme.colors.primary : LIVE_RED;
 
   return (
-    <Card style={[styles.matchCard, isLive && styles.liveMatchCard]}>
+    <Card style={[styles.matchCard, isLive && styles.liveMatchCard]} onPress={onPress}>
       <View style={[styles.liveStripe, { backgroundColor: stripeColor }]} />
       <Card.Content style={styles.liveCardContent}>
         <View style={styles.liveTop}>

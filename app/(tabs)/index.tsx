@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Text, Card, Button, useTheme, Surface, ActivityIndicator } from 'react-native-paper';
+import { Text, Card, Button, useTheme, Surface, ActivityIndicator, Portal, Dialog } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
@@ -11,6 +11,8 @@ import type { MatchRow } from '../../src/db/repositories/match-repo';
 import { useUserAuth } from '../../src/hooks/useUserAuth';
 import { useRole } from '../../src/hooks/useRole';
 import { NearbyLiveCard, LIVE_RED } from '../../src/components/NearbyLiveCard';
+import { formatOvers } from '../../src/utils/formatters';
+import type { LiveMatchSummary } from '../../src/db/repositories/cloud-match-repo';
 
 function getMatchDisplayInfo(row: MatchRow): { teams: string; score: string | null } {
   if (!row.match_state_json) {
@@ -44,6 +46,7 @@ export default function HomeScreen() {
   const profile = useUserAuth(s => s.profile);
   const { roleLabel, roleIcon, roleColor, canCreateMatch } = useRole();
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const [selectedNearby, setSelectedNearby] = useState<LiveMatchSummary | null>(null);
 
   useFocusEffect(useCallback(() => { loadMatches(); loadTeams(); }, []));
 
@@ -73,7 +76,10 @@ export default function HomeScreen() {
     }
   };
 
+  const sel = selectedNearby;
+
   return (
+    <>
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Hero */}
       <Surface style={[styles.hero, { backgroundColor: theme.colors.primary }]} elevation={3}>
@@ -194,7 +200,7 @@ export default function HomeScreen() {
           {liveLoading && nearbyLive.length === 0 ? (
             <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginVertical: 12 }} />
           ) : (
-            nearbyLive.map(m => <NearbyLiveCard key={m.id} match={m} />)
+            nearbyLive.map(m => <NearbyLiveCard key={m.id} match={m} onPress={() => setSelectedNearby(m)} />)
           )}
         </View>
       )}
@@ -254,6 +260,45 @@ export default function HomeScreen() {
       <View style={{ height: 24 }} />
 
     </ScrollView>
+
+    {/* Nearby match score dialog */}
+    <Portal>
+      <Dialog visible={!!selectedNearby} onDismiss={() => setSelectedNearby(null)}>
+        {sel && (
+          <>
+            <Dialog.Title>{sel.team1Short} vs {sel.team2Short}</Dialog.Title>
+            <Dialog.Content>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
+                {sel.format.toUpperCase()}{sel.venue ? ` · ${sel.venue}` : ''}
+              </Text>
+              {sel.status === 'in_progress' && sel.battingShort ? (
+                <>
+                  <Text variant="titleLarge" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
+                    {sel.battingShort}: {sel.score}/{sel.wickets}
+                  </Text>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                    {formatOvers(sel.overs, sel.balls)} overs
+                  </Text>
+                  {sel.target && (
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, marginTop: 4 }}>
+                      Target: {sel.target} · Need {sel.target - sel.score} more
+                    </Text>
+                  )}
+                </>
+              ) : sel.status === 'toss' ? (
+                <Text variant="bodyMedium" style={{ color: '#F57C00' }}>Toss in progress</Text>
+              ) : sel.result ? (
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>{sel.result}</Text>
+              ) : null}
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setSelectedNearby(null)}>Close</Button>
+            </Dialog.Actions>
+          </>
+        )}
+      </Dialog>
+    </Portal>
+    </>
   );
 }
 
