@@ -38,7 +38,7 @@ export default function LoginScreen({ onBack }: LoginScreenProps = {}) {
   const [confirmPin, setConfirmPin] = useState('');
   const [role, setRole] = useState<UserRole>('scorer');
 
-  // Restore only — pre-fill phone when session expired so user only needs to enter PIN
+  // Restore only — pre-fill phone (digits only) when session expired
   const [restorePhone, setRestorePhone] = useState(sessionExpired ? (profile?.phone ?? '') : '');
   const [restorePin, setRestorePin] = useState('');
 
@@ -62,7 +62,7 @@ export default function LoginScreen({ onBack }: LoginScreenProps = {}) {
   // ── Register ──────────────────────────────────────────────────────────────
   const handleRegister = async () => {
     if (!phone.trim()) { setError('Phone number is required'); return; }
-    if (!/^\+?[0-9]{7,15}$/.test(phone.replace(/\s/g, ''))) { setError('Enter a valid phone number'); return; }
+    if (!/^[0-9]{10}$/.test(phone.replace(/\s/g, ''))) { setError('Enter a valid 10-digit phone number'); return; }
     if (!name.trim()) { setError('Your name is required'); return; }
     if (pin.length < 4) { setError('PIN must be at least 4 digits'); return; }
     if (pin !== confirmPin) { setError('PINs do not match'); return; }
@@ -89,6 +89,7 @@ export default function LoginScreen({ onBack }: LoginScreenProps = {}) {
   // ── Restore ───────────────────────────────────────────────────────────────
   const handleRestore = async () => {
     if (!restorePhone.trim()) { setError('Phone number is required'); return; }
+    if (!/^[0-9]{10}$/.test(restorePhone.trim())) { setError('Enter a valid 10-digit phone number'); return; }
     if (restorePin.length < 4) { setError('Enter your PIN'); return; }
     setBusy(true);
     try {
@@ -133,12 +134,14 @@ export default function LoginScreen({ onBack }: LoginScreenProps = {}) {
             <TextInput
               label="Phone Number"
               value={phone}
-              onChangeText={t => { setPhone(t); clearErrors(); }}
+              onChangeText={t => { setPhone(t.replace(/[^0-9]/g, '')); clearErrors(); }}
               mode="outlined"
               style={styles.input}
-              keyboardType="phone-pad"
-              placeholder="+91 98765 43210"
+              keyboardType="number-pad"
+              maxLength={10}
+              placeholder="e.g., 8001234567"
               left={<TextInput.Icon icon="phone" />}
+              right={<TextInput.Affix text="+1" />}
               autoFocus
             />
             <TextInput
@@ -337,12 +340,14 @@ export default function LoginScreen({ onBack }: LoginScreenProps = {}) {
             <TextInput
               label="Phone Number"
               value={restorePhone}
-              onChangeText={t => { setRestorePhone(t); clearErrors(); }}
+              onChangeText={t => { setRestorePhone(t.replace(/[^0-9]/g, '')); clearErrors(); }}
               mode="outlined"
               style={styles.input}
-              keyboardType="phone-pad"
-              placeholder="+91 98765 43210"
+              keyboardType="number-pad"
+              maxLength={10}
+              placeholder="e.g., 8001234567"
               left={<TextInput.Icon icon="phone" />}
+              right={<TextInput.Affix text="+1" />}
               autoFocus={!sessionExpired}
             />
             <TextInput
