@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Button, Card, useTheme, SegmentedButtons, TextInput, RadioButton, Checkbox, Divider } from 'react-native-paper';
 import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTeamStore } from '../../src/store/team-store';
 import { useMatchStore } from '../../src/store/match-store';
+import { useRole } from '../../src/hooks/useRole';
 import { FORMAT_CONFIGS } from '../../src/engine/types';
 import type { MatchFormat, MatchConfig, Player } from '../../src/engine/types';
 import { createNewMatch } from '../../src/engine/match-engine';
@@ -18,6 +20,24 @@ export default function CreateMatchScreen() {
   const theme = useTheme();
   const teams = useTeamStore(s => s.teams);
   const { createAndStartMatch } = useMatchStore();
+  const { canCreateMatch } = useRole();
+
+  if (!canCreateMatch) {
+    return (
+      <View style={styles.unauthorized}>
+        <MaterialCommunityIcons name="lock-outline" size={48} color={theme.colors.outlineVariant} />
+        <Text variant="titleMedium" style={[styles.unauthorizedTitle, { color: theme.colors.onSurface }]}>
+          Not Authorised
+        </Text>
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
+          Only Team Admins and League Admins can create matches.
+        </Text>
+        <Button mode="outlined" icon="arrow-left" onPress={() => router.back()} style={{ marginTop: 20 }}>
+          Go Back
+        </Button>
+      </View>
+    );
+  }
 
   const [step, setStep] = useState<Step>('format');
   const [format, setFormat] = useState<MatchFormat>('t20');
@@ -356,4 +376,6 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', padding: 32 },
   summaryCard: { borderRadius: 12, marginBottom: 16 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  unauthorized: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
+  unauthorizedTitle: { fontWeight: '700', marginTop: 8 },
 });
