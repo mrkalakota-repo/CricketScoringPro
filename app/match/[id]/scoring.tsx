@@ -67,10 +67,15 @@ export default function ScoringScreen() {
   const match = engine?.getMatch();
   const innings = engine?.getCurrentInnings();
 
-  // Only the team1 owner/delegate controls scoring; everyone else is a live observer.
-  const isHost = match
+  // Observer = owns team2 but NOT team1 (prevents cross-device double-scoring).
+  // Team1 owners, delegates, and neutral scorers (no team ownership) can all score.
+  const ownsTeam1 = match
     ? (myTeamIds.includes(match.team1.id) || delegateTeamIds.includes(match.team1.id))
-    : true; // default to host until match loads to avoid flashing observer UI
+    : false;
+  const ownsTeam2 = match
+    ? (myTeamIds.includes(match.team2.id) || delegateTeamIds.includes(match.team2.id))
+    : false;
+  const isHost = !(ownsTeam2 && !ownsTeam1);
 
   // Observer: sync live match state from cloud on every ball recorded by the host.
   const syncingRef = useRef(false);

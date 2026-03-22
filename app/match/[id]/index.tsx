@@ -7,6 +7,7 @@ import { useTeamStore } from '../../../src/store/team-store';
 import { useLiveScoresStore } from '../../../src/store/live-scores-store';
 import { usePrefsStore } from '../../../src/store/prefs-store';
 import { useUserAuth } from '../../../src/hooks/useUserAuth';
+import { useRole } from '../../../src/hooks/useRole';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatOvers, dismissalDescription } from '../../../src/utils/formatters';
@@ -21,10 +22,13 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { canScore } = useRole();
+  const { syncMatchFromCloud } = useMatchStore();
   const [cloudMatch, setCloudMatch] = useState<import('../../../src/engine/types').Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [showScorecard, setShowScorecard] = useState(false);
   const [scorecardInnings, setScorecardInnings] = useState('0');
+  const [resuming, setResuming] = useState(false);
 
   useEffect(() => {
     cloudMatchRepo.fetchCloudMatchState(matchId).then(m => {
@@ -104,6 +108,23 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
               </Card.Content>
             </Card>
           ) : null}
+
+          {canScore && cloudMatch.status === 'in_progress' && (
+            <Button
+              mode="contained"
+              icon="play"
+              loading={resuming}
+              disabled={resuming}
+              onPress={async () => {
+                setResuming(true);
+                await syncMatchFromCloud(matchId);
+                router.replace(`/match/${matchId}/scoring`);
+              }}
+              style={[styles.inningsCard, { borderRadius: 12, marginBottom: 0 }]}
+            >
+              Resume Scoring
+            </Button>
+          )}
 
           {cloudMatch.innings.length > 0 && (
             <Button
