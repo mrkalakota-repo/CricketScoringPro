@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, Card, FAB, useTheme, Searchbar, Chip, ActivityIndicator } from 'react-native-paper';
+import { Text, Card, FAB, useTheme, Searchbar, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTeamStore } from '../../src/store/team-store';
@@ -62,26 +62,16 @@ function TeamCard({ team, distance, isMyTeam, isPlayerTeam }: { team: Team; dist
               {team.name}
             </Text>
             {isMyTeam && (
-              <Chip
-                compact
-                icon="star-circle"
-                selectedColor="#FFFFFF"
-                style={{ backgroundColor: theme.colors.primary }}
-                textStyle={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800' }}
-              >
-                MY TEAM
-              </Chip>
+              <View style={[styles.badge, { backgroundColor: theme.colors.primary }]}>
+                <MaterialCommunityIcons name="star-circle" size={11} color="#FFFFFF" />
+                <Text style={styles.badgeText}>MY TEAM</Text>
+              </View>
             )}
             {isPlayerTeam && !isMyTeam && (
-              <Chip
-                compact
-                icon="account-circle"
-                selectedColor="#FFFFFF"
-                style={{ backgroundColor: theme.colors.secondary }}
-                textStyle={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800' }}
-              >
-                PLAYER
-              </Chip>
+              <View style={[styles.badge, { backgroundColor: theme.colors.secondary }]}>
+                <MaterialCommunityIcons name="account-circle" size={11} color="#FFFFFF" />
+                <Text style={styles.badgeText}>PLAYER</Text>
+              </View>
             )}
           </View>
           <View style={styles.metaRow}>
@@ -450,5 +440,7 @@ const styles = StyleSheet.create({
     borderRadius: 12, borderWidth: StyleSheet.hairlineWidth,
   },
   emptyState: { alignItems: 'center', padding: 56 },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '800' as const, letterSpacing: 0.5 },
   fab: { position: 'absolute', right: 16, borderRadius: 28 },
 });
