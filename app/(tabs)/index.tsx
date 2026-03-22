@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Card, Button, useTheme, Surface } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
+import * as cloudMatchRepo from '../../src/db/repositories/cloud-match-repo';
+import { isCloudEnabled } from '../../src/config/supabase';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { MatchRow } from '../../src/db/repositories/match-repo';
 import { useUserAuth } from '../../src/hooks/useUserAuth';
@@ -67,12 +69,32 @@ export default function HomeScreen() {
   const teams = useTeamStore(s => s.teams);
   const loadTeams = useTeamStore(s => s.loadTeams);
   const profile = useUserAuth(s => s.profile);
+  const myPhone = useUserAuth(s => s.profile?.phone ?? null);
   const { roleLabel, roleIcon, roleColor, canCreateMatch } = useRole();
+  const [cloudOnlyCount, setCloudOnlyCount] = useState(0);
 
   // Load on mount (initial launch — useFocusEffect doesn't fire on first render in Expo Router)
   useEffect(() => { loadMatches(); loadTeams(); }, []);
   // Reload on every subsequent focus (returning from other tabs)
   useFocusEffect(useCallback(() => { loadMatches(); loadTeams(); }, []));
+
+  // Fetch cloud-only match count (matches on other devices not in local SQLite)
+  useEffect(() => {
+    if (!isCloudEnabled) return;
+    (async () => {
+      try {
+        const localIds = new Set(useMatchStore.getState().matches.map(m => m.id));
+        let count = 0;
+        if (myPhone) {
+          const mine = await cloudMatchRepo.fetchMyCloudMatches(myPhone, 90);
+          mine.forEach(m => { if (!localIds.has(m.id)) { localIds.add(m.id); count++; } });
+        }
+        const community = await cloudMatchRepo.fetchRecentCloudMatches(90);
+        community.forEach(m => { if (!localIds.has(m.id)) count++; });
+        setCloudOnlyCount(count);
+      } catch { /* silent — stat card falls back to local count */ }
+    })();
+  }, [myPhone]);
 
   const liveMatches = useMemo(
     () => matches.filter(m => m.status === 'in_progress' || m.status === 'toss'),
@@ -145,7 +167,7 @@ export default function HomeScreen() {
           <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
             <MaterialCommunityIcons name="trophy" size={22} color={theme.colors.primary} />
             <Text variant="headlineMedium" style={[styles.statNum, { color: theme.colors.primary }]}>
-              {matches.length}
+              {matches.length + cloudOnlyCount}
             </Text>
             <Text variant="bodySmall" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Matches</Text>
           </Surface>
