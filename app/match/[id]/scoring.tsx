@@ -403,7 +403,7 @@ export default function ScoringScreen() {
 
       {/* Scoring Controls */}
       {canScore && !isMatchComplete && !isInningsComplete && (
-        <View style={styles.controls}>
+        <View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           {/* Extra Toggles */}
           <View style={styles.extrasRow}>
             <Pressable
@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
   ballText: { color: '#FFF', fontSize: 11, fontWeight: 'bold' },
 
   // Controls
-  controls: { flex: 1, justifyContent: 'flex-end', paddingBottom: 16 },
+  controls: { flex: 1, justifyContent: 'flex-end' },
   viewOnlyBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 12, padding: 12, borderRadius: 10 },
   syncChip: { position: 'absolute', top: 8, right: 10, flexDirection: 'row', alignItems: 'center', gap: 3 },
   syncText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },

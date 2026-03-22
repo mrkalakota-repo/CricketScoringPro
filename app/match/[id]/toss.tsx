@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Button, Card, useTheme, RadioButton } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMatchStore } from '../../../src/store/match-store';
 import type { TossDecision } from '../../../src/engine/types';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,6 +10,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 export default function TossScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { engine, loadMatch, recordToss, startMatch, setOpeners, saveMatch } = useMatchStore();
   const matchId = Array.isArray(id) ? id[0] : id;
@@ -70,7 +72,7 @@ export default function TossScreen() {
         </Text>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 24) }]}>
         {step === 'winner' && (
           <>
             <Text variant="titleMedium" style={styles.question}>Who won the toss?</Text>
@@ -164,7 +166,7 @@ export default function TossScreen() {
             </Button>
           </>
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 }

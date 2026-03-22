@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, StyleSheet, ScrollView, Share } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, useTheme, SegmentedButtons, Divider, Surface, IconButton, Button } from 'react-native-paper';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMatchStore } from '../../../src/store/match-store';
@@ -9,6 +10,7 @@ import { buildScorecardText } from '../../../src/utils/scorecard-export';
 
 export default function ScorecardScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const engine = useMatchStore(s => s.engine);
 
@@ -196,7 +198,7 @@ export default function ScorecardScreen() {
         </Surface>
       )}
       {/* Share Button */}
-      <View style={{ padding: 16, paddingBottom: 32 }}>
+      <View style={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16) + 16 }}>
         <Button
           mode="contained"
           icon="share-variant"

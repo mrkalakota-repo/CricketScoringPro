@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, TextInput, Button, useTheme, HelperText, Divider, Portal, Dialog } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserAuth } from '../src/hooks/useUserAuth';
@@ -26,6 +27,7 @@ function PinDots({ count, max, color, dimColor }: { count: number; max: number; 
 
 export default function LoginScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { profile, register, login, restoreFromCloud, restoreStatus, resetRestoreStatus } = useUserAuth();
 
   const defaultMode: Mode = profile ? 'login' : 'register';
@@ -167,7 +169,7 @@ export default function LoginScreen() {
         </Dialog>
       </Portal>
 
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom, 28) }]} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
           <View style={[styles.iconWrap, { backgroundColor: theme.colors.primary + '20' }]}>
@@ -488,7 +490,7 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 28 },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: 28 }, // paddingBottom overridden inline with insets
   header: { alignItems: 'center', marginBottom: 36 },
   iconWrap: { width: 80, height: 80, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   appName: { fontWeight: '900', marginBottom: 8 },

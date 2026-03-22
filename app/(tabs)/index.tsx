@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Card, Button, useTheme, Surface, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useMatchStore } from '../../src/store/match-store';
@@ -55,6 +56,7 @@ function getMatchDisplayInfo(row: MatchRow): { teams: string; scoreLines: ScoreL
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const matches = useMatchStore(s => s.matches);
   const loadMatches = useMatchStore(s => s.loadMatches);
   const teams = useTeamStore(s => s.teams);
@@ -293,7 +295,7 @@ export default function HomeScreen() {
         </View>
       )}
 
-      <View style={{ height: 24 }} />
+      <View style={{ height: Math.max(insets.bottom, 24) }} />
 
     </ScrollView>
   );
