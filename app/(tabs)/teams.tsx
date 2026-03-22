@@ -115,7 +115,7 @@ function TeamCard({ team, distance, isMyTeam, isPlayerTeam }: { team: Team; dist
             )}
           </View>
         </View>
-        <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.outlineVariant} />
+        <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
       </Card.Content>
     </Card>
   );
