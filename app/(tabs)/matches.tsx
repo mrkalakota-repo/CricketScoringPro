@@ -118,7 +118,7 @@ export default function MatchesScreen() {
   }, [matches, myPhone]);
 
   useFocusEffect(useCallback(() => { loadMatches(); }, []));
-  useFocusEffect(useCallback(() => { loadCloud(); }, [loadCloud]));
+  useFocusEffect(useCallback(() => { loadCloud(); }, []));
 
   // Subscribe to incoming match invitations (team2 admin view)
   useEffect(() => {
