@@ -3,6 +3,7 @@ import type { Match, BallInput, Toss, ScoringAction } from '../engine/types';
 import { MatchEngine, createNewMatch } from '../engine/match-engine';
 import * as matchRepo from '../db/repositories/match-repo';
 import type { MatchRow } from '../db/repositories/match-repo';
+import * as teamRepo from '../db/repositories/team-repo';
 import * as cloudMatchRepo from '../db/repositories/cloud-match-repo';
 import { useUserAuth } from '../hooks/useUserAuth';
 
@@ -234,6 +235,11 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
           match = await cloudMatchRepo.fetchMatchFromInvitation(matchId);
         }
         if (match) {
+          // Ensure both teams exist locally — the matches table has FK constraints
+          // on team1_id and team2_id referencing teams(id). Without this the
+          // INSERT below fails with a FK violation on the acceptor's device.
+          await teamRepo.importCloudTeam(match.team1);
+          await teamRepo.importCloudTeam(match.team2);
           try {
             await matchRepo.createMatch(
               match.id,
