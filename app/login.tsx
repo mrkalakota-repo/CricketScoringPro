@@ -28,9 +28,9 @@ function PinDots({ count, max, color, dimColor }: { count: number; max: number; 
 export default function LoginScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { profile, register, login, restoreFromCloud, restoreStatus, resetRestoreStatus } = useUserAuth();
+  const { profile, sessionExpired, register, login, restoreFromCloud, restoreStatus, resetRestoreStatus } = useUserAuth();
 
-  const defaultMode: Mode = profile ? 'login' : 'register';
+  const defaultMode: Mode = profile ? 'login' : sessionExpired ? 'restore' : 'register';
   const [mode, setMode] = useState<Mode>(defaultMode);
 
   // Shared
