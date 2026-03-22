@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { Text, Card, FAB, useTheme, Button, SegmentedButtons } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -164,7 +164,7 @@ export default function MatchesScreen() {
   };
 
   // ── Build unified list ────────────────────────────────────────────────────
-  const localUnified: UnifiedMatch[] = matches.map(row => {
+  const localUnified = useMemo<UnifiedMatch[]>(() => matches.map(row => {
     const { team1Short, team2Short, score } = parseMatchInfo(row, teams);
     return {
       id: row.id,
@@ -179,9 +179,9 @@ export default function MatchesScreen() {
       matchDate: row.match_date,
       localRow: row,
     };
-  });
+  }), [matches, teams]);
 
-  const mineUnified: UnifiedMatch[] = myCloudMatches.map(row => ({
+  const mineUnified = useMemo<UnifiedMatch[]>(() => myCloudMatches.map(row => ({
     id: row.id,
     source: 'mine',
     status: row.status,
@@ -192,9 +192,9 @@ export default function MatchesScreen() {
     team2Short: row.team2Short,
     score: '',
     matchDate: row.matchDate,
-  }));
+  })), [myCloudMatches]);
 
-  const communityUnified: UnifiedMatch[] = communityMatches.map(row => ({
+  const communityUnified = useMemo<UnifiedMatch[]>(() => communityMatches.map(row => ({
     id: row.id,
     source: 'community',
     status: row.status,
@@ -205,20 +205,22 @@ export default function MatchesScreen() {
     team2Short: row.team2Short,
     score: '',
     matchDate: row.matchDate,
-  }));
+  })), [communityMatches]);
 
-  function applyFilter(items: UnifiedMatch[]): UnifiedMatch[] {
-    if (filter === 'active') return items.filter(m => ACTIVE_STATUSES.has(m.status));
-    if (filter === 'completed') return items.filter(m => m.status === 'completed' || m.status === 'abandoned');
-    return items;
-  }
+  const myFiltered = useMemo(() => {
+    const merged = [...localUnified, ...mineUnified].sort((a, b) => b.matchDate - a.matchDate);
+    if (filter === 'active') return merged.filter(m => ACTIVE_STATUSES.has(m.status));
+    if (filter === 'completed') return merged.filter(m => m.status === 'completed' || m.status === 'abandoned');
+    return merged;
+  }, [localUnified, mineUnified, filter]);
 
-  const myFiltered = applyFilter(
-    [...localUnified, ...mineUnified].sort((a, b) => b.matchDate - a.matchDate)
-  );
-  const communityFiltered = applyFilter(communityUnified);
+  const communityFiltered = useMemo(() => {
+    if (filter === 'active') return communityUnified.filter(m => ACTIVE_STATUSES.has(m.status));
+    if (filter === 'completed') return communityUnified.filter(m => m.status === 'completed' || m.status === 'abandoned');
+    return communityUnified;
+  }, [communityUnified, filter]);
 
-  const listData: ListData[] = [
+  const listData = useMemo<ListData[]>(() => [
     ...myFiltered.map(item => ({ kind: 'match' as const, item })),
     ...(communityFiltered.length > 0
       ? [
@@ -226,7 +228,7 @@ export default function MatchesScreen() {
           ...communityFiltered.map(item => ({ kind: 'match' as const, item })),
         ]
       : []),
-  ];
+  ], [myFiltered, communityFiltered, cloudLoading]);
 
   const handlePress = (match: UnifiedMatch) => {
     if (match.source === 'local') {

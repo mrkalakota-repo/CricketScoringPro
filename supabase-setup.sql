@@ -111,9 +111,11 @@ DO $$ BEGIN
   CREATE POLICY "public_insert_delegate_codes" ON public.delegate_codes FOR INSERT WITH CHECK (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- UPDATE intentionally excluded: delegate codes are single-use (INSERT then DELETE).
+-- Removing UPDATE prevents an attacker from extending a code's expiry or replacing the code value.
 DO $$ BEGIN
-  CREATE POLICY "public_update_delegate_codes" ON public.delegate_codes FOR UPDATE USING (true) WITH CHECK (true);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  DROP POLICY IF EXISTS "public_update_delegate_codes" ON public.delegate_codes;
+EXCEPTION WHEN others THEN NULL; END $$;
 
 DO $$ BEGIN
   CREATE POLICY "public_delete_delegate_codes" ON public.delegate_codes FOR DELETE USING (true);
