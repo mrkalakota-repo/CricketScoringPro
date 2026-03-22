@@ -117,8 +117,12 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
               disabled={resuming}
               onPress={async () => {
                 setResuming(true);
-                await syncMatchFromCloud(matchId);
-                router.replace(`/match/${matchId}/scoring`);
+                try {
+                  await syncMatchFromCloud(matchId);
+                  router.replace(`/match/${matchId}/scoring`);
+                } catch {
+                  setResuming(false);
+                }
               }}
               style={[styles.inningsCard, { borderRadius: 12, marginBottom: 0 }]}
             >
