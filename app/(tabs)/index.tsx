@@ -38,6 +38,13 @@ function getMatchDisplayInfo(row: MatchRow): { teams: string; scoreLines: ScoreL
       });
     }
 
+    // For in_progress matches with no innings yet (toss done, openers not set) show 0/0
+    if (row.status === 'in_progress' && innings.length === 0) {
+      const battingShort = match.team1.shortName;
+      scoreLines.push({ label: `${battingShort} *`, score: '0/0 (0 ov)', live: true });
+      scoreLines.push({ label: match.team2.shortName, score: 'Yet to bat' });
+    }
+
     // Show "Yet to bat" for the other team when only 1st innings is in progress
     if (row.status !== 'completed' && currentIdx === 0 && innings.length >= 1) {
       const inn = innings[0];
@@ -80,7 +87,9 @@ export default function HomeScreen() {
     if (match.status === 'toss') {
       router.push(`/match/${match.id}/toss`);
     } else {
-      router.push(`/match/${match.id}/scoring`);
+      // Navigate to detail screen — it loads the engine before entering scoring,
+      // preventing the "No active match" dead-end on the scoring screen.
+      router.push(`/match/${match.id}`);
     }
   };
 

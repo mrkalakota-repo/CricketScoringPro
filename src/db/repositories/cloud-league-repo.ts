@@ -1,6 +1,42 @@
 import { supabase, isCloudEnabled } from '../../config/supabase';
 import type { League, LeagueFixture, LeagueFixtureStatus, LeagueFormat, FixtureNRRData } from '../../engine/types';
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function mapLeagueRow(r: any): League {
+  return {
+    id: r.id,
+    name: r.name,
+    shortName: r.short_name,
+    teamIds: JSON.parse(r.team_ids || '[]'),
+    format: (r.format as LeagueFormat) ?? 'round_robin',
+    createdAt: r.updated_at ?? Date.now(),
+    updatedAt: r.updated_at ?? Date.now(),
+  };
+}
+
+function mapFixtureRow(r: any): LeagueFixture {
+  return {
+    id: r.id,
+    leagueId: r.league_id,
+    team1Id: r.team1_id,
+    team2Id: r.team2_id,
+    matchId: r.match_id ?? null,
+    venue: r.venue ?? '',
+    scheduledDate: r.scheduled_date ?? 0,
+    status: (r.status as LeagueFixtureStatus) ?? 'scheduled',
+    result: r.result ?? null,
+    team1Score: r.team1_score ?? null,
+    team2Score: r.team2_score ?? null,
+    winnerTeamId: r.winner_team_id ?? null,
+    nrrData: r.nrr_data_json ? JSON.parse(r.nrr_data_json) as FixtureNRRData : null,
+    round: r.round ?? null,
+    bracketSlot: r.bracket_slot ?? null,
+    createdAt: r.updated_at ?? Date.now(),
+    updatedAt: r.updated_at ?? Date.now(),
+  };
+}
+
 // ── Push ──────────────────────────────────────────────────────────────────────
 
 export async function pushLeague(league: League, ownerPhone: string): Promise<void> {
@@ -124,37 +160,11 @@ export async function fetchLeaguesByOwner(ownerPhone: string): Promise<{
 
     if (fe && (fe as { code?: string }).code !== 'PGRST205') throw fe;
 
-    const leagues: League[] = leagueRows.map((r: any) => ({
-      id: r.id,
-      name: r.name,
-      shortName: r.short_name,
-      teamIds: JSON.parse(r.team_ids || '[]'),
-      format: (r.format as LeagueFormat) ?? 'round_robin',
-      createdAt: r.updated_at ?? Date.now(),
-      updatedAt: r.updated_at ?? Date.now(),
-    }));
+    const leagues: League[] = leagueRows.map(mapLeagueRow);
 
     const fixturesByLeague: Record<string, LeagueFixture[]> = {};
     for (const r of fixtureRows ?? []) {
-      const f: LeagueFixture = {
-        id: r.id,
-        leagueId: r.league_id,
-        team1Id: r.team1_id,
-        team2Id: r.team2_id,
-        matchId: r.match_id ?? null,
-        venue: r.venue ?? '',
-        scheduledDate: r.scheduled_date ?? 0,
-        status: (r.status as LeagueFixtureStatus) ?? 'scheduled',
-        result: r.result ?? null,
-        team1Score: r.team1_score ?? null,
-        team2Score: r.team2_score ?? null,
-        winnerTeamId: r.winner_team_id ?? null,
-        nrrData: r.nrr_data_json ? JSON.parse(r.nrr_data_json) as FixtureNRRData : null,
-        round: r.round ?? null,
-        bracketSlot: r.bracket_slot ?? null,
-        createdAt: r.updated_at ?? Date.now(),
-        updatedAt: r.updated_at ?? Date.now(),
-      };
+      const f = mapFixtureRow(r);
       if (!fixturesByLeague[f.leagueId]) fixturesByLeague[f.leagueId] = [];
       fixturesByLeague[f.leagueId].push(f);
     }
@@ -162,6 +172,63 @@ export async function fetchLeaguesByOwner(ownerPhone: string): Promise<{
     return { leagues, fixturesByLeague };
   } catch (err) {
     console.error('[cloud-league-repo] fetchLeaguesByOwner failed:', (err as Error).message);
+    return { leagues: [], fixturesByLeague: {} };
+  }
+}
+
+/**
+ * Fetch all cloud leagues that contain any of the given team IDs.
+ * Used to show leagues to non-league-admin users (team admins, scorers, viewers)
+ * who are members of teams that belong to a league.
+ */
+export async function fetchLeaguesByTeamIds(teamIds: string[]): Promise<{
+  leagues: League[];
+  fixturesByLeague: Record<string, LeagueFixture[]>;
+}> {
+  if (!isCloudEnabled || !supabase || teamIds.length === 0) return { leagues: [], fixturesByLeague: {} };
+  try {
+    // Fetch all leagues then filter client-side — Supabase doesn't support
+    // querying inside JSON text columns directly. Limit to recent 200 rows.
+    const { data: leagueRows, error: le } = await supabase
+      .from('cloud_leagues')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(200);
+
+    if (le) {
+      if ((le as { code?: string }).code === 'PGRST205') return { leagues: [], fixturesByLeague: {} };
+      throw le;
+    }
+    if (!leagueRows || leagueRows.length === 0) return { leagues: [], fixturesByLeague: {} };
+
+    // Filter to leagues that include at least one of the user's team IDs
+    const matching = leagueRows.filter((r: any) => {
+      try {
+        const ids: string[] = JSON.parse(r.team_ids || '[]');
+        return ids.some(id => teamIds.includes(id));
+      } catch { return false; }
+    });
+    if (matching.length === 0) return { leagues: [], fixturesByLeague: {} };
+
+    const leagueIds = matching.map((r: any) => r.id);
+    const { data: fixtureRows, error: fe } = await supabase
+      .from('cloud_league_fixtures')
+      .select('*')
+      .in('league_id', leagueIds);
+
+    if (fe && (fe as { code?: string }).code !== 'PGRST205') throw fe;
+
+    const leagues: League[] = matching.map(mapLeagueRow);
+    const fixturesByLeague: Record<string, LeagueFixture[]> = {};
+    for (const r of fixtureRows ?? []) {
+      const f = mapFixtureRow(r);
+      if (!fixturesByLeague[f.leagueId]) fixturesByLeague[f.leagueId] = [];
+      fixturesByLeague[f.leagueId].push(f);
+    }
+
+    return { leagues, fixturesByLeague };
+  } catch (err) {
+    console.error('[cloud-league-repo] fetchLeaguesByTeamIds failed:', (err as Error).message);
     return { leagues: [], fixturesByLeague: {} };
   }
 }

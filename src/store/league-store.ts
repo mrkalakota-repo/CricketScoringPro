@@ -40,8 +40,27 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
     // Pull from cloud first (if authenticated) and save locally so data is available
     // on every device the user signs in to.
     if (phone) {
-      const { leagues: cloudLeagues, fixturesByLeague: cloudFixtures } =
+      // Own leagues (created by this user)
+      const { leagues: ownedLeagues, fixturesByLeague: ownedFixtures } =
         await cloudLeagueRepo.fetchLeaguesByOwner(phone);
+
+      // Leagues where user's teams are members (for non-league-admin roles)
+      const myTeamIds = usePrefsStore.getState().myTeamIds;
+      const { leagues: memberLeagues, fixturesByLeague: memberFixtures } =
+        await cloudLeagueRepo.fetchLeaguesByTeamIds(myTeamIds);
+
+      // Merge, deduplicating by league ID
+      const seen = new Set<string>();
+      const cloudLeagues: typeof ownedLeagues = [];
+      const cloudFixtures: typeof ownedFixtures = {};
+      for (const league of [...ownedLeagues, ...memberLeagues]) {
+        if (!seen.has(league.id)) {
+          seen.add(league.id);
+          cloudLeagues.push(league);
+          const fixtures = ownedFixtures[league.id] ?? memberFixtures[league.id] ?? [];
+          cloudFixtures[league.id] = fixtures;
+        }
+      }
 
       for (const league of cloudLeagues) {
         await leagueRepo.upsertLeague(league);

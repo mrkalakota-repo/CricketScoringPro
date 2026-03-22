@@ -52,7 +52,7 @@ export default function LeaguesScreen() {
             )}
           </View>
         </View>
-        <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.outlineVariant} />
+        <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
       </Card.Content>
     </Card>
   );
@@ -73,7 +73,7 @@ export default function LeaguesScreen() {
               No leagues yet
             </Text>
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6, textAlign: 'center' }}>
-              Tap + to create a league and invite teams
+              {canCreateLeague ? 'Tap + to create a league and invite teams' : 'No leagues available for your teams yet'}
             </Text>
           </View>
         }
