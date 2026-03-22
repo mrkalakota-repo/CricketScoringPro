@@ -504,12 +504,12 @@ export default function ScoringScreen() {
                 key={runs}
                 disabled={recording}
                 style={[styles.runButton, {
-                  backgroundColor: runs === 4 ? '#C8E8C8' : runs === 6 ? '#FFE0B2' : theme.colors.primaryContainer,
+                  backgroundColor: runs === 4 ? colors.four : runs === 6 ? colors.six : theme.colors.primaryContainer,
                   opacity: recording ? 0.5 : 1,
                 }]}
                 onPress={() => handleRun(runs)}
               >
-                <Text style={[styles.runText, { color: theme.colors.onSurface }]}>{runs}</Text>
+                <Text style={[styles.runText, { color: runs === 4 || runs === 6 ? '#FFFFFF' : theme.colors.onSurface }]}>{runs}</Text>
               </Pressable>
             ))}
             <Pressable

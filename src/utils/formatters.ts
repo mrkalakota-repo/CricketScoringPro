@@ -22,7 +22,11 @@ export function formatBallOutcome(ball: BallOutcome): string {
   if (ball.dismissal) return 'W';
   if (!ball.isLegal) {
     const extra = ball.extras[0];
-    if (extra?.type === 'wide') return `Wd${ball.runs > 0 ? `+${ball.runs}` : ''}`;
+    if (extra?.type === 'wide') {
+      // extra.runs = base wide penalty (1) + additional runs entered by scorer
+      const additionalRuns = extra.runs - 1;
+      return `Wd${additionalRuns > 0 ? `+${additionalRuns}` : ''}`;
+    }
     if (extra?.type === 'no_ball') return `Nb${ball.runs > 0 ? `+${ball.runs}` : ''}`;
   }
   if (ball.extras.some(e => e.type === 'bye')) return `${ball.extras[0].runs}b`;
