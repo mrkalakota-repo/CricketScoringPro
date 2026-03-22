@@ -219,23 +219,39 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   acceptMatchInvitation: async (matchId) => {
     // Update cloud invitation status
     await cloudMatchRepo.respondToInvitation(matchId, 'accepted');
-    // Update local match state to 'scheduled' so the toss becomes available
-    const row = await matchRepo.getMatchById(matchId);
-    if (row?.match_state_json) {
-      try {
-        const match: Match = JSON.parse(row.match_state_json);
+    try {
+      // Check if match already exists locally (creator's device); fall back to cloud fetch
+      let match: Match | null = null;
+      const row = await matchRepo.getMatchById(matchId);
+      if (row?.match_state_json) {
+        match = JSON.parse(row.match_state_json) as Match;
+      } else {
+        // Acceptor's device: match only exists in Supabase — fetch it and save locally
+        match = await cloudMatchRepo.fetchCloudMatchState(matchId);
+        if (match) {
+          await matchRepo.createMatch(
+            match.id,
+            match.config,
+            match.team1.id,
+            match.team2.id,
+            match.team1PlayingXI,
+            match.team2PlayingXI,
+            match.venue ?? '',
+            match.date ?? Date.now(),
+          );
+        }
+      }
+      if (match) {
         const updated: Match = { ...match, status: 'scheduled' };
         await matchRepo.saveMatchState(matchId, updated);
-        // If this match is currently active in the store, update the engine
-        if (get().matchId === matchId) {
-          set({ engine: new MatchEngine(updated) });
-        }
+        // Load into engine so toss screen can read it immediately
+        set({ engine: new MatchEngine(updated), matchId });
         // Refresh list
         const matches = await matchRepo.getAllMatches();
         set({ matches });
-      } catch (err) {
-        console.error('[match-store] acceptMatchInvitation: failed to update local state', (err as Error).message);
       }
+    } catch (err) {
+      console.error('[match-store] acceptMatchInvitation: failed to update local state', (err as Error).message);
     }
   },
 
