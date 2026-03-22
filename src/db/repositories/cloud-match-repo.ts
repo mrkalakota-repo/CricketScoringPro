@@ -583,6 +583,27 @@ export function subscribeToInvitations(
 }
 
 /**
+ * Subscribe to live_matches updates for a specific match.
+ * Used by the observer on the toss screen to detect when the match goes in_progress.
+ */
+export function subscribeToLiveMatch(
+  matchId: string,
+  onUpdate: (status: string) => void,
+): () => void {
+  if (!isCloudEnabled || !supabase) return () => {};
+  const channel = supabase
+    .channel(`live_match_${matchId}`)
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'live_matches', filter: `id=eq.${matchId}` },
+      (payload) => {
+        const row = (payload.new ?? payload.old) as Record<string, unknown> | null;
+        if (row && typeof row.status === 'string') onUpdate(row.status);
+      })
+    .subscribe();
+  return () => { supabase!.removeChannel(channel); };
+}
+
+/**
  * Subscribe to changes on a specific match invitation (for the creating admin
  * waiting for team2 to accept or decline).
  */
