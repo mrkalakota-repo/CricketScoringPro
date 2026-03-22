@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Card, Button, useTheme, Surface } from 'react-native-paper';
@@ -62,6 +62,9 @@ export default function HomeScreen() {
   const profile = useUserAuth(s => s.profile);
   const { roleLabel, roleIcon, roleColor, canCreateMatch } = useRole();
 
+  // Load on mount (initial launch — useFocusEffect doesn't fire on first render in Expo Router)
+  useEffect(() => { loadMatches(); loadTeams(); }, []);
+  // Reload on every subsequent focus (returning from other tabs)
   useFocusEffect(useCallback(() => { loadMatches(); loadTeams(); }, []));
 
   const liveMatches = useMemo(
