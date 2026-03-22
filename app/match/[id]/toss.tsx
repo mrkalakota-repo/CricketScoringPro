@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Button, Card, useTheme, RadioButton } from 'react-native-paper';
+import { Text, Button, Card, useTheme, RadioButton, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMatchStore } from '../../../src/store/match-store';
@@ -15,22 +15,36 @@ export default function TossScreen() {
   const { engine, loadMatch, recordToss, startMatch, setOpeners, saveMatch } = useMatchStore();
   const matchId = Array.isArray(id) ? id[0] : id;
 
+  const [matchLoading, setMatchLoading] = useState(true);
+  const [winnerId, setWinnerId] = useState<string | null>(null);
+  const [decision, setDecision] = useState<TossDecision>('bat');
+  const [step, setStep] = useState<'winner' | 'decision' | 'done'>('winner');
+
   useEffect(() => {
     if (matchId && (!engine || engine.getMatch().id !== matchId)) {
-      loadMatch(matchId);
+      loadMatch(matchId).finally(() => setMatchLoading(false));
+    } else {
+      setMatchLoading(false);
     }
   }, [matchId]);
 
   const match = engine?.getMatch();
 
-  const [winnerId, setWinnerId] = useState<string | null>(null);
-  const [decision, setDecision] = useState<TossDecision>('bat');
-  const [step, setStep] = useState<'winner' | 'decision' | 'done'>('winner');
+  if (matchLoading) {
+    return (
+      <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>Loading match…</Text>
+      </View>
+    );
+  }
 
   if (!match) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
-        <Text>Match not found. Please create a match first.</Text>
+        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={theme.colors.outlineVariant} />
+        <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>Match not found</Text>
+        <Button mode="text" icon="arrow-left" onPress={() => router.back()} style={{ marginTop: 8 }}>Go Back</Button>
       </View>
     );
   }

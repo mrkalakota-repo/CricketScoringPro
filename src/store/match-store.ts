@@ -230,16 +230,21 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
         // Acceptor's device: match only exists in Supabase — fetch it and save locally
         match = await cloudMatchRepo.fetchCloudMatchState(matchId);
         if (match) {
-          await matchRepo.createMatch(
-            match.id,
-            match.config,
-            match.team1.id,
-            match.team2.id,
-            match.team1PlayingXI,
-            match.team2PlayingXI,
-            match.venue ?? '',
-            match.date ?? Date.now(),
-          );
+          try {
+            await matchRepo.createMatch(
+              match.id,
+              match.config,
+              match.team1.id,
+              match.team2.id,
+              match.team1PlayingXI,
+              match.team2PlayingXI,
+              match.venue ?? '',
+              match.date ?? Date.now(),
+            );
+          } catch {
+            // Row may already exist (UNIQUE constraint from a prior accept attempt) —
+            // that is fine; saveMatchState below will update it.
+          }
         }
       }
       if (match) {
@@ -250,6 +255,8 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
         // Refresh list
         const matches = await matchRepo.getAllMatches();
         set({ matches });
+      } else {
+        console.error('[match-store] acceptMatchInvitation: match not found locally or in cloud for', matchId);
       }
     } catch (err) {
       console.error('[match-store] acceptMatchInvitation: failed to update local state', (err as Error).message);
