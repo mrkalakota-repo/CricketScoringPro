@@ -453,3 +453,30 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN
   CREATE POLICY "public_delete_match_invitations" ON public.match_invitations FOR DELETE USING (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ── Realtime Publication ───────────────────────────────────────────────────────
+-- Tables that use Supabase Realtime subscriptions must be added to the
+-- supabase_realtime publication. REPLICA IDENTITY FULL is required for filtered
+-- subscriptions (e.g. filter: 'team_id=eq.xxx') to receive the full row payload.
+--
+-- Tables subscribed to in app code:
+--   live_matches       → subscribeToLiveMatches()      (proximity live scores)
+--   chat_messages      → subscribeToMessages()         (per-team chat, filtered by team_id)
+--   match_invitations  → subscribeToInvitations()      (filtered by team2_owner_phone)
+--                      → subscribeToMyMatchInvitation() (filtered by match_id)
+
+ALTER TABLE public.live_matches      REPLICA IDENTITY FULL;
+ALTER TABLE public.chat_messages     REPLICA IDENTITY FULL;
+ALTER TABLE public.match_invitations REPLICA IDENTITY FULL;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.live_matches;
+EXCEPTION WHEN others THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
+EXCEPTION WHEN others THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.match_invitations;
+EXCEPTION WHEN others THEN NULL; END $$;
