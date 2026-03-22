@@ -318,8 +318,8 @@ export default function ScheduleScreen() {
 
               <Text variant="bodySmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>Winner</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-                {[editFixture.team1Id, editFixture.team2Id].map(tid => (
-                  <Button key={tid} mode={winnerTeamId === tid ? 'contained' : 'outlined'} compact
+                {[editFixture.team1Id, editFixture.team2Id].map((tid, i) => (
+                  <Button key={`${tid}-${i}`} mode={winnerTeamId === tid ? 'contained' : 'outlined'} compact
                     onPress={() => setWinnerTeamId(tid)} style={{ flex: 1 }}>
                     {getTeamName(tid)}
                   </Button>
