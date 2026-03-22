@@ -103,7 +103,7 @@ Roles and permissions matrix:
 | Delete Match | ✅ | ❌ | ❌ | ❌ |
 | View Live Scores | ✅ | ✅ | ✅ | ✅ |
 
-Available roles at registration: `scorer`, `team_admin`, `league_admin` — **viewer is not offered**. Unauthenticated users browse as guests with viewer-equivalent read-only access. `useRole()` returns all-false + `role: null` when not authenticated.
+Available roles at registration: `scorer`, `team_admin`, `league_admin`, `viewer`. Viewer is a valid selectable role for users who only want to follow matches and live scores without scoring or managing teams. Unauthenticated users browse as guests with the same read-only access. `useRole()` returns all-false + `role: null` when not authenticated.
 
 ### Sync Status
 `src/hooks/useSyncStatus.ts` — subscribes to cloud match repo sync events. States: `synced` | `syncing` | `offline` | `disabled`. Used for the scoring-screen cloud indicator.
