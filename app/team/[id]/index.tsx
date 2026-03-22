@@ -240,13 +240,10 @@ export default function TeamDetailScreen() {
         <Text variant="bodyMedium" style={styles.shortName}>{team.shortName}</Text>
         {!hasEditAccess ? (
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-            <Chip
-              compact icon="eye-outline"
-              textStyle={{ fontSize: 10, color: '#FFFFFF', fontWeight: '700' }}
-              style={{ backgroundColor: 'rgba(255,255,255,0.25)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' }}
-            >
-              View Only
-            </Chip>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.25)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 }}>
+              <MaterialCommunityIcons name="eye-outline" size={13} color="#FFFFFF" />
+              <Text style={{ fontSize: 10, color: '#FFFFFF', fontWeight: '700' }}>View Only</Text>
+            </View>
             {!isDelegate && (
               <Chip
                 compact icon="account-key"
