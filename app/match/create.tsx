@@ -124,7 +124,14 @@ export default function CreateMatchScreen() {
     await matchRepo.saveMatchState(matchId, finalMatch);
 
     if (needsAcceptance && team2OwnerPhone && myPhone) {
-      cloudMatchRepo.publishMatchInvitation(finalMatch, myPhone, team2OwnerPhone).catch(() => {});
+      // Await so match JSON is guaranteed in Supabase before the acceptor can accept.
+      // If this fails, the invitation still won't be visible to the other team, so
+      // the match proceeds as a local-only scheduled match.
+      try {
+        await cloudMatchRepo.publishMatchInvitation(finalMatch, myPhone, team2OwnerPhone);
+      } catch {
+        // Network failure — degrade gracefully to local match
+      }
     }
 
     createAndStartMatch(finalMatch);

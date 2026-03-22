@@ -388,7 +388,7 @@ export async function fetchCloudMatchState(matchId: string): Promise<Match | nul
       .from('cloud_match_states')
       .select('match_state_json')
       .eq('id', matchId)
-      .single();
+      .maybeSingle();
     if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
     if (!data?.match_state_json) return null;
     return JSON.parse(data.match_state_json) as Match;
@@ -553,8 +553,8 @@ export async function fetchMatchFromInvitation(matchId: string): Promise<import(
       .from('match_invitations')
       .select('match_state_json')
       .eq('match_id', matchId)
-      .single();
-    if (error && (error as { code?: string }).code !== 'PGRST205' && (error as { code?: string }).code !== 'PGRST116') throw error;
+      .maybeSingle();
+    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
     if (!data?.match_state_json) return null;
     return JSON.parse(data.match_state_json) as import('../engine/types').Match;
   } catch (err) {
