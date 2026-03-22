@@ -55,13 +55,17 @@ export default function ChatScreen() {
     loadIdentity(teamId);
   }, [teamId]);
 
-  // Auto-identify: if logged-in user's phone matches a player in this team,
-  // set their identity automatically so the chat works without the picker.
+  // Auto-identify: prefer a matching player record; fall back to the logged-in
+  // user profile directly (owner/admin who isn't in the player list).
   useEffect(() => {
-    if (!teamId || !isCloudEnabled || !team || !userProfile?.phone || myIdentity) return;
+    if (!teamId || !isCloudEnabled || !team || myIdentity) return;
+    if (!userProfile?.phone) return;
     const matchedPlayer = team.players.find(p => p.phoneNumber === userProfile.phone);
     if (matchedPlayer) {
       setIdentity(teamId, matchedPlayer.id, matchedPlayer.name);
+    } else {
+      // Authenticated but not in player list — use their profile name directly.
+      setIdentity(teamId, userProfile.phone, userProfile.name);
     }
   }, [teamId, team, userProfile, myIdentity]);
 
@@ -79,12 +83,12 @@ export default function ChatScreen() {
     }
   }, [teamMessages.length]);
 
-  // Show identity picker only if auto-identification didn't work
+  // Show identity picker only if unauthenticated and auto-identification didn't work
   useEffect(() => {
-    if (isCloudEnabled && team && !myIdentity) {
+    if (isCloudEnabled && team && !myIdentity && !userProfile) {
       setShowPicker(true);
     }
-  }, [myIdentity, team]);
+  }, [myIdentity, team, userProfile]);
 
   const handleSend = async () => {
     const msg = text.trim();
