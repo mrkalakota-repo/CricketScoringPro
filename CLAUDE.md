@@ -99,7 +99,7 @@ Roles and permissions matrix:
 | Create League | ✅ | ❌ | ❌ | ❌ |
 | Manage Teams | ✅ | ✅ | ❌ | ❌ |
 | Create/Start Match | ✅ | ✅ | ✅ | ❌ |
-| Record Balls (Score) | ✅ | ❌ | ✅ | ❌ |
+| Record Balls (Score) | ✅ | ✅ | ✅ | ❌ |
 | Delete Match | ✅ | ❌ | ❌ | ❌ |
 | View Live Scores | ✅ | ✅ | ✅ | ✅ |
 
