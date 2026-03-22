@@ -66,6 +66,18 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
         const match: Match = JSON.parse(row.match_state_json);
         const engine = new MatchEngine(match);
         set({ engine, matchId: id });
+        // If local state is stale (in_progress/toss), check if cloud has completed.
+        // This handles the "app restarted after match finished on another device" case.
+        if (match.status === 'in_progress' || match.status === 'toss') {
+          cloudMatchRepo.fetchCloudMatchState(id).then(async (cloudMatch) => {
+            if (cloudMatch && cloudMatch.status === 'completed') {
+              await matchRepo.saveMatchState(id, cloudMatch);
+              set({ engine: new MatchEngine(cloudMatch), matchId: id });
+              const matches = await matchRepo.getAllMatches();
+              set({ matches });
+            }
+          }).catch(() => {});
+        }
       } catch (err) {
         console.error('[match-store] loadMatch: corrupted match_state_json for id', id, (err as Error).message);
         set({ engine: null, matchId: null });
@@ -196,9 +208,11 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   saveMatch: async () => {
     const { engine, matchId } = get();
     if (!engine || !matchId) return;
-    await matchRepo.saveMatchState(matchId, engine.getMatch());
-    // No need to reload all matches — useFocusEffect on home/matches tabs
-    // refreshes the list whenever the user navigates back.
+    const m = engine.getMatch();
+    await matchRepo.saveMatchState(matchId, m);
+    // Re-publish final state to cloud so completed matches are visible on other devices.
+    cloudMatchRepo.publishLiveMatch(m);
+    cloudMatchRepo.publishMatchState(m, useUserAuth.getState().profile?.phone ?? undefined);
   },
 
   deleteMatch: async (id) => {

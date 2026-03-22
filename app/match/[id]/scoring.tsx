@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text, Button, useTheme, Portal, Modal, Card, RadioButton, Surface, Dialog } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMatchStore } from '../../../src/store/match-store';
+import { usePrefsStore } from '../../../src/store/prefs-store';
+import * as cloudMatchRepo from '../../../src/db/repositories/cloud-match-repo';
 import type { BallInput, DismissalType } from '../../../src/engine/types';
 import { useRole } from '../../../src/hooks/useRole';
 import { useSyncStatus } from '../../../src/hooks/useSyncStatus';
@@ -30,7 +32,9 @@ export default function ScoringScreen() {
   const {
     engine, recordBall, undoLastBall, setOpeners, setBowler,
     setNewBatter, startNextInnings, startSuperOver, saveMatch,
+    syncMatchFromCloud, loadMatches,
   } = useMatchStore();
+  const { myTeamIds, delegateTeamIds } = usePrefsStore();
 
   const { canScore } = useRole();
   const syncStatus = useSyncStatus();
@@ -59,18 +63,41 @@ export default function ScoringScreen() {
   const [selectedOpener2, setSelectedOpener2] = useState<string | null>(null);
   const [selectedNewBatter, setSelectedNewBatter] = useState<string | null>(null);
 
+  const matchId = Array.isArray(id) ? id[0] : id;
   const match = engine?.getMatch();
   const innings = engine?.getCurrentInnings();
 
-  // Check if we need openers
+  // Only the team1 owner/delegate controls scoring; everyone else is a live observer.
+  const isHost = match
+    ? (myTeamIds.includes(match.team1.id) || delegateTeamIds.includes(match.team1.id))
+    : true; // default to host until match loads to avoid flashing observer UI
+
+  // Observer: sync live match state from cloud on every ball recorded by the host.
+  const syncingRef = useRef(false);
+  useEffect(() => {
+    if (!matchId || isHost) return;
+    const unsub = cloudMatchRepo.subscribeToLiveMatch(matchId, (status) => {
+      if (syncingRef.current) return;
+      syncingRef.current = true;
+      syncMatchFromCloud(matchId).then(() => {
+        syncingRef.current = false;
+        if (status === 'completed') {
+          loadMatches();
+        }
+      });
+    });
+    return unsub;
+  }, [matchId, isHost]);
+
+  // Check if we need openers — only auto-prompt the host
   const needsOpeners = innings && innings.status === 'in_progress' && !innings.currentStrikerId && innings.batters.length === 0;
 
-  // Auto-show opener modal when openers are needed
+  // Auto-show opener modal when openers are needed (host only)
   useEffect(() => {
-    if (needsOpeners && !openerModal) {
+    if (needsOpeners && !openerModal && isHost) {
       setOpenerModal(true);
     }
-  }, [needsOpeners]);
+  }, [needsOpeners, isHost]);
 
   if (!match || !engine) {
     return (
@@ -379,6 +406,27 @@ export default function ScoringScreen() {
         </ScrollView>
       </View>
 
+      {/* Observer banner — team2 admin watching live */}
+      {canScore && !isHost && !isMatchComplete && (
+        <View style={[styles.viewOnlyBanner, { backgroundColor: '#1565C0' }]}>
+          <MaterialCommunityIcons name="eye-outline" size={16} color="#FFFFFF" />
+          <Text variant="bodySmall" style={{ color: '#FFFFFF', flex: 1, fontWeight: '700' }}>
+            Live viewing — {match?.team1.name ?? 'Host'} is scoring
+          </Text>
+          <Button
+            mode="contained-tonal"
+            compact
+            icon="arrow-left"
+            onPress={() => router.back()}
+            style={{ marginLeft: 8, borderRadius: 8 }}
+            labelStyle={{ fontSize: 11 }}
+            buttonColor="rgba(255,255,255,0.25)"
+            textColor="#FFFFFF"
+          >
+            Exit
+          </Button>
+        </View>
+      )}
       {/* View-only banner for non-scorers */}
       {!canScore && !isMatchComplete && (
         <View style={[styles.viewOnlyBanner, { backgroundColor: '#E65100' }]}>
@@ -402,7 +450,7 @@ export default function ScoringScreen() {
       )}
 
       {/* Scoring Controls */}
-      {canScore && !isMatchComplete && !isInningsComplete && (
+      {canScore && isHost && !isMatchComplete && !isInningsComplete && (
         <View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           {/* Extra Toggles */}
           <View style={styles.extrasRow}>
