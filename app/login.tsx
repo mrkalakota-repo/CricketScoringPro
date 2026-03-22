@@ -380,10 +380,10 @@ export default function LoginScreen() {
             </Button>
             <Divider style={styles.divider} />
             <Button
-              mode="outlined"
+              mode="contained-tonal"
               icon="account-switch"
               onPress={() => { setRestorePhone(''); switchMode('restore'); }}
-              style={[styles.linkBtn, { borderRadius: 10, alignSelf: 'stretch' }]}
+              style={{ borderRadius: 10, marginBottom: 4 }}
             >
               Login as different user
             </Button>
