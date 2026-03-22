@@ -38,6 +38,7 @@ interface MatchStore {
   clearActiveMatch: () => void;
   setPendingInvitationCount: (count: number) => void;
   markMatchScheduled: (matchId: string) => Promise<void>;
+  syncMatchFromCloud: (matchId: string) => Promise<void>;
 }
 
 export const useMatchStore = create<MatchStore>((set, get) => ({
@@ -292,6 +293,20 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
       }
     } catch (err) {
       console.error('[match-store] markMatchScheduled failed:', (err as Error).message);
+    }
+  },
+
+  // Fetch the latest match state from cloud (after the creator starts the match)
+  // and update local SQLite + engine. Used by the observer on the toss screen.
+  syncMatchFromCloud: async (matchId) => {
+    try {
+      const match = await cloudMatchRepo.fetchCloudMatchState(matchId);
+      if (match) {
+        await matchRepo.saveMatchState(matchId, match);
+        set({ engine: new MatchEngine(match), matchId });
+      }
+    } catch (err) {
+      console.error('[match-store] syncMatchFromCloud failed:', (err as Error).message);
     }
   },
 }));

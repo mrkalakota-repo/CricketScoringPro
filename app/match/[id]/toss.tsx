@@ -14,7 +14,7 @@ export default function TossScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { engine, loadMatch, recordToss, startMatch, setOpeners, saveMatch } = useMatchStore();
+  const { engine, loadMatch, syncMatchFromCloud, recordToss, startMatch, setOpeners, saveMatch } = useMatchStore();
   const { myTeamIds, delegateTeamIds } = usePrefsStore();
   const matchId = Array.isArray(id) ? id[0] : id;
 
@@ -45,7 +45,9 @@ export default function TossScreen() {
     const unsub = cloudMatchRepo.subscribeToLiveMatch(matchId, (status) => {
       if ((status === 'in_progress' || status === 'toss') && !navigatingRef.current) {
         navigatingRef.current = true;
-        loadMatch(matchId).finally(() => {
+        // Fetch full match state from cloud (includes innings created by startMatch)
+        // so local SQLite and engine are up-to-date before scoring begins.
+        syncMatchFromCloud(matchId).finally(() => {
           router.replace(`/match/${matchId}/scoring`);
         });
       }
