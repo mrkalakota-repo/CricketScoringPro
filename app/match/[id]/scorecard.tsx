@@ -27,7 +27,7 @@ export default function ScorecardScreen() {
   if (!match || match.innings.length === 0) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
-        <Text variant="titleMedium" style={{ color: '#999' }}>No scorecard available</Text>
+        <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>No scorecard available</Text>
       </View>
     );
   }
@@ -76,7 +76,7 @@ export default function ScorecardScreen() {
           <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
             {innings.totalRuns}/{innings.totalWickets}
           </Text>
-          <Text variant="bodyMedium" style={{ color: '#666' }}>
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
             ({formatOvers(innings.totalOvers, innings.totalBalls)} ov)
           </Text>
         </View>

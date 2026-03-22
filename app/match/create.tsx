@@ -8,7 +8,7 @@ import { useMatchStore } from '../../src/store/match-store';
 import { useRole } from '../../src/hooks/useRole';
 import { useUserAuth } from '../../src/hooks/useUserAuth';
 import { FORMAT_CONFIGS } from '../../src/engine/types';
-import type { MatchFormat, MatchConfig, Player } from '../../src/engine/types';
+import type { MatchFormat, MatchConfig } from '../../src/engine/types';
 import { createNewMatch } from '../../src/engine/match-engine';
 import * as matchRepo from '../../src/db/repositories/match-repo';
 import * as cloudMatchRepo from '../../src/db/repositories/cloud-match-repo';

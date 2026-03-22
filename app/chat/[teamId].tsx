@@ -10,6 +10,7 @@ import { useUserAuth } from '../../src/hooks/useUserAuth';
 import { isCloudEnabled } from '../../src/config/supabase';
 import * as chatRepo from '../../src/db/repositories/cloud-chat-repo';
 import type { ChatMessage } from '../../src/engine/types';
+import { getAvatarColor } from '../../src/utils/avatar';
 
 function Avatar({ name, isMine, color }: { name: string; isMine: boolean; color: string }) {
   const initials = name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
@@ -25,12 +26,6 @@ const avatarStyles = StyleSheet.create({
   text: { fontSize: 11, fontWeight: '900' },
 });
 
-const MSG_COLORS = ['#1B5E20', '#0D47A1', '#4A148C', '#BF360C', '#006064', '#E65100', '#37474F', '#880E4F'];
-function getColor(name: string) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return MSG_COLORS[Math.abs(h) % MSG_COLORS.length];
-}
 
 export default function ChatScreen() {
   const { teamId } = useLocalSearchParams<{ teamId: string }>();
@@ -211,7 +206,7 @@ export default function ChatScreen() {
           }
           renderItem={({ item }) => {
             const isMine = item.playerId === myIdentity?.playerId;
-            const color = getColor(item.playerName);
+            const color = getAvatarColor(item.playerName);
             const time = new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
             return (
               <View style={[styles.msgRow, isMine && styles.msgRowMine]}>
