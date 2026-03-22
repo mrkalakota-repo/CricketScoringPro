@@ -23,7 +23,7 @@ export default function CreateMatchScreen() {
   const router = useRouter();
   const theme = useTheme();
   const teams = useTeamStore(s => s.teams);
-  const { createAndStartMatch } = useMatchStore();
+  const { createAndStartMatch, loadMatches } = useMatchStore();
   const { canCreateMatch } = useRole();
   const myPhone = useUserAuth(s => s.profile?.phone ?? null);
 
@@ -128,6 +128,7 @@ export default function CreateMatchScreen() {
     }
 
     createAndStartMatch(finalMatch);
+    await loadMatches();
     // Navigate to match detail to show acceptance pending state (or toss if no acceptance needed)
     router.replace(`/match/${matchId}`);
   };
