@@ -1,17 +1,15 @@
-import { useCallback, useEffect, useRef, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, Card, Button, useTheme, Surface, ActivityIndicator } from 'react-native-paper';
+import { Text, Card, Button, useTheme, Surface } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
-import { useLiveScoresStore } from '../../src/store/live-scores-store';
-import { isCloudEnabled } from '../../src/config/supabase';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { MatchRow } from '../../src/db/repositories/match-repo';
 import { useUserAuth } from '../../src/hooks/useUserAuth';
 import { useRole } from '../../src/hooks/useRole';
-import { NearbyLiveCard, LIVE_RED } from '../../src/components/NearbyLiveCard';
+import { LIVE_RED } from '../../src/components/NearbyLiveCard';
 import { formatOvers } from '../../src/utils/formatters';
 
 interface ScoreLine { label: string; score: string; live?: boolean }
@@ -61,24 +59,10 @@ export default function HomeScreen() {
   const loadMatches = useMatchStore(s => s.loadMatches);
   const teams = useTeamStore(s => s.teams);
   const loadTeams = useTeamStore(s => s.loadTeams);
-  const nearbyLive = useLiveScoresStore(s => s.matches);
-  const loadNearby = useLiveScoresStore(s => s.loadNearby);
-  const subscribeLive = useLiveScoresStore(s => s.subscribe);
-  const liveLoading = useLiveScoresStore(s => s.loading);
   const profile = useUserAuth(s => s.profile);
   const { roleLabel, roleIcon, roleColor, canCreateMatch } = useRole();
-  const unsubscribeRef = useRef<(() => void) | null>(null);
 
   useFocusEffect(useCallback(() => { loadMatches(); loadTeams(); }, []));
-
-  // Load nearby live matches and subscribe to real-time updates
-  useEffect(() => {
-    if (!isCloudEnabled) return;
-    loadNearby().then(() => {
-      unsubscribeRef.current = subscribeLive();
-    });
-    return () => { unsubscribeRef.current?.(); };
-  }, []);
 
   const liveMatches = useMemo(
     () => matches.filter(m => m.status === 'in_progress' || m.status === 'toss'),
@@ -208,28 +192,6 @@ export default function HomeScreen() {
               </Card>
             );
           })}
-        </View>
-      )}
-
-      {/* Nearby Live Matches (from other devices via Supabase) */}
-      {isCloudEnabled && (nearbyLive.length > 0 || liveLoading) && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MaterialCommunityIcons name="map-marker-radius" size={16} color={theme.colors.primary} />
-            <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-              Nearby Matches
-            </Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 'auto' }}>
-              within 50 miles
-            </Text>
-          </View>
-          {liveLoading && nearbyLive.length === 0 ? (
-            <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginVertical: 12 }} />
-          ) : (
-            nearbyLive.map(m => (
-              <NearbyLiveCard key={m.id} match={m} onPress={() => router.push(`/match/${m.id}`)} />
-            ))
-          )}
         </View>
       )}
 
