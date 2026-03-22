@@ -65,6 +65,7 @@ function TeamCard({ team, distance, isMyTeam, isPlayerTeam }: { team: Team; dist
               <Chip
                 compact
                 icon="star-circle"
+                selectedColor="#FFFFFF"
                 style={{ backgroundColor: theme.colors.primary }}
                 textStyle={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800' }}
               >
@@ -75,6 +76,7 @@ function TeamCard({ team, distance, isMyTeam, isPlayerTeam }: { team: Team; dist
               <Chip
                 compact
                 icon="account-circle"
+                selectedColor="#FFFFFF"
                 style={{ backgroundColor: theme.colors.secondary }}
                 textStyle={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800' }}
               >
