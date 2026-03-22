@@ -129,8 +129,9 @@ export default function CreateMatchScreen() {
 
     createAndStartMatch(finalMatch);
     await loadMatches();
-    // Navigate to match detail to show acceptance pending state (or toss if no acceptance needed)
-    router.replace(`/match/${matchId}`);
+    // Pending acceptance → show detail screen with invitation banner
+    // No acceptance needed → go directly to toss
+    router.replace(needsAcceptance ? `/match/${matchId}` : `/match/${matchId}/toss`);
   };
 
   const canProceedTeams = team1Id && team2Id && team1Id !== team2Id;

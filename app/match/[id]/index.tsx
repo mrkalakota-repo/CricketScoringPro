@@ -320,7 +320,7 @@ export default function MatchDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const matchId = Array.isArray(id) ? id[0] : id;
-  const { engine, matches, loadMatch, deleteMatch, acceptMatchInvitation, declineMatchInvitation } = useMatchStore();
+  const { engine, matches, loadMatch, deleteMatch, acceptMatchInvitation, declineMatchInvitation, markMatchScheduled } = useMatchStore();
   const teams = useTeamStore(s => s.teams);
   const nearbyMatches = useLiveScoresStore(s => s.matches);
   const myTeamIds = usePrefsStore(s => s.myTeamIds);
@@ -342,7 +342,11 @@ export default function MatchDetailScreen() {
     const currentStatus = engine?.getMatch().id === matchId ? engine?.getMatch().status : null;
     if (!matchId || currentStatus !== 'pending_acceptance') return;
     const unsub = cloudMatchRepo.subscribeToMatchInvitation(matchId, (inv) => {
-      if (inv && (inv.status === 'accepted' || inv.status === 'declined')) {
+      if (inv && inv.status === 'accepted') {
+        // Update creator's local status from pending_acceptance → scheduled
+        // so the "Go to Toss" button appears.
+        markMatchScheduled(matchId);
+      } else if (inv && inv.status === 'declined') {
         loadMatch(matchId);
       }
     });
@@ -554,7 +558,7 @@ export default function MatchDetailScreen() {
               Continue Scoring
             </Button>
           )}
-          {match!.status === 'toss' && (
+          {(match!.status === 'scheduled' || match!.status === 'toss') && !isPendingAcceptance && (
             <Button
               mode="contained"
               icon="circle-outline"

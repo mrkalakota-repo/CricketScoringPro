@@ -36,6 +36,7 @@ interface MatchStore {
   deleteMatch: (id: string) => Promise<void>;
   clearActiveMatch: () => void;
   setPendingInvitationCount: (count: number) => void;
+  markMatchScheduled: (matchId: string) => Promise<void>;
 }
 
 export const useMatchStore = create<MatchStore>((set, get) => ({
@@ -257,5 +258,23 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
 
   declineMatchInvitation: async (matchId) => {
     await cloudMatchRepo.respondToInvitation(matchId, 'declined');
+  },
+
+  // Called on creator's device when team2 accepts — flips local status from
+  // pending_acceptance → scheduled so the "Go to Toss" button appears.
+  markMatchScheduled: async (matchId) => {
+    try {
+      const row = await matchRepo.getMatchById(matchId);
+      if (row?.match_state_json) {
+        const match: Match = JSON.parse(row.match_state_json);
+        const updated: Match = { ...match, status: 'scheduled' };
+        await matchRepo.saveMatchState(matchId, updated);
+        set({ engine: new MatchEngine(updated), matchId });
+        const matches = await matchRepo.getAllMatches();
+        set({ matches });
+      }
+    } catch (err) {
+      console.error('[match-store] markMatchScheduled failed:', (err as Error).message);
+    }
   },
 }));
