@@ -427,8 +427,13 @@ CREATE TABLE IF NOT EXISTS public.match_invitations (
   team2_owner_phone TEXT   NOT NULL,
   status            TEXT   NOT NULL DEFAULT 'pending',
   created_at        BIGINT NOT NULL DEFAULT 0,
-  expires_at        BIGINT NOT NULL DEFAULT 0
+  expires_at        BIGINT NOT NULL DEFAULT 0,
+  match_state_json  TEXT            DEFAULT ''
 );
+-- Add column to existing tables (idempotent)
+DO $$ BEGIN
+  ALTER TABLE public.match_invitations ADD COLUMN match_state_json TEXT DEFAULT '';
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_match_invitations_team2
   ON public.match_invitations (team2_owner_phone);

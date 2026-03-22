@@ -417,6 +417,7 @@ export interface MatchInvitation {
   status: 'pending' | 'accepted' | 'declined';
   createdAt: number;
   expiresAt: number;
+  matchStateJson: string;
 }
 
 function rowToInvitation(r: Record<string, unknown>): MatchInvitation {
@@ -433,6 +434,7 @@ function rowToInvitation(r: Record<string, unknown>): MatchInvitation {
     status: r.status as 'pending' | 'accepted' | 'declined',
     createdAt: r.created_at as number,
     expiresAt: r.expires_at as number,
+    matchStateJson: (r.match_state_json as string) ?? '',
   };
 }
 
@@ -445,7 +447,8 @@ export async function publishMatchInvitation(
   if (!isCloudEnabled || !supabase) return;
   const now = Date.now();
   try {
-    // Write the invitation row
+    // Write the invitation row — include full match JSON so the acceptor
+    // can fetch it directly without depending on cloud_match_states.
     const { error: invErr } = await supabase.from('match_invitations').upsert({
       match_id: match.id,
       team1_id: match.team1.id,
@@ -459,6 +462,7 @@ export async function publishMatchInvitation(
       status: 'pending',
       created_at: now,
       expires_at: now + TWENTY_FOUR_HOURS,
+      match_state_json: JSON.stringify(match),
     });
     if (invErr && (invErr as { code?: string }).code !== 'PGRST205') {
       console.error('[cloud-match-repo] publishMatchInvitation invitation write failed:', invErr.message);
@@ -533,6 +537,28 @@ export async function fetchInvitationStatus(matchId: string): Promise<MatchInvit
     return rowToInvitation(data as Record<string, unknown>);
   } catch (err) {
     console.error('[cloud-match-repo] fetchInvitationStatus failed:', (err as Error).message);
+    return null;
+  }
+}
+
+/**
+ * Fetch the full Match object stored in the invitation row.
+ * Used as a fallback in acceptMatchInvitation when cloud_match_states
+ * doesn't have the row yet (e.g. written before the publishMatchInvitation fix).
+ */
+export async function fetchMatchFromInvitation(matchId: string): Promise<import('../engine/types').Match | null> {
+  if (!isCloudEnabled || !supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('match_invitations')
+      .select('match_state_json')
+      .eq('match_id', matchId)
+      .single();
+    if (error && (error as { code?: string }).code !== 'PGRST205' && (error as { code?: string }).code !== 'PGRST116') throw error;
+    if (!data?.match_state_json) return null;
+    return JSON.parse(data.match_state_json) as import('../engine/types').Match;
+  } catch (err) {
+    console.error('[cloud-match-repo] fetchMatchFromInvitation failed:', (err as Error).message);
     return null;
   }
 }

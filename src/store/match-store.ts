@@ -227,8 +227,12 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
       if (row?.match_state_json) {
         match = JSON.parse(row.match_state_json) as Match;
       } else {
-        // Acceptor's device: match only exists in Supabase — fetch it and save locally
+        // Acceptor's device: fetch match from cloud_match_states, then fall back
+        // to the invitation row (which carries the full match JSON since the fix).
         match = await cloudMatchRepo.fetchCloudMatchState(matchId);
+        if (!match) {
+          match = await cloudMatchRepo.fetchMatchFromInvitation(matchId);
+        }
         if (match) {
           try {
             await matchRepo.createMatch(
