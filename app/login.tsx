@@ -320,19 +320,15 @@ export default function LoginScreen() {
             >
               Create Account
             </Button>
-            {profile && (
-              <>
-                <Divider style={styles.divider} />
-                <Button
-                  mode="text"
-                  icon="login"
-                  onPress={() => switchMode('login')}
-                  style={styles.linkBtn}
-                >
-                  Already have an account? Sign in
-                </Button>
-              </>
-            )}
+            <Divider style={styles.divider} />
+            <Button
+              mode="text"
+              icon="login"
+              onPress={() => switchMode(profile ? 'login' : 'restore')}
+              style={styles.linkBtn}
+            >
+              Already have an account? Sign in
+            </Button>
           </View>
         )}
 
