@@ -445,7 +445,8 @@ export async function publishMatchInvitation(
   if (!isCloudEnabled || !supabase) return;
   const now = Date.now();
   try {
-    const { error } = await supabase.from('match_invitations').upsert({
+    // Write the invitation row
+    const { error: invErr } = await supabase.from('match_invitations').upsert({
       match_id: match.id,
       team1_id: match.team1.id,
       team2_id: match.team2.id,
@@ -459,8 +460,18 @@ export async function publishMatchInvitation(
       created_at: now,
       expires_at: now + TWENTY_FOUR_HOURS,
     });
-    if (error && (error as { code?: string }).code !== 'PGRST205') {
-      console.error('[cloud-match-repo] publishMatchInvitation failed:', error.message);
+    if (invErr && (invErr as { code?: string }).code !== 'PGRST205') {
+      console.error('[cloud-match-repo] publishMatchInvitation invitation write failed:', invErr.message);
+    }
+
+    // Also write the full match JSON to cloud_match_states so the acceptor
+    // can fetch it via fetchCloudMatchState. publishMatchState skips
+    // pending_acceptance, so we write directly here.
+    const { error: stateErr } = await supabase
+      .from('cloud_match_states')
+      .upsert(matchToCloudRow(match, team1OwnerPhone));
+    if (stateErr && (stateErr as { code?: string }).code !== 'PGRST205') {
+      console.error('[cloud-match-repo] publishMatchInvitation state write failed:', stateErr.message);
     }
   } catch (err) {
     console.error('[cloud-match-repo] publishMatchInvitation error:', (err as Error).message);
