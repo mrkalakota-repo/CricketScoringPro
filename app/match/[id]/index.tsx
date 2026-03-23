@@ -164,6 +164,7 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
                 )}
                 {/* Batting */}
                 <Surface style={[styles.scorecardSurface, { backgroundColor: theme.colors.surface }]} elevation={1}>
+                  <View style={styles.scorecardInner}>
                   <Text variant="labelMedium" style={[styles.scorecardTitle, { color: theme.colors.onSurfaceVariant }]}>{battingTeam} — Batting</Text>
                   <View style={[styles.scorecardHeaderRow, { backgroundColor: theme.colors.surfaceVariant }]}>
                     {['Batter', 'R', 'B', '4s', '6s', 'SR'].map((h, hi) => (
@@ -199,9 +200,11 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
                       {' '}(w {inn.extras.wides}, nb {inn.extras.noBalls}, b {inn.extras.byes}, lb {inn.extras.legByes})
                     </Text>
                   </View>
+                  </View>
                 </Surface>
                 {/* Bowling */}
                 <Surface style={[styles.scorecardSurface, { backgroundColor: theme.colors.surface, marginTop: 8 }]} elevation={1}>
+                  <View style={styles.scorecardInner}>
                   <Text variant="labelMedium" style={[styles.scorecardTitle, { color: theme.colors.onSurfaceVariant }]}>{bowlingTeam} — Bowling</Text>
                   <View style={[styles.scorecardHeaderRow, { backgroundColor: theme.colors.surfaceVariant }]}>
                     {['Bowler', 'O', 'M', 'R', 'W', 'Econ'].map((h, hi) => (
@@ -222,6 +225,7 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
                       {bi < inn.bowlers.length - 1 && <Divider />}
                     </View>
                   ))}
+                  </View>
                 </Surface>
               </View>
             );
@@ -654,7 +658,8 @@ const styles = StyleSheet.create({
   actions: { marginTop: 8, gap: 8 },
   actionButton: {},
   pendingCard: { marginBottom: 10, borderRadius: 14, borderWidth: 1 },
-  scorecardSurface: { borderRadius: 12, overflow: 'hidden' },
+  scorecardSurface: { borderRadius: 12 },
+  scorecardInner: { borderRadius: 12, overflow: 'hidden' },
   scorecardTitle: { fontWeight: '700', padding: 10, paddingBottom: 6 },
   scorecardHeaderRow: { flexDirection: 'row', paddingHorizontal: 10, paddingVertical: 5 },
   scHdr: { fontSize: 10, fontWeight: '600' },
