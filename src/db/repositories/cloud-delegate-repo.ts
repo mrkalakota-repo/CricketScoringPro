@@ -6,7 +6,10 @@ export async function publishDelegateCode(
   expiresAt: number,
 ): Promise<void> {
   if (!isCloudEnabled || !supabase) return;
-  const { error } = await supabase.from('delegate_codes').upsert({
+  // Delete any existing code for this team first (idempotent re-generation),
+  // then insert fresh — avoids needing an UPDATE RLS policy on delegate_codes.
+  await supabase.from('delegate_codes').delete().eq('team_id', teamId);
+  const { error } = await supabase.from('delegate_codes').insert({
     team_id: teamId,
     code,
     expires_at: expiresAt,
