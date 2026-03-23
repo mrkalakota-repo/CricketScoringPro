@@ -64,7 +64,7 @@ export default function ScheduleScreen() {
 
   if (!league) {
     return <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Stack.Screen options={{ headerBackTitle: '', title: 'Schedule' }} />
+      <Stack.Screen options={{ title: 'Schedule' }} />
       <Text style={{ padding: 16, color: theme.colors.onSurface }}>League not found</Text>
     </View>;
   }
@@ -72,7 +72,7 @@ export default function ScheduleScreen() {
   if (!isOwner) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <Stack.Screen options={{ headerBackTitle: '', title: 'Schedule' }} />
+        <Stack.Screen options={{ title: 'Schedule' }} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <MaterialCommunityIcons name="lock-outline" size={40} color={theme.colors.outlineVariant} />
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, textAlign: 'center' }}>
@@ -157,7 +157,7 @@ export default function ScheduleScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Stack.Screen options={{ headerBackTitle: '', title: editFixture ? 'Edit Fixture' : 'Schedule' }} />
+      <Stack.Screen options={{ title: editFixture ? 'Edit Fixture' : 'Schedule' }} />
 
       <Portal>
         <Dialog visible={showDeleteDialog} onDismiss={() => setShowDeleteDialog(false)}>

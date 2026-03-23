@@ -100,7 +100,7 @@ export default function ChatScreen() {
   if (!isCloudEnabled) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
-        <Stack.Screen options={{ title: 'Team Chat', headerBackTitle: '' }} />
+        <Stack.Screen options={{ title: 'Team Chat' }} />
         <MaterialCommunityIcons name="cloud-off-outline" size={56} color={theme.colors.outlineVariant} />
         <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, textAlign: 'center' }}>
           Chat requires cloud sync
@@ -115,7 +115,7 @@ export default function ChatScreen() {
   if (!team) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
-        <Stack.Screen options={{ title: 'Team Chat', headerBackTitle: '' }} />
+        <Stack.Screen options={{ title: 'Team Chat' }} />
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>Team not found</Text>
       </View>
     );
@@ -129,7 +129,6 @@ export default function ChatScreen() {
     >
       <Stack.Screen options={{
         title: `${team.name} Chat`,
-        headerBackTitle: '',
         headerRight: () => (
           <IconButton icon="account-circle" iconColor="#FFFFFF" size={22} onPress={() => setShowPicker(true)} />
         ),

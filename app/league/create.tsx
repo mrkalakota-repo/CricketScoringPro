@@ -37,7 +37,7 @@ export default function CreateLeagueScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Stack.Screen options={{ headerBackTitle: '', title: 'New League' }} />
+      <Stack.Screen options={{ title: 'New League' }} />
       <ScrollView contentContainerStyle={styles.content}>
         <TextInput
           label="League Name"

@@ -58,7 +58,7 @@ export default function EditTeamScreen() {
   if (!hasEditAccess) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
-        <Stack.Screen options={{ headerBackTitle: '', title: 'Edit Team' }} />
+        <Stack.Screen options={{ title: 'Edit Team' }} />
         <Text variant="titleMedium" style={{ textAlign: 'center', marginBottom: 12 }}>
           You don&apos;t have permission to edit this team.
         </Text>
@@ -70,7 +70,7 @@ export default function EditTeamScreen() {
   if (needsPinUnlock) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
-        <Stack.Screen options={{ headerBackTitle: '', title: 'Edit Team' }} />
+        <Stack.Screen options={{ title: 'Edit Team' }} />
         <Text variant="titleMedium" style={{ textAlign: 'center', marginBottom: 12 }}>
           Admin PIN required to edit this team.
         </Text>
@@ -111,7 +111,7 @@ export default function EditTeamScreen() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Stack.Screen options={{ headerBackTitle: '', title: `Edit ${team.name}` }} />
+      <Stack.Screen options={{ title: `Edit ${team.name}` }} />
       <View style={styles.form}>
         <TextInput
           label="Team Name"

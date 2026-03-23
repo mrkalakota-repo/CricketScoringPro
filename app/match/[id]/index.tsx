@@ -40,7 +40,7 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
   if (loading) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
-        <Stack.Screen options={{ headerBackTitle: '', title: fallback ? `${fallback.team1Short} vs ${fallback.team2Short}` : 'Match Details' }} />
+        <Stack.Screen options={{ title: fallback ? `${fallback.team1Short} vs ${fallback.team2Short}` : 'Match Details' }} />
         <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>Loading match…</Text>
       </View>
@@ -58,7 +58,7 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
     };
     return (
       <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <Stack.Screen options={{ headerBackTitle: '', title: `${cloudMatch.team1.shortName} vs ${cloudMatch.team2.shortName}` }} />
+        <Stack.Screen options={{ title: `${cloudMatch.team1.shortName} vs ${cloudMatch.team2.shortName}` }} />
         <Surface style={[styles.header, { backgroundColor: theme.colors.primary }]} elevation={2}>
           <Text style={styles.format}>{cloudMatch.config.format.toUpperCase()} Match</Text>
           <Text style={styles.versus}>{cloudMatch.team1.shortName} vs {cloudMatch.team2.shortName}</Text>
@@ -249,7 +249,7 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
 
     return (
       <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <Stack.Screen options={{ headerBackTitle: '', title: `${fallback.team1Short} vs ${fallback.team2Short}` }} />
+        <Stack.Screen options={{ title: `${fallback.team1Short} vs ${fallback.team2Short}` }} />
         <Surface style={[styles.header, { backgroundColor: theme.colors.primary }]} elevation={2}>
           <Text style={styles.format}>{fallback.format.toUpperCase()} Match</Text>
           <Text style={styles.versus}>{fallback.team1Short} vs {fallback.team2Short}</Text>
@@ -335,7 +335,7 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
 
   return (
     <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
-      <Stack.Screen options={{ headerBackTitle: '', title: 'Match Details' }} />
+      <Stack.Screen options={{ title: 'Match Details' }} />
       <MaterialCommunityIcons name="alert-circle-outline" size={48} color={theme.colors.outlineVariant} />
       <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>Match details unavailable</Text>
       <Button mode="text" onPress={() => router.back()} style={{ marginTop: 8 }}>Go Back</Button>
@@ -406,7 +406,7 @@ export default function MatchDetailScreen() {
 
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <Stack.Screen options={{ headerBackTitle: '', title: `${t1Name} vs ${t2Name}` }} />
+        <Stack.Screen options={{ title: `${t1Name} vs ${t2Name}` }} />
         <Surface style={[styles.header, { backgroundColor: theme.colors.primary }]} elevation={2}>
           <Text style={styles.format}>{row.format.toUpperCase()} Match</Text>
           <Text style={styles.versus}>{t1Name} vs {t2Name}</Text>
@@ -471,7 +471,7 @@ export default function MatchDetailScreen() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Stack.Screen options={{ headerBackTitle: '', title: `${match!.team1.shortName} vs ${match!.team2.shortName}` }} />
+      <Stack.Screen options={{ title: `${match!.team1.shortName} vs ${match!.team2.shortName}` }} />
 
       <Surface style={[styles.header, { backgroundColor: theme.colors.primary }]} elevation={2}>
         <Text style={styles.format}>{match!.config.format.toUpperCase()} Match</Text>
