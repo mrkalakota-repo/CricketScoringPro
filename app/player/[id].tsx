@@ -92,7 +92,7 @@ export default function PlayerProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Stack.Screen options={{ title: player.name }} />
+      <Stack.Screen options={{ headerBackTitle: '', title: player.name }} />
 
       <ScrollView contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 8) + 16 }}>
 

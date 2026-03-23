@@ -136,7 +136,7 @@ export default function RosterScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Stack.Screen options={{ title: `${team.name} — Roster` }} />
+      <Stack.Screen options={{ headerBackTitle: '', title: `${team.name} — Roster` }} />
 
       {team.adminPinHash && (
         <AdminPinModal

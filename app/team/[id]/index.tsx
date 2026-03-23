@@ -132,7 +132,7 @@ export default function TeamDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Stack.Screen options={{ title: team.name }} />
+      <Stack.Screen options={{ headerBackTitle: '', title: team.name }} />
 
       {/* PIN Modals */}
       {team.adminPinHash && (
