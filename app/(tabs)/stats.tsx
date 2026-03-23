@@ -1,13 +1,19 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Card, useTheme, Divider, Surface } from 'react-native-paper';
+import { Text, Card, useTheme, Divider, Surface, ActivityIndicator } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
+import { useUserAuth } from '../../src/hooks/useUserAuth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Match } from '../../src/engine/types';
 import { economyRate } from '../../src/utils/cricket-math';
 import { formatOvers } from '../../src/utils/formatters';
+import * as cloudMatchRepo from '../../src/db/repositories/cloud-match-repo';
+import type { CloudMatchRow } from '../../src/db/repositories/cloud-match-repo';
+import { isCloudEnabled } from '../../src/config/supabase';
 
 type PlayerRunStat = { name: string; runs: number; matches: number; high: number };
 type PlayerWktStat = { name: string; wickets: number; matches: number; bestWickets: number; bestRuns: number; economy: number };
@@ -52,7 +58,6 @@ function computeWktStats(completedMatches: Match[]): PlayerWktStat[] {
         const name = getName(b.playerId);
         const prev = map.get(name) ?? { name, wickets: 0, matches: 0, bestWickets: 0, bestRuns: 0, economy: 0 };
         const isNewBest = b.wickets > prev.bestWickets || (b.wickets === prev.bestWickets && b.runsConceded < prev.bestRuns);
-        const totalBalls = prev.matches > 0 ? (prev.economy / 6) * prev.matches : 0; // rough accumulation
         map.set(name, {
           name,
           wickets: prev.wickets + b.wickets,
@@ -72,19 +77,59 @@ export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const matches = useMatchStore(s => s.matches);
   const teams = useTeamStore(s => s.teams);
+  const myPhone = useUserAuth(s => s.profile?.phone ?? null);
 
-  const completedCount = matches.filter(m => m.status === 'completed').length;
+  const [cloudRows, setCloudRows] = useState<CloudMatchRow[]>([]);
+  const [cloudCompleted, setCloudCompleted] = useState<Match[]>([]);
+  const [cloudLoading, setCloudLoading] = useState(false);
+
+  const loadCloud = useCallback(async () => {
+    if (!isCloudEnabled) return;
+    setCloudLoading(true);
+    try {
+      const localIds = new Set(matches.map(m => m.id));
+      const [mine, recent, completedStates] = await Promise.all([
+        myPhone ? cloudMatchRepo.fetchMyCloudMatches(myPhone, 90) : Promise.resolve([] as CloudMatchRow[]),
+        cloudMatchRepo.fetchRecentCloudMatches(30),
+        cloudMatchRepo.fetchCompletedCloudMatchStates(myPhone, 90),
+      ]);
+      // Deduplicate cloud rows against local
+      const seen = new Set(localIds);
+      const deduped: CloudMatchRow[] = [];
+      for (const r of [...mine, ...recent]) {
+        if (!seen.has(r.id)) { seen.add(r.id); deduped.push(r); }
+      }
+      setCloudRows(deduped);
+      // Deduplicate completed states against local
+      const localCompletedIds = new Set(
+        matches.filter(m => m.status === 'completed').map(m => m.id)
+      );
+      setCloudCompleted(completedStates.filter(m => !localCompletedIds.has(m.id)));
+    } finally {
+      setCloudLoading(false);
+    }
+  }, [matches, myPhone]);
+
+  useFocusEffect(useCallback(() => { loadCloud(); }, []));
+
+  // Overview counts — local + cloud
+  const localCompletedCount = matches.filter(m => m.status === 'completed').length;
+  const cloudCompletedCount = cloudRows.filter(r => r.status === 'completed').length;
+  const completedCount = localCompletedCount + cloudCompletedCount;
+  const totalCount = matches.length + cloudRows.length;
   const totalPlayers = teams.reduce((sum, t) => sum + t.players.length, 0);
 
-  const completedMatches = useMemo(() => parseCompletedMatches(matches), [matches]);
-  const runStats = useMemo(() => computeRunStats(completedMatches), [completedMatches]);
-  const wktStats = useMemo(() => computeWktStats(completedMatches), [completedMatches]);
+  // Player stats — merge local + cloud completed match JSONs
+  const localCompleted = useMemo(() => parseCompletedMatches(matches), [matches]);
+  const allCompleted = useMemo(() => [...localCompleted, ...cloudCompleted], [localCompleted, cloudCompleted]);
+  const runStats = useMemo(() => computeRunStats(allCompleted), [allCompleted]);
+  const wktStats = useMemo(() => computeWktStats(allCompleted), [allCompleted]);
 
   const overviewStats = [
-    { icon: 'cricket' as const,        value: completedCount,    label: 'Completed' },
-    { icon: 'trophy' as const,         value: matches.length,    label: 'Total Matches' },
-    { icon: 'shield-account' as const, value: teams.length,      label: 'Teams' },
-    { icon: 'account-group' as const,  value: totalPlayers,      label: 'Players' },
+    { icon: 'cricket' as const,        value: completedCount, label: 'Completed' },
+    { icon: 'trophy' as const,         value: totalCount,     label: 'Total Matches' },
+    { icon: 'shield-account' as const, value: teams.length,   label: 'Teams' },
+    { icon: 'account-group' as const,  value: totalPlayers,   label: 'Players' },
   ];
 
   return (
@@ -93,9 +138,25 @@ export default function StatsScreen() {
       contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 8) + 16 }}
     >
       <View style={styles.content}>
-        <Text variant="titleLarge" style={[styles.title, { color: theme.colors.primary }]}>
-          Statistics
-        </Text>
+        <View style={styles.titleRow}>
+          <Text variant="titleLarge" style={[styles.title, { color: theme.colors.primary }]}>
+            Statistics
+          </Text>
+          {cloudLoading && (
+            <View style={styles.syncRow}>
+              <ActivityIndicator size={12} color={theme.colors.primary} />
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>syncing…</Text>
+            </View>
+          )}
+          {!cloudLoading && isCloudEnabled && cloudRows.length > 0 && (
+            <View style={styles.syncRow}>
+              <MaterialCommunityIcons name="cloud-check-outline" size={13} color={theme.colors.primary} />
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                +{cloudRows.length} cloud
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* Overview counts */}
         <View style={styles.grid}>
@@ -200,7 +261,9 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16, gap: 16 },
-  title: { fontWeight: 'bold' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  title: { fontWeight: 'bold', flex: 1 },
+  syncRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statCard: { width: '47%', borderRadius: 12 },
   statContent: { alignItems: 'center', padding: 10, gap: 4 },

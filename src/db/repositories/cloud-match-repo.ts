@@ -381,6 +381,63 @@ export async function fetchMyCloudMatches(ownerPhone: string, days = 30): Promis
   }
 }
 
+/**
+ * Fetch completed cloud matches with full match state JSON for stats computation.
+ * Returns parsed Match objects, skipping any with invalid JSON.
+ * Fetches owner's matches (no date cap) + community matches within `days`.
+ */
+export async function fetchCompletedCloudMatchStates(ownerPhone: string | null, days = 90): Promise<Match[]> {
+  if (!isCloudEnabled || !supabase) return [];
+  try {
+    const since = Date.now() - days * 24 * 60 * 60 * 1000;
+    let query = supabase
+      .from('cloud_match_states')
+      .select('id, match_state_json, owner_phone, updated_at')
+      .eq('status', 'completed')
+      .not('match_state_json', 'is', null)
+      .gte('updated_at', since)
+      .order('updated_at', { ascending: false })
+      .limit(100);
+    const { data, error } = await query;
+    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    const results: Match[] = [];
+    for (const r of data ?? []) {
+      try {
+        const m = JSON.parse(r.match_state_json as string) as Match;
+        results.push(m);
+      } catch {}
+    }
+    // Also include owner's older completed matches beyond `days`
+    if (ownerPhone) {
+      const { data: ownerData, error: ownerErr } = await supabase
+        .from('cloud_match_states')
+        .select('id, match_state_json')
+        .eq('status', 'completed')
+        .eq('owner_phone', ownerPhone)
+        .not('match_state_json', 'is', null)
+        .lt('updated_at', since)
+        .order('updated_at', { ascending: false })
+        .limit(50);
+      if (!ownerErr || (ownerErr as { code?: string }).code === 'PGRST205') {
+        const seen = new Set(results.map(m => m.id));
+        for (const r of ownerData ?? []) {
+          if (seen.has(r.id as string)) continue;
+          try {
+            results.push(JSON.parse(r.match_state_json as string) as Match);
+          } catch {}
+        }
+      }
+    }
+    return results;
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    if (code !== 'PGRST205') {
+      console.error('[cloud-match-repo] fetchCompletedCloudMatchStates failed:', (err as Error).message);
+    }
+    return [];
+  }
+}
+
 export async function fetchCloudMatchState(matchId: string): Promise<Match | null> {
   if (!isCloudEnabled || !supabase) return null;
   try {
