@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
+import { View, StyleSheet, FlatList, Platform } from 'react-native';
 import { Text, Card, FAB, useTheme, Searchbar, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -131,37 +131,59 @@ export default function TeamsScreen() {
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [locState, setLocState] = useState<LocationState>('loading');
   const [cloudState, setCloudState] = useState<CloudState>('idle');
-  const syncedRef = useRef(false); // prevent re-sync on every focus
+  const [needsSync, setNeedsSync] = useState(true); // triggers cloud fetch when true + location ready
   const lastSyncTimeRef = useRef(0);
-  const SYNC_COOLDOWN_MS = 60_000; // re-sync at most once per minute on tab focus
+  const SYNC_COOLDOWN_MS = 60_000;
 
   useFocusEffect(useCallback(() => {
     loadTeams();
     const now = Date.now();
     if (now - lastSyncTimeRef.current > SYNC_COOLDOWN_MS) {
-      syncedRef.current = false;
+      setNeedsSync(true);
     }
   }, []));
 
-  // Request location once on mount
+  // Request location once on mount — fast-path via last-known on iOS
   useEffect(() => {
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') { setLocState('denied'); return; }
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+
+        // Try cached position first (instant on iOS, avoids GPS cold-start hang)
+        const lastKnown = await Location.getLastKnownPositionAsync({ maxAge: 5 * 60 * 1000 });
+        if (lastKnown) {
+          setUserLoc({ lat: lastKnown.coords.latitude, lng: lastKnown.coords.longitude });
+          setLocState('granted');
+          return;
+        }
+
+        // No cache — request fresh fix with a 10-second timeout (iOS can hang indefinitely)
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          ...(Platform.OS === 'ios' ? { timeoutInterval: 10_000 } : {}),
+        });
         setUserLoc({ lat: loc.coords.latitude, lng: loc.coords.longitude });
         setLocState('granted');
       } catch {
+        // Timeout or permission error — last-known fallback before giving up
+        try {
+          const fallback = await Location.getLastKnownPositionAsync();
+          if (fallback) {
+            setUserLoc({ lat: fallback.coords.latitude, lng: fallback.coords.longitude });
+            setLocState('granted');
+            return;
+          }
+        } catch {}
         setLocState('denied');
       }
     })();
   }, []);
 
-  // Fetch nearby teams from cloud when location becomes available
+  // Fetch nearby teams whenever location is available AND a sync is needed
   useEffect(() => {
-    if (!userLoc || syncedRef.current || !isCloudEnabled) return;
-    syncedRef.current = true;
+    if (!userLoc || !needsSync || !isCloudEnabled) return;
+    setNeedsSync(false); // consume the trigger immediately to prevent double-fire
 
     (async () => {
       setCloudState('syncing');
@@ -176,7 +198,7 @@ export default function TeamsScreen() {
         setCloudState('error');
       }
     })();
-  }, [userLoc]);
+  }, [userLoc, needsSync]);
 
   // Cloud search: when user types, also search cloud for teams not in local store
   useEffect(() => {
@@ -203,7 +225,6 @@ export default function TeamsScreen() {
   const isSearching = query.trim().length > 0;
 
   const handleRefresh = useCallback(async () => {
-    syncedRef.current = false;
     await loadTeams();
     if (userLoc) {
       setCloudState('syncing');
@@ -213,10 +234,10 @@ export default function TeamsScreen() {
         );
         await importCloudTeams(cloudTeams, myTeamIds);
         setCloudState('done');
+        lastSyncTimeRef.current = Date.now();
       } catch {
         setCloudState('error');
       }
-      syncedRef.current = true;
     }
   }, [userLoc, myTeamIds, loadTeams, importCloudTeams]);
 

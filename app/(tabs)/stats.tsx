@@ -1,9 +1,8 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Card, useTheme, Divider, Surface, ActivityIndicator } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
 import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
 import { useUserAuth } from '../../src/hooks/useUserAuth';
@@ -77,7 +76,11 @@ export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const matches = useMatchStore(s => s.matches);
   const teams = useTeamStore(s => s.teams);
+  const loadTeams = useTeamStore(s => s.loadTeams);
   const myPhone = useUserAuth(s => s.profile?.phone ?? null);
+
+  // Ensure cloud-owned/member teams are in the store when this tab is viewed
+  useFocusEffect(useCallback(() => { loadTeams(); }, []));
 
   const [cloudRows, setCloudRows] = useState<CloudMatchRow[]>([]);
   const [cloudCompleted, setCloudCompleted] = useState<Match[]>([]);
