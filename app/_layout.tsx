@@ -52,7 +52,7 @@ export default function RootLayout() {
     headerStyle: { backgroundColor: theme.colors.primary },
     headerTintColor: '#FFFFFF' as const,
     headerTitleStyle: { fontWeight: 'bold' as const },
-    headerBackTitleVisible: false,
+    headerBackButtonDisplayMode: 'minimal' as const,
   };
 
   const nav = (

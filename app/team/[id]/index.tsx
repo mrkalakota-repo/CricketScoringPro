@@ -279,15 +279,17 @@ export default function TeamDetailScreen() {
       {/* Actions */}
       <View style={styles.actions}>
         {hasEditAccess && (
-          <>
-            <Button
-              mode="contained"
-              icon="account-plus"
-              onPress={() => isDelegate ? router.push(`/team/${teamId}/roster`) : requireAdmin('roster', () => router.push(`/team/${teamId}/roster`))}
-              style={styles.actionButton}
-            >
-              Manage Roster
-            </Button>
+          <Button
+            mode="contained"
+            icon="account-plus"
+            onPress={() => isDelegate ? router.push(`/team/${teamId}/roster`) : requireAdmin('roster', () => router.push(`/team/${teamId}/roster`))}
+            style={styles.actionButtonFull}
+          >
+            Manage Roster
+          </Button>
+        )}
+        <View style={styles.actionsRow}>
+          {hasEditAccess && (
             <Button
               mode="outlined"
               icon="pencil"
@@ -296,18 +298,18 @@ export default function TeamDetailScreen() {
             >
               Edit Team
             </Button>
-          </>
-        )}
-        {isCloudEnabled && (
-          <Button
-            mode="outlined"
-            icon="chat"
-            onPress={() => router.push(`/chat/${teamId}`)}
-            style={styles.actionButton}
-          >
-            Team Chat
-          </Button>
-        )}
+          )}
+          {isCloudEnabled && (
+            <Button
+              mode="outlined"
+              icon="chat"
+              onPress={() => router.push(`/chat/${teamId}`)}
+              style={styles.actionButton}
+            >
+              Team Chat
+            </Button>
+          )}
+        </View>
       </View>
 
       <Divider style={{ marginHorizontal: 16 }} />
@@ -449,8 +451,10 @@ const styles = StyleSheet.create({
   },
   teamName: { color: '#FFFFFF', fontWeight: 'bold', marginTop: 12 },
   shortName: { color: 'rgba(255,255,255,0.8)', marginTop: 4 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, padding: 16 },
-  actionButton: { borderRadius: 20 },
+  actions: { gap: 10, padding: 16 },
+  actionsRow: { flexDirection: 'row', gap: 10 },
+  actionButtonFull: { borderRadius: 20 },
+  actionButton: { flex: 1, borderRadius: 20 },
   sectionTitle: { fontWeight: 'bold', padding: 16, paddingBottom: 8 },
   playerCard: { marginBottom: 8, borderRadius: 12 },
   playerContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
