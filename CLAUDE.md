@@ -149,6 +149,13 @@ Haversine, 50-mile radius. "My Teams" section shows owned + player-member teams.
 
 `importCloudTeams` **purges** any locally-stored transient team (not in `myTeamIds`/`playerTeamIds`/`delegateTeamIds`) that is absent from the incoming cloud batch before upserting — this prevents duplicate rows accumulating after seed re-runs that generate new UUIDs.
 
+**iOS location pattern** — `getCurrentPositionAsync` hangs indefinitely on iOS without a timeout. Always use this sequence:
+1. `getLastKnownPositionAsync({ maxAge: 5 * 60 * 1000 })` — instant cache hit, use immediately if available
+2. `getCurrentPositionAsync({ accuracy: Balanced, ...(ios ? { timeoutInterval: 10_000 } : {}) })` — fresh fix with 10 s timeout
+3. `getLastKnownPositionAsync()` (no maxAge) in the catch block — final fallback before setting `locState('denied')`
+
+**Proximity re-trigger pattern** — use a `needsSync` state (not a ref) as the trigger for the cloud fetch effect. The `useFocusEffect` sets `setNeedsSync(true)` when the cooldown has elapsed; the fetch `useEffect` depends on `[userLoc, needsSync]` and sets `setNeedsSync(false)` immediately to prevent double-fire. Using a ref instead of state means re-renders don't re-run the effect.
+
 ### SQLite Initialization (Critical)
 `PRAGMA` statements must be separate `execAsync` calls — Android SQLite skips subsequent
 statements in a multi-statement block when the first statement returns a result row.
@@ -167,6 +174,15 @@ REACT_NATIVE_PACKAGER_HOSTNAME=<mac-ip> npx expo start --port 8081
 ---
 
 ## UI Conventions
+
+### Back Button Title (iOS)
+`headerBackTitleVisible` was **removed in React Navigation v7** — setting it does nothing. Use `headerBackButtonDisplayMode: 'minimal' as const` in the global `screenOptions` in `app/_layout.tsx`. Do not set `headerBackTitle` or `headerBackTitleVisible` on individual screens.
+
+### Chip Icon Colors
+React Native Paper `Chip` — `selectedColor` only applies when `selected={true}`; it cannot style the icon otherwise. When full icon color control is needed (e.g. badge-style chips), replace `Chip` with a `View + MaterialCommunityIcons` custom badge.
+
+### Surface + overflow:hidden
+Do **not** put `overflow: 'hidden'` directly on a `<Surface>` — it suppresses the iOS shadow. Instead wrap the Surface's content in an inner `<View style={{ borderRadius, overflow: 'hidden' }}>`.
 
 ### Colors — MD3 theme tokens only
 Never hardcode `#1A1A1A`, `#666`, `#999` etc.
@@ -243,7 +259,7 @@ Supported key formats: legacy JWT (`length > 100`) **or** new publishable format
 ## Shared Utilities & Components
 
 - `src/utils/player-icons.ts` — `bowlingIcon(style)` and `battingIcon(style)` — use these instead of local icon lookups in UI files
-- `src/utils/avatar.ts` — `getAvatarColor(name)` and `AVATAR_COLORS` constant — use for team/player avatar backgrounds
+- `src/utils/avatar.ts` — `getAvatarColor(name)` and `AVATAR_COLORS` constant — use for team/player avatar backgrounds and chat message colors. Do not redefine a local `getColor`/`MSG_COLORS` — this is the single source of truth.
 - `src/utils/formatters.ts` — `formatOvers(overs, balls)` (e.g. `"3.2"`) and other display formatters — import from here, do not redefine locally
 - `src/components/NearbyLiveCard.tsx` — shared card for nearby live match display (used by home tab + guest screen). Also exports `LIVE_RED = '#D32F2F'` — use this constant anywhere live/in-progress status needs a red color instead of hardcoding the hex.
 
@@ -277,3 +293,6 @@ Android package: `com.gullycricket.scorer` · versionCode: bump in `app.json` be
 - **Do not** import React or RN APIs into `src/engine/`
 - **Do not** use `npm install` for Expo packages — use `npx expo install`
 - **Do not** put PRAGMAs and CREATE TABLE in the same `execAsync` call (Android bug)
+- **Do not** use `headerBackTitleVisible` — it was removed in React Navigation v7; use `headerBackButtonDisplayMode: 'minimal'`
+- **Do not** use a ref as a trigger for a `useEffect` — refs don't cause re-renders; use state instead
+- **Do not** call `getCurrentPositionAsync` on iOS without `timeoutInterval` — it can hang indefinitely
