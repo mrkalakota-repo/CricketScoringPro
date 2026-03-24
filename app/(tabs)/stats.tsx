@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
+import { usePrefsStore } from '../../src/store/prefs-store';
 import { useUserAuth } from '../../src/hooks/useUserAuth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Match } from '../../src/engine/types';
@@ -75,9 +76,14 @@ export default function StatsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const matches = useMatchStore(s => s.matches);
-  const teams = useTeamStore(s => s.teams);
-  const loadTeams = useTeamStore(s => s.loadTeams);
+  const { teams, loading: teamsLoading, loadTeams } = useTeamStore();
+  const myTeamIds = usePrefsStore(s => s.myTeamIds);
+  const playerTeamIds = usePrefsStore(s => s.playerTeamIds);
   const myPhone = useUserAuth(s => s.profile?.phone ?? null);
+
+  // Prefer prefs-based count (updated by cloud sync before local import completes)
+  // so the card shows the correct number immediately after login.
+  const teamsCount = myTeamIds.length + playerTeamIds.length || teams.length;
 
   // Ensure cloud-owned/member teams are in the store when this tab is viewed
   useFocusEffect(useCallback(() => { loadTeams(); }, []));
@@ -121,6 +127,7 @@ export default function StatsScreen() {
   const completedCount = localCompletedCount + cloudCompletedCount;
   const totalCount = matches.length + cloudRows.length;
   const totalPlayers = teams.reduce((sum, t) => sum + t.players.length, 0);
+  const statsLoading = teamsLoading || cloudLoading;
 
   // Player stats — merge local + cloud completed match JSONs
   const localCompleted = useMemo(() => parseCompletedMatches(matches), [matches]);
@@ -131,7 +138,7 @@ export default function StatsScreen() {
   const overviewStats = [
     { icon: 'cricket' as const,        value: completedCount, label: 'Completed' },
     { icon: 'trophy' as const,         value: totalCount,     label: 'Total Matches' },
-    { icon: 'shield-account' as const, value: teams.length,   label: 'Teams' },
+    { icon: 'shield-account' as const, value: teamsCount,     label: 'Teams' },
     { icon: 'account-group' as const,  value: totalPlayers,   label: 'Players' },
   ];
 
@@ -167,9 +174,13 @@ export default function StatsScreen() {
             <Card key={label} style={styles.statCard}>
               <Card.Content style={styles.statContent}>
                 <MaterialCommunityIcons name={icon} size={28} color={theme.colors.primary} />
-                <Text variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
-                  {value}
-                </Text>
+                {statsLoading && value === 0 ? (
+                  <ActivityIndicator size={20} color={theme.colors.primary} />
+                ) : (
+                  <Text variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
+                    {value}
+                  </Text>
+                )}
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>{label}</Text>
               </Card.Content>
             </Card>
