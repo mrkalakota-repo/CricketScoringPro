@@ -600,6 +600,21 @@ export class MatchEngine {
     return new MatchEngine(newMatch, this.undoStack);
   }
 
+  swapStrike(): MatchEngine {
+    const newMatch = produce(this.match, draft => {
+      const inn = draft.innings[draft.currentInningsIndex];
+      if (!inn.currentStrikerId || !inn.currentNonStrikerId) return;
+      const temp = inn.currentStrikerId;
+      inn.currentStrikerId = inn.currentNonStrikerId;
+      inn.currentNonStrikerId = temp;
+      for (const b of inn.batters) {
+        b.isOnStrike = b.playerId === inn.currentStrikerId;
+      }
+      draft.updatedAt = Date.now();
+    });
+    return new MatchEngine(newMatch, this.undoStack);
+  }
+
   // ===== Private Helpers =====
 
   private checkMatchCompletion(draft: Match): void {

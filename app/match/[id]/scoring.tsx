@@ -31,7 +31,7 @@ export default function ScoringScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const {
     engine, recordBall, undoLastBall, setOpeners, setBowler,
-    setNewBatter, startNextInnings, startSuperOver, saveMatch,
+    setNewBatter, swapStrike, startNextInnings, startSuperOver, saveMatch,
     syncMatchFromCloud, loadMatches,
   } = useMatchStore();
   const { myTeamIds, delegateTeamIds } = usePrefsStore();
@@ -369,6 +369,14 @@ export default function ScoringScreen() {
               {striker ? `${striker.runs} (${striker.ballsFaced})` : ''}
             </Text>
           </View>
+          {canScore && isHost && !isMatchComplete && !isInningsComplete && striker && nonStriker && (
+            <Pressable
+              onPress={() => swapStrike()}
+              style={[styles.swapButton, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface }]}
+            >
+              <MaterialCommunityIcons name="swap-horizontal" size={18} color={theme.colors.primary} />
+            </Pressable>
+          )}
           <View style={styles.batterInfo}>
             <Text style={[styles.playerName, { color: theme.colors.onSurface }]}>
               {nonStriker ? getPlayerName(nonStriker.playerId) : '-'}
@@ -802,8 +810,9 @@ const styles = StyleSheet.create({
 
   // Player Info
   playerInfo: { margin: 12, padding: 12, borderRadius: 12 },
-  batterRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  batterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   batterInfo: { flex: 1 },
+  swapButton: { padding: 6, borderRadius: 20, borderWidth: 1, marginHorizontal: 8 },
   playerName: { fontSize: 14, fontWeight: '600' },
   playerStats: { fontSize: 12 },
   bowlerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
