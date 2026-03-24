@@ -9,6 +9,10 @@ import { useRole } from '../../src/hooks/useRole';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Team } from '../../src/engine/types';
 import * as Location from 'expo-location';
+import Constants from 'expo-constants';
+
+// Xcode default simulated location — used when running on iOS simulator with no GPS fix
+const SIMULATOR_DEFAULT_LOC = { lat: 37.3318, lng: -122.0312 };
 import * as cloudRepo from '../../src/db/repositories/cloud-team-repo';
 import { isCloudEnabled } from '../../src/config/supabase';
 import { getAvatarColor } from '../../src/utils/avatar';
@@ -158,15 +162,15 @@ export default function TeamsScreen() {
           return;
         }
 
-        // No cache — request fresh fix with a 10-second timeout (iOS can hang indefinitely)
+        // No cache — request fresh fix. Use 30 s timeout on iOS (simulator is slow to init).
         const loc = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
-          ...(Platform.OS === 'ios' ? { timeoutInterval: 10_000 } : {}),
+          ...(Platform.OS === 'ios' ? { timeoutInterval: 30_000 } : {}),
         });
         setUserLoc({ lat: loc.coords.latitude, lng: loc.coords.longitude });
         setLocState('granted');
       } catch {
-        // Timeout or permission error — last-known fallback before giving up
+        // Timeout or permission error — try last-known with no maxAge constraint
         try {
           const fallback = await Location.getLastKnownPositionAsync();
           if (fallback) {
@@ -175,6 +179,15 @@ export default function TeamsScreen() {
             return;
           }
         } catch {}
+
+        // iOS simulator has no real GPS — use Xcode's default simulated location so
+        // nearby cloud sync still runs during development.
+        if (Platform.OS === 'ios' && !Constants.isDevice) {
+          setUserLoc(SIMULATOR_DEFAULT_LOC);
+          setLocState('granted');
+          return;
+        }
+
         setLocState('denied');
       }
     })();
