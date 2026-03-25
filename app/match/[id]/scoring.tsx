@@ -31,7 +31,7 @@ export default function ScoringScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const {
     engine, recordBall, undoLastBall, setOpeners, setBowler,
-    setNewBatter, swapStrike, startNextInnings, startSuperOver, saveMatch,
+    setNewBatter, retireBatter, swapStrike, startNextInnings, startSuperOver, saveMatch,
     syncMatchFromCloud, loadMatches,
   } = useMatchStore();
   const { myTeamIds, delegateTeamIds } = usePrefsStore();
@@ -53,6 +53,9 @@ export default function ScoringScreen() {
   const [newBatterModal, setNewBatterModal] = useState(false);
   const [inningsCompleteModal, setInningsCompleteModal] = useState(false);
   const [showUndoDialog, setShowUndoDialog] = useState(false);
+  const [retireModal, setRetireModal] = useState(false);
+  const [retireBatsmanId, setRetireBatsmanId] = useState<string | null>(null);
+  const [retireType, setRetireType] = useState<'retired_hurt' | 'retired_out'>('retired_hurt');
 
   // Selection state
   const [selectedDismissal, setSelectedDismissal] = useState<DismissalType>('bowled');
@@ -281,6 +284,25 @@ export default function ScoringScreen() {
         }
       }, 100);
     }
+  };
+
+  const handleRetire = () => {
+    setRetireBatsmanId(innings?.currentStrikerId ?? null);
+    setRetireType('retired_hurt');
+    setRetireModal(true);
+  };
+
+  const confirmRetire = () => {
+    if (!retireBatsmanId) return;
+    retireBatter(retireBatsmanId, retireType);
+    setRetireModal(false);
+    setRetireBatsmanId(null);
+    // needsNewBatter will become true — the existing modal auto-shows via the post-ball check
+    // but since no ball was recorded we trigger it manually
+    setTimeout(() => {
+      setSelectedNewBatter(null);
+      setNewBatterModal(true);
+    }, 100);
   };
 
   const handleNextInnings = async () => {
@@ -540,6 +562,18 @@ export default function ScoringScreen() {
             >
               Undo
             </Button>
+            {(striker || nonStriker) && (
+              <Button
+                mode="outlined"
+                icon="account-arrow-right"
+                onPress={handleRetire}
+                compact
+                textColor={theme.colors.error}
+                style={{ borderColor: theme.colors.error }}
+              >
+                Retire
+              </Button>
+            )}
             <Button
               mode="text"
               onPress={() => router.push(`/match/${id}/scorecard`)}
@@ -770,6 +804,67 @@ export default function ScoringScreen() {
               </Button>
             </View>
           )}
+        </Modal>
+      </Portal>
+
+      {/* Retire Batter Modal */}
+      <Portal>
+        <Modal visible={retireModal} onDismiss={() => setRetireModal(false)} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}>
+          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16, color: theme.colors.onSurface }}>Retire Batter</Text>
+
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>Select Batter</Text>
+          <View style={styles.dismissedRow}>
+            {striker && (
+              <Pressable
+                style={[styles.selectionRow, { flex: 1 }, retireBatsmanId === innings?.currentStrikerId && { backgroundColor: theme.colors.primaryContainer }]}
+                onPress={() => setRetireBatsmanId(innings?.currentStrikerId ?? null)}
+              >
+                <Text style={[styles.modalName, { color: theme.colors.onSurface }]}>
+                  {getPlayerName(innings?.currentStrikerId ?? null)}
+                  {'\n'}<Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant, fontWeight: '400' }}>Striker</Text>
+                </Text>
+              </Pressable>
+            )}
+            {nonStriker && (
+              <Pressable
+                style={[styles.selectionRow, { flex: 1 }, retireBatsmanId === innings?.currentNonStrikerId && { backgroundColor: theme.colors.primaryContainer }]}
+                onPress={() => setRetireBatsmanId(innings?.currentNonStrikerId ?? null)}
+              >
+                <Text style={[styles.modalName, { color: theme.colors.onSurface }]}>
+                  {getPlayerName(innings?.currentNonStrikerId ?? null)}
+                  {'\n'}<Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant, fontWeight: '400' }}>Non-striker</Text>
+                </Text>
+              </Pressable>
+            )}
+          </View>
+
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, marginBottom: 8 }}>Reason</Text>
+          <View style={styles.dismissalGrid}>
+            {([
+              { type: 'retired_hurt' as const, label: 'Retired Hurt' },
+              { type: 'retired_out' as const, label: 'Retired Out' },
+            ]).map(opt => (
+              <Pressable
+                key={opt.type}
+                style={[styles.dismissalButton, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface }, retireType === opt.type && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]}
+                onPress={() => setRetireType(opt.type)}
+              >
+                <Text style={[styles.dismissalText, { color: theme.colors.onSurface }, retireType === opt.type && { color: '#FFF' }]}>
+                  {opt.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          {retireType === 'retired_out' && (
+            <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 8 }}>
+              Retired Out counts as a wicket.
+            </Text>
+          )}
+
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+            <Button mode="text" onPress={() => setRetireModal(false)}>Cancel</Button>
+            <Button mode="contained" onPress={confirmRetire} disabled={!retireBatsmanId}>Confirm</Button>
+          </View>
         </Modal>
       </Portal>
 

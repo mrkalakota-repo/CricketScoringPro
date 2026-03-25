@@ -600,6 +600,48 @@ export class MatchEngine {
     return new MatchEngine(newMatch, this.undoStack);
   }
 
+  // Retire a batter mid-innings (retired hurt or retired out).
+  // Does NOT consume a ball delivery — this happens between balls.
+  // retired_hurt: NOT a wicket (batter may return later)
+  // retired_out:  IS a wicket
+  retireBatter(batsmanId: string, type: 'retired_hurt' | 'retired_out'): MatchEngine {
+    const newMatch = produce(this.match, draft => {
+      const inn = draft.innings[draft.currentInningsIndex];
+
+      const dismissal: Dismissal = { type, batsmanId, bowlerId: '', fielderId: null };
+
+      // Mark batter as dismissed with the retirement type
+      const batter = inn.batters.find(b => b.playerId === batsmanId);
+      if (batter) {
+        batter.dismissal = dismissal;
+        batter.isOnStrike = false;
+      }
+
+      // retired_out counts as a wicket; retired_hurt does not
+      if (type === 'retired_out') {
+        inn.totalWickets += 1;
+        inn.fallOfWickets.push({
+          wicketNumber: inn.totalWickets,
+          runs: inn.totalRuns,
+          overs: inn.totalOvers,
+          ballsInOver: inn.totalBalls,
+          playerId: batsmanId,
+          dismissal,
+        });
+      }
+
+      // Clear the crease slot
+      if (inn.currentStrikerId === batsmanId) {
+        inn.currentStrikerId = null;
+      } else if (inn.currentNonStrikerId === batsmanId) {
+        inn.currentNonStrikerId = null;
+      }
+
+      draft.updatedAt = Date.now();
+    });
+    return new MatchEngine(newMatch, this.undoStack);
+  }
+
   swapStrike(): MatchEngine {
     const newMatch = produce(this.match, draft => {
       const inn = draft.innings[draft.currentInningsIndex];

@@ -30,6 +30,7 @@ interface MatchStore {
   recordBall: (input: BallInput) => void;
   undoLastBall: () => void;
   setNewBatter: (batterId: string) => void;
+  retireBatter: (batsmanId: string, type: 'retired_hurt' | 'retired_out') => void;
   swapStrike: () => void;
   startNextInnings: () => void;
   startSuperOver: () => void;
@@ -169,6 +170,18 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (matchId) {
       matchRepo.saveMatchState(matchId, newEngine.getMatch()).catch(err => {
         console.error('[match-store] auto-save after setNewBatter failed:', (err as Error).message);
+      });
+    }
+  },
+
+  retireBatter: (batsmanId, type) => {
+    const { engine, matchId } = get();
+    if (!engine) return;
+    const newEngine = engine.retireBatter(batsmanId, type);
+    set({ engine: newEngine });
+    if (matchId) {
+      matchRepo.saveMatchState(matchId, newEngine.getMatch()).catch(err => {
+        console.error('[match-store] auto-save after retireBatter failed:', (err as Error).message);
       });
     }
   },
