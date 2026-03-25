@@ -4,7 +4,6 @@ import { Text, Button, Card, useTheme, RadioButton, ActivityIndicator } from 're
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMatchStore } from '../../../src/store/match-store';
-import { usePrefsStore } from '../../../src/store/prefs-store';
 import * as cloudMatchRepo from '../../../src/db/repositories/cloud-match-repo';
 import type { TossDecision } from '../../../src/engine/types';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,7 +14,6 @@ export default function TossScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { engine, loadMatch, syncMatchFromCloud, recordToss, startMatch, setOpeners, saveMatch } = useMatchStore();
-  const { myTeamIds, delegateTeamIds } = usePrefsStore();
   const matchId = Array.isArray(id) ? id[0] : id;
 
   const [matchLoading, setMatchLoading] = useState(true);
@@ -34,10 +32,8 @@ export default function TossScreen() {
 
   const match = engine?.getMatch();
 
-  // Determine if this device controls the toss (owns/delegates team1)
-  const canDoToss = match
-    ? (myTeamIds.includes(match.team1.id) || delegateTeamIds.includes(match.team1.id))
-    : true; // default to allow until match loads
+  // Anyone who opens the toss screen can record the toss — no cross-device gating.
+  const canDoToss = true;
 
   // Observer: subscribe to live_matches and auto-navigate when toss is done
   useEffect(() => {
@@ -94,19 +90,6 @@ export default function TossScreen() {
             {match.team1.name} admin is recording the toss. You will be taken to the scoring screen automatically.
           </Text>
         </View>
-      </View>
-    );
-  }
-
-  if (match.status === 'pending_acceptance') {
-    return (
-      <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
-        <MaterialCommunityIcons name="clock-alert-outline" size={48} color="#F57C00" />
-        <Text variant="titleMedium" style={{ color: '#F57C00', marginTop: 12, fontWeight: '700' }}>Awaiting acceptance</Text>
-        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6, textAlign: 'center', paddingHorizontal: 24 }}>
-          The opposing team must accept the match before the toss can begin.
-        </Text>
-        <Button mode="text" icon="arrow-left" onPress={() => router.back()} style={{ marginTop: 16 }}>Go Back</Button>
       </View>
     );
   }
