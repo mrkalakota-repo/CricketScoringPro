@@ -90,7 +90,7 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <PaperProvider theme={theme}>
             {Platform.OS === 'web' ? (
-              <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#C8E8CA' }}>
+              <View style={{ flex: 1, alignItems: 'center', backgroundColor: colorScheme === 'dark' ? theme.colors.background : '#C8E8CA' }}>
                 <View style={{ flex: 1, width: '100%', maxWidth: 480, backgroundColor: theme.colors.background }}>
                   {loginContent}
                 </View>
@@ -111,7 +111,7 @@ export default function RootLayout() {
             <View style={{
               flex: 1,
               alignItems: 'center',
-              backgroundColor: '#C8E8CA',
+              backgroundColor: colorScheme === 'dark' ? theme.colors.background : '#C8E8CA',
             }}>
               <View style={{
                 flex: 1,

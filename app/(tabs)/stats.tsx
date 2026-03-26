@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
+import { useResponsive } from '../../src/hooks/useResponsive';
 import { Text, Card, useTheme, Divider, Surface, ActivityIndicator } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -136,6 +137,8 @@ export default function StatsScreen() {
   const runStats = useMemo(() => computeRunStats(allCompleted), [allCompleted]);
   const wktStats = useMemo(() => computeWktStats(allCompleted), [allCompleted]);
 
+  const { isTablet } = useResponsive();
+
   const overviewStats = [
     { icon: 'cricket' as const,        value: completedCount, label: 'Completed',     onPress: () => router.push('/matches') },
     { icon: 'trophy' as const,         value: totalCount,     label: 'Total Matches', onPress: () => router.push('/matches') },
@@ -172,7 +175,7 @@ export default function StatsScreen() {
         {/* Overview counts */}
         <View style={styles.grid}>
           {overviewStats.map(({ icon, value, label, onPress }) => (
-            <Card key={label} style={styles.statCard} onPress={onPress}>
+            <Card key={label} style={[styles.statCard, isTablet && { width: '22%' }]} onPress={onPress}>
               <Card.Content style={styles.statContent}>
                 <MaterialCommunityIcons name={icon} size={28} color={theme.colors.primary} />
                 {statsLoading && value === 0 ? (
@@ -196,10 +199,10 @@ export default function StatsScreen() {
             </Text>
           </View>
         ) : (
-          <>
+          <View style={isTablet && { flexDirection: 'row', gap: 16, alignItems: 'flex-start' }}>
             {/* Top Scorers */}
             {runStats.length > 0 && (
-              <Surface style={[styles.tableCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+              <Surface style={[styles.tableCard, { backgroundColor: theme.colors.surface }, isTablet && { flex: 1 }]} elevation={1}>
                 <View style={styles.tableHeader}>
                   <MaterialCommunityIcons name="cricket" size={16} color={theme.colors.primary} />
                   <Text variant="titleSmall" style={[styles.tableTitle, { color: theme.colors.onSurface }]}>
@@ -234,7 +237,7 @@ export default function StatsScreen() {
 
             {/* Top Wicket-Takers */}
             {wktStats.length > 0 && (
-              <Surface style={[styles.tableCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+              <Surface style={[styles.tableCard, { backgroundColor: theme.colors.surface }, isTablet && { flex: 1 }]} elevation={1}>
                 <View style={styles.tableHeader}>
                   <MaterialCommunityIcons name="baseball" size={16} color={theme.colors.primary} />
                   <Text variant="titleSmall" style={[styles.tableTitle, { color: theme.colors.onSurface }]}>
@@ -266,7 +269,7 @@ export default function StatsScreen() {
                 ))}
               </Surface>
             )}
-          </>
+          </View>
         )}
       </View>
     </ScrollView>

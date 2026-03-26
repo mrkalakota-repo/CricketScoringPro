@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { useResponsive } from '../../../src/hooks/useResponsive';
 import { Text, Button, useTheme, Portal, Modal, Card, RadioButton, Surface, Dialog } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,6 +39,7 @@ export default function ScoringScreen() {
 
   const { canScore } = useRole();
   const syncStatus = useSyncStatus();
+  const { isSmallPhone, isTablet, height: screenHeight, modalMaxWidth } = useResponsive();
 
   const [isWide, setIsWide] = useState(false);
   const [isNoBall, setIsNoBall] = useState(false);
@@ -351,7 +353,7 @@ export default function ScoringScreen() {
         )}
         <View style={styles.scoreRow}>
           <Text style={styles.teamLabel}>{battingTeamName}</Text>
-          <Text style={styles.scoreText}>
+          <Text style={[styles.scoreText, isSmallPhone && { fontSize: 26 }]}>
             {innings?.totalRuns ?? 0}/{innings?.totalWickets ?? 0}
           </Text>
           <Text style={styles.oversText}>
@@ -617,10 +619,10 @@ export default function ScoringScreen() {
 
       {/* Opener Selection Modal */}
       <Portal>
-        <Modal visible={openerModal} dismissable={false} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}>
+        <Modal visible={openerModal} dismissable={false} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
           <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16, color: theme.colors.onSurface }}>Select Opening Batters</Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>Striker</Text>
-          <ScrollView style={{ maxHeight: 200 }}>
+          <ScrollView style={{ maxHeight: screenHeight * 0.22 }}>
             {(battingTeamPlayers ?? []).map(p => (
               <Pressable
                 key={`o1-${p.id}`}
@@ -633,7 +635,7 @@ export default function ScoringScreen() {
             ))}
           </ScrollView>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, marginBottom: 8 }}>Non-Striker</Text>
-          <ScrollView style={{ maxHeight: 200 }}>
+          <ScrollView style={{ maxHeight: screenHeight * 0.22 }}>
             {(battingTeamPlayers ?? []).filter(p => p.id !== selectedOpener1).map(p => (
               <Pressable
                 key={`o2-${p.id}`}
@@ -653,9 +655,9 @@ export default function ScoringScreen() {
 
       {/* Bowler Selection Modal */}
       <Portal>
-        <Modal visible={bowlerModal} dismissable={false} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}>
+        <Modal visible={bowlerModal} dismissable={false} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
           <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16, color: theme.colors.onSurface }}>Select Bowler</Text>
-          <ScrollView style={{ maxHeight: 400 }}>
+          <ScrollView style={{ maxHeight: screenHeight * 0.45 }}>
             {(bowlingTeamPlayers ?? []).map(p => {
               const prevBowler = innings?.overs.length ? innings.overs[innings.overs.length - 1].bowlerId : null;
               const isSameAsPrev = p.id === prevBowler;
@@ -696,7 +698,7 @@ export default function ScoringScreen() {
 
       {/* Wicket Modal */}
       <Portal>
-        <Modal visible={wicketModal} onDismiss={() => setWicketModal(false)} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}>
+        <Modal visible={wicketModal} onDismiss={() => setWicketModal(false)} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
           <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16, color: theme.colors.onSurface }}>Wicket!</Text>
 
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>Dismissed Batter</Text>
@@ -733,7 +735,7 @@ export default function ScoringScreen() {
           {(selectedDismissal === 'caught' || selectedDismissal === 'run_out' || selectedDismissal === 'stumped') && (
             <>
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, marginBottom: 8 }}>Fielder</Text>
-              <ScrollView style={{ maxHeight: 150 }}>
+              <ScrollView style={{ maxHeight: screenHeight * 0.18 }}>
                 {(bowlingTeamPlayers ?? []).map(p => (
                   <Pressable
                     key={p.id}
@@ -756,9 +758,9 @@ export default function ScoringScreen() {
 
       {/* New Batter Modal */}
       <Portal>
-        <Modal visible={newBatterModal} dismissable={false} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}>
+        <Modal visible={newBatterModal} dismissable={false} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
           <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16, color: theme.colors.onSurface }}>Select New Batter</Text>
-          <ScrollView style={{ maxHeight: 400 }}>
+          <ScrollView style={{ maxHeight: screenHeight * 0.45 }}>
             {availableBatters.map(p => (
               <Pressable
                 key={p.id}
@@ -932,7 +934,7 @@ const styles = StyleSheet.create({
   syncChip: { position: 'absolute', top: 8, right: 10, flexDirection: 'row', alignItems: 'center', gap: 3 },
   syncText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
   extrasRow: {
-    flexDirection: 'row', justifyContent: 'center', gap: 8,
+    flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 8,
     paddingHorizontal: 16, marginBottom: 12,
   },
   extraButton: {
@@ -947,7 +949,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, marginBottom: 10,
   },
   runButton: {
-    width: 72, height: 56, borderRadius: 16,
+    flex: 1, maxWidth: 80, height: 56, borderRadius: 16,
     justifyContent: 'center', alignItems: 'center',
     elevation: 2,
   },
