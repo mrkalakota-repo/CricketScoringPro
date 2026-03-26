@@ -150,6 +150,8 @@ scheduled → toss → in_progress → completed
                               ↘ abandoned
 ```
 
+> **Note:** The `pending_acceptance` status exists in the engine but is intentionally not used. Match creation goes directly to the toss screen — no cross-device acceptance flow.
+
 ---
 
 ## 5. Match Lifecycle — Toss
@@ -158,6 +160,7 @@ scheduled → toss → in_progress → completed
 - Select toss decision: `bat` or `bowl`
 - System auto-assigns batting team and bowling team accordingly
 - Match status moves to `toss`
+- **Any device** that opens the toss screen can record it — no team-ownership restriction
 
 ---
 
@@ -225,21 +228,32 @@ scheduled → toss → in_progress → completed
 - No rotation on dot balls, wides, even runs
 - Rotation at end of each completed over
 
-### 7.5 Over Completion
+### 7.5 Swap Batsmen
+- A **Swap** button (↔) appears between the two batter names whenever both a striker and non-striker are at the crease
+- Manually swaps strike without recording a delivery (e.g. for correction after a run-out or caller error)
+
+### 7.5a Retire Batter
+- A **Retire** button appears in the scoring controls while batters are at the crease
+- Opens a modal to select: which batter (Striker or Non-striker) and reason:
+  - **Retired Hurt** — batter leaves without a dismissal; NOT a wicket; does not consume a ball delivery
+  - **Retired Out** — IS a wicket; fall of wicket recorded; does not consume a ball delivery
+- After confirming, the new batter selection modal opens automatically
+
+### 7.6 Over Completion
 - 6 legal deliveries = complete over
 - Maiden over = 0 runs in a completed over (regardless of wickets)
 - Bowler must change after each over (same bowler cannot bowl consecutive overs)
 
-### 7.6 Bowling Restrictions (LOI formats only)
+### 7.7 Bowling Restrictions (LOI formats only)
 - **Max overs per bowler** = `floor(oversPerInnings / 5)` — T20: 4 overs, ODI: 10 overs; custom: proportional; Test: no limit
 - Enforced in `MatchEngine.setBowler()` — throws on violation
 - Ineligible bowlers shown greyed out in the selection modal with reason: `(bowled last over)` or `(max N overs)`
 
-### 7.6 Partnerships
+### 7.8 Partnerships
 - Auto-tracked per batter pair
 - Records: total runs, balls, individual batter contributions, extras
 
-### 7.7 Fall of Wickets
+### 7.9 Fall of Wickets
 - Each wicket records: wicket number, total score, overs.balls, dismissal details
 
 ---
@@ -331,7 +345,11 @@ scheduled → toss → in_progress → completed
 
 ## 14. Stats Tab
 
-- Summary grid: completed matches, teams, players, total matches
+- Summary grid: completed matches, total matches, teams, players
+- Team count sourced from **prefs** (`myTeamIds + playerTeamIds`) first, falling back to local SQLite count — gives accurate count immediately after login before cloud import completes
+- Match counts merge **local + cloud** (own matches on other devices + community recent matches via Supabase)
+- Player leaderboards (Top Scorers, Top Wicket-Takers) computed from all completed match state JSONs (local + cloud)
+- Spinner shown in stat cards while syncing, replacing the 0 value
 - Player stats appear after completing matches
 - Empty state: "Complete matches to see statistics"
 
@@ -375,11 +393,11 @@ scheduled → toss → in_progress → completed
 | Create League | ✅ | ❌ | ❌ | ❌ |
 | Manage Teams | ✅ | ✅ | ❌ | ❌ |
 | Create / Start Match | ✅ | ✅ | ✅ | ❌ |
-| Record Balls (Score) | ✅ | ❌ | ✅ | ❌ |
+| Record Balls (Score) | ✅ | ✅ | ✅ | ❌ |
 | Delete Match | ✅ | ❌ | ❌ | ❌ |
 | View Live Scores | ✅ | ✅ | ✅ | ✅ |
 
-Default role on registration: `scorer`. Use `useRole()` hook for all permission checks.
+Available roles at registration: `league_admin`, `team_admin`, `scorer`, `viewer`. **`viewer` is a valid role** for users who only want to follow live scores without scoring or managing. Unauthenticated guests have the same read-only access. Use `useRole()` hook for all permission checks — never inspect `profile.role` directly in UI.
 
 ### 17.3 Team Admin PIN System
 - Optional per-team PIN (4–6 digits), independent of user auth
@@ -601,7 +619,7 @@ app/
 | **Teams** | Create, manage roster, PIN auth, proximity discovery |
 | **Players** | Batting/bowling styles, roles (C/VC/WK/AR), phone number, codes, career stats |
 | **Match Lifecycle** | Toss → Innings → Ball-by-Ball → Complete |
-| **Scoring** | Extras, dismissals, free hits, partnerships, over tracking |
+| **Scoring** | Extras, dismissals, free hits, partnerships, over tracking, swap batsmen, retire batter (hurt/out) |
 | **Undo** | Full ball revert with innings snapshot restore |
 | **Stats** | Per-player career aggregates + team/match summaries |
 | **Location** | 50-mile proximity, Haversine distance |
