@@ -1,2 +1,22 @@
 # Local-only scripts — not needed for EAS Build
 scripts/
+
+# iOS native — not needed for Android builds
+ios/
+
+# Build artifacts and caches
+dist/
+android/build/
+android/.gradle/
+
+# Local dev caches
+.expo/
+.git/
+
+# IDE and OS files
+.idea/
+.DS_Store
+*.DS_Store
+
+# Docs
+docs/
