@@ -149,10 +149,11 @@ Haversine, 50-mile radius. "My Teams" section shows owned + player-member teams.
 
 `importCloudTeams` **purges** any locally-stored transient team (not in `myTeamIds`/`playerTeamIds`/`delegateTeamIds`) that is absent from the incoming cloud batch before upserting — this prevents duplicate rows accumulating after seed re-runs that generate new UUIDs.
 
-**iOS location pattern** — `getCurrentPositionAsync` hangs indefinitely on iOS without a timeout. Always use this sequence:
+**iOS location pattern** — `getCurrentPositionAsync` hangs indefinitely on iOS. `timeoutInterval` is NOT a valid expo-location option and is silently ignored. Use `Promise.race` for the timeout instead:
 1. `getLastKnownPositionAsync({ maxAge: 5 * 60 * 1000 })` — instant cache hit, use immediately if available
-2. `getCurrentPositionAsync({ accuracy: Balanced, ...(ios ? { timeoutInterval: 10_000 } : {}) })` — fresh fix with 10 s timeout
-3. `getLastKnownPositionAsync()` (no maxAge) in the catch block — final fallback before setting `locState('denied')`
+2. `Promise.race([getCurrentPositionAsync({ accuracy: Balanced }), new Promise((_, reject) => setTimeout(() => reject(), 10_000))])` — fresh fix with hard 10 s timeout
+3. `getLastKnownPositionAsync()` (no maxAge) in the catch block — stale is better than nothing
+4. iOS simulator fallback: `if (Platform.OS === 'ios' && !Constants.isDevice)` → use `SIMULATOR_DEFAULT_LOC`
 
 **Proximity re-trigger pattern** — use a `needsSync` state (not a ref) as the trigger for the cloud fetch effect. The `useFocusEffect` sets `setNeedsSync(true)` when the cooldown has elapsed; the fetch `useEffect` depends on `[userLoc, needsSync]` and sets `setNeedsSync(false)` immediately to prevent double-fire. Using a ref instead of state means re-renders don't re-run the effect.
 

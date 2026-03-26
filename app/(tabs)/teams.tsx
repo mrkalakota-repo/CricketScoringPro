@@ -147,14 +147,16 @@ export default function TeamsScreen() {
     }
   }, []));
 
-  // Request location once on mount — fast-path via last-known on iOS
+  // Request location once on mount — fast-path via last-known, then fresh fix with manual timeout.
+  // NOTE: expo-location has no built-in timeout option; getCurrentPositionAsync hangs indefinitely
+  // on iOS without one. Use Promise.race to enforce a 10 s cap.
   useEffect(() => {
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') { setLocState('denied'); return; }
 
-        // Try cached position first (instant on iOS, avoids GPS cold-start hang)
+        // 1. Instant cache hit (iOS fast path)
         const lastKnown = await Location.getLastKnownPositionAsync({ maxAge: 5 * 60 * 1000 });
         if (lastKnown) {
           setUserLoc({ lat: lastKnown.coords.latitude, lng: lastKnown.coords.longitude });
@@ -162,15 +164,18 @@ export default function TeamsScreen() {
           return;
         }
 
-        // No cache — request fresh fix. Use 30 s timeout on iOS (simulator is slow to init).
-        const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-          ...(Platform.OS === 'ios' ? { timeoutInterval: 30_000 } : {}),
-        });
+        // 2. Fresh fix with a hard 10 s timeout via Promise.race
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('location_timeout')), 10_000)
+        );
+        const loc = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+          timeout,
+        ]);
         setUserLoc({ lat: loc.coords.latitude, lng: loc.coords.longitude });
         setLocState('granted');
       } catch {
-        // Timeout or permission error — try last-known with no maxAge constraint
+        // 3. Last-known with no maxAge constraint (stale is better than nothing)
         try {
           const fallback = await Location.getLastKnownPositionAsync();
           if (fallback) {
@@ -180,8 +185,8 @@ export default function TeamsScreen() {
           }
         } catch {}
 
-        // iOS simulator has no real GPS — use Xcode's default simulated location so
-        // nearby cloud sync still runs during development.
+        // 4. iOS simulator has no real GPS — fall back to Xcode default location
+        //    so nearby cloud sync still runs during development.
         if (Platform.OS === 'ios' && !Constants.isDevice) {
           setUserLoc(SIMULATOR_DEFAULT_LOC);
           setLocState('granted');
