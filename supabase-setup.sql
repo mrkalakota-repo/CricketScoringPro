@@ -91,6 +91,11 @@ ALTER TABLE public.cloud_players ADD COLUMN IF NOT EXISTS is_vice_captain BOOLEA
 
 ALTER TABLE public.cloud_players ADD COLUMN IF NOT EXISTS phone_number TEXT;
 
+-- ── Player jersey number + photo ──────────────────────────────────────────────
+
+ALTER TABLE public.cloud_players ADD COLUMN IF NOT EXISTS jersey_number INTEGER;
+ALTER TABLE public.cloud_players ADD COLUMN IF NOT EXISTS photo_uri TEXT;
+
 -- ── Delegate Codes ────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS public.delegate_codes (

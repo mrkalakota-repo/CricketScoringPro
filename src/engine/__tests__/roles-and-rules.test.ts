@@ -22,6 +22,7 @@ function makePlayer(id: string): Player {
     id, name: `Player ${id}`,
     battingStyle: 'right', bowlingStyle: 'Right-arm fast',
     isWicketKeeper: false, isAllRounder: false, isCaptain: false, isViceCaptain: false,
+    jerseyNumber: null, photoUri: null,
   };
 }
 

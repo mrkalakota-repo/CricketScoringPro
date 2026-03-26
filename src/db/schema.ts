@@ -145,4 +145,12 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
   try {
     await db.execAsync(`ALTER TABLE league_fixtures ADD COLUMN bracket_slot INTEGER;`);
   } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE players ADD COLUMN jersey_number INTEGER;`);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE players ADD COLUMN photo_uri TEXT;`);
+  } catch { /* already exists */ }
 }

@@ -14,6 +14,8 @@ function createTestPlayer(id: string, name: string, overrides: Partial<Player> =
     isAllRounder: false,
     isCaptain: false,
     isViceCaptain: false,
+    jerseyNumber: null,
+    photoUri: null,
     ...overrides,
   };
 }

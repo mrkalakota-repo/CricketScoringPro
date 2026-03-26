@@ -38,6 +38,8 @@ export async function publishTeam(team: Team, ownerPhone?: string | null): Promi
           is_all_rounder: p.isAllRounder,
           is_captain: p.isCaptain,
           is_vice_captain: p.isViceCaptain,
+          jersey_number: p.jerseyNumber ?? null,
+          photo_uri: p.photoUri ?? null,
         }))
       );
       if (pe) throw pe;
@@ -257,6 +259,8 @@ async function fetchPlayersAndBuild(teamRows: any[]): Promise<Team[]> {
       isAllRounder: p.is_all_rounder ?? false,
       isCaptain: p.is_captain ?? false,
       isViceCaptain: p.is_vice_captain ?? false,
+      jerseyNumber: p.jersey_number ?? null,
+      photoUri: p.photo_uri ?? null,
     })),
     createdAt: row.updated_at ?? Date.now(),
     updatedAt: row.updated_at ?? Date.now(),

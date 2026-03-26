@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Share } from 'react-native';
+import { View, StyleSheet, ScrollView, Share, Image, TextInput, Pressable } from 'react-native';
 import { Text, useTheme, Chip, Button, Card, SegmentedButtons, Switch } from 'react-native-paper';
+import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTeamStore } from '../../src/store/team-store';
@@ -32,6 +33,8 @@ export default function PlayerProfileScreen() {
   const [editIsAllRounder, setEditIsAllRounder] = useState(false);
   const [editIsCaptain, setEditIsCaptain] = useState(false);
   const [editIsViceCaptain, setEditIsViceCaptain] = useState(false);
+  const [editJerseyNumber, setEditJerseyNumber] = useState<string>('');
+  const [editPhotoUri, setEditPhotoUri] = useState<string | null>(null);
   const [saveError, setSaveError] = useState('');
 
   let player = null as (typeof teams)[0]['players'][0] | null;
@@ -49,18 +52,35 @@ export default function PlayerProfileScreen() {
     setEditIsAllRounder(player.isAllRounder);
     setEditIsCaptain(player.isCaptain);
     setEditIsViceCaptain(player.isViceCaptain);
+    setEditJerseyNumber(player.jerseyNumber !== null ? String(player.jerseyNumber) : '');
+    setEditPhotoUri(player.photoUri ?? null);
     setSaveError('');
     setEditing(true);
+  };
+
+  const pickPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      quality: 0.6,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (!result.canceled && result.assets[0]?.uri) {
+      setEditPhotoUri(result.assets[0].uri);
+    }
   };
 
   const saveEdit = async () => {
     if (!player) return;
     setSaveError('');
     try {
+      const jerseyNum = editJerseyNumber.trim() !== '' ? parseInt(editJerseyNumber, 10) : null;
       await updatePlayer(
         player.id, player.name, player.phoneNumber ?? null, editBatStyle,
         BOWLING_STYLES[editBowlIndex],
-        editIsKeeper, editIsAllRounder, editIsCaptain, editIsViceCaptain
+        editIsKeeper, editIsAllRounder, editIsCaptain, editIsViceCaptain,
+        isNaN(jerseyNum as number) ? null : jerseyNum,
+        editPhotoUri,
       );
       setEditing(false);
     } catch {
@@ -98,7 +118,12 @@ export default function PlayerProfileScreen() {
 
         {/* Header */}
         <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-          <Text variant="headlineSmall" style={styles.headerName}>{player.name}</Text>
+          {player.photoUri ? (
+            <Image source={{ uri: player.photoUri }} style={styles.headerPhoto} />
+          ) : null}
+          <Text variant="headlineSmall" style={styles.headerName}>
+            {player.jerseyNumber !== null ? `#${player.jerseyNumber}  ` : ''}{player.name}
+          </Text>
           <Text style={styles.headerTeam}>{team.name}</Text>
           <View style={styles.badges}>
             {player.isCaptain && (
@@ -167,6 +192,33 @@ export default function PlayerProfileScreen() {
 
             {editing ? (
               <View>
+                {/* Photo + Jersey row */}
+                <View style={styles.photoJerseyRow}>
+                  <Pressable onPress={pickPhoto} style={styles.photoPickerButton}>
+                    {editPhotoUri ? (
+                      <Image source={{ uri: editPhotoUri }} style={styles.photoPreview} />
+                    ) : (
+                      <View style={[styles.photoPreview, { backgroundColor: theme.colors.surfaceVariant, justifyContent: 'center', alignItems: 'center' }]}>
+                        <MaterialCommunityIcons name="camera-plus-outline" size={24} color={theme.colors.onSurfaceVariant} />
+                      </View>
+                    )}
+                    <Text variant="labelSmall" style={{ color: theme.colors.primary, marginTop: 4 }}>
+                      {editPhotoUri ? 'Change' : 'Add Photo'}
+                    </Text>
+                  </Pressable>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="bodySmall" style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant, marginBottom: 6 }]}>Jersey #</Text>
+                    <TextInput
+                      value={editJerseyNumber}
+                      onChangeText={t => setEditJerseyNumber(t.replace(/[^0-9]/g, '').slice(0, 3))}
+                      keyboardType="number-pad"
+                      placeholder="—"
+                      maxLength={3}
+                      style={[styles.jerseyInput, { borderColor: theme.colors.outlineVariant, color: theme.colors.onSurface }]}
+                      placeholderTextColor={theme.colors.onSurfaceVariant}
+                    />
+                  </View>
+                </View>
                 <Text variant="bodySmall" style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant }]}>Batting Style</Text>
                 <SegmentedButtons
                   value={editBatStyle}
@@ -370,4 +422,16 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginBottom: 10,
   },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+
+  // Photo & jersey edit
+  headerPhoto: { width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)', marginBottom: 8 },
+  photoJerseyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, marginBottom: 16 },
+  photoPickerButton: { alignItems: 'center' },
+  photoPreview: { width: 64, height: 64, borderRadius: 32 },
+  jerseyInput: {
+    borderWidth: 1, borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 8,
+    fontSize: 20, fontWeight: 'bold',
+    width: 80,
+  },
 });

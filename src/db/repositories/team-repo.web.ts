@@ -36,6 +36,8 @@ function toPlayer({ teamId: _t, ...p }: StoredPlayer): Player {
     isAllRounder: p.isAllRounder ?? false,
     isCaptain: p.isCaptain ?? false,
     isViceCaptain: p.isViceCaptain ?? false,
+    jerseyNumber: p.jerseyNumber ?? null,
+    photoUri: p.photoUri ?? null,
   };
 }
 
@@ -114,6 +116,8 @@ export async function addPlayer(
   isAllRounder: boolean = false,
   isCaptain: boolean = false,
   isViceCaptain: boolean = false,
+  jerseyNumber: number | null = null,
+  photoUri: string | null = null,
 ): Promise<Player> {
   const players = getPlayers();
   const stored: StoredPlayer = {
@@ -121,6 +125,7 @@ export async function addPlayer(
     battingStyle: battingStyle as Player['battingStyle'],
     bowlingStyle: bowlingStyle as BowlingStyle,
     isWicketKeeper, isAllRounder, isCaptain, isViceCaptain,
+    jerseyNumber: jerseyNumber ?? null, photoUri: photoUri ?? null,
     teamId,
   };
   players.push(stored);
@@ -138,10 +143,12 @@ export async function updatePlayer(
   isAllRounder: boolean,
   isCaptain: boolean,
   isViceCaptain: boolean = false,
+  jerseyNumber: number | null = null,
+  photoUri: string | null = null,
 ): Promise<void> {
   setPlayers(getPlayers().map(p =>
     p.id === id
-      ? { ...p, name, phoneNumber: phoneNumber ?? null, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle: bowlingStyle as BowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain }
+      ? { ...p, name, phoneNumber: phoneNumber ?? null, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle: bowlingStyle as BowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain, jerseyNumber: jerseyNumber ?? null, photoUri: photoUri ?? null }
       : p
   ));
 }

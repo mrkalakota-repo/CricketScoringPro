@@ -65,6 +65,8 @@ export interface Player {
   isAllRounder: boolean;
   isCaptain: boolean;
   isViceCaptain: boolean;
+  jerseyNumber: number | null;  // 0–999; null = not assigned
+  photoUri: string | null;      // Local file URI from expo-image-picker; null = no photo
 }
 
 /**

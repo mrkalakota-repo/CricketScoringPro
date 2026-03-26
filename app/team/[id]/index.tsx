@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
+import { View, StyleSheet, FlatList, Image } from 'react-native';
 import { Text, Card, Button, Avatar, useTheme, Divider, Chip, Portal, Dialog, TextInput, ActivityIndicator } from 'react-native-paper';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -346,12 +346,25 @@ export default function TeamDetailScreen() {
           return (
             <Card style={styles.playerCard} onPress={() => router.push(`/player/${item.id}`)}>
               <Card.Content style={styles.playerContent}>
-                <Avatar.Text
-                  size={40}
-                  label={`${index + 1}`}
-                  style={{ backgroundColor: theme.colors.primaryContainer }}
-                  labelStyle={{ fontSize: 14, color: theme.colors.onPrimaryContainer }}
-                />
+                <View style={styles.avatarWrapper}>
+                  {item.photoUri ? (
+                    <Image source={{ uri: item.photoUri }} style={styles.playerPhoto} />
+                  ) : (
+                    <Avatar.Text
+                      size={40}
+                      label={`${index + 1}`}
+                      style={{ backgroundColor: theme.colors.primaryContainer }}
+                      labelStyle={{ fontSize: 14, color: theme.colors.onPrimaryContainer }}
+                    />
+                  )}
+                  {item.jerseyNumber !== null && (
+                    <View style={[styles.jerseyBadge, { backgroundColor: theme.colors.surface }]}>
+                      <Text style={[styles.jerseyBadgeText, { color: theme.colors.onSurface }]}>
+                        {item.jerseyNumber}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <View style={styles.playerInfo}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>{item.name}</Text>
@@ -459,6 +472,15 @@ const styles = StyleSheet.create({
   playerCard: { marginBottom: 8, borderRadius: 12 },
   playerContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   playerInfo: { flex: 1 },
+  avatarWrapper: { position: 'relative', width: 40, height: 40 },
+  playerPhoto: { width: 40, height: 40, borderRadius: 20 },
+  jerseyBadge: {
+    position: 'absolute', bottom: -2, right: -4,
+    borderRadius: 6, paddingHorizontal: 3, paddingVertical: 1,
+    minWidth: 16, alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)',
+  },
+  jerseyBadgeText: { fontSize: 9, fontWeight: '800', lineHeight: 12 },
   emptyPlayers: { alignItems: 'center', padding: 32 },
   roleBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,

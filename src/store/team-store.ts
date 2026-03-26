@@ -23,8 +23,8 @@ interface TeamStore {
   updateTeam: (id: string, name: string, shortName: string) => Promise<void>;
   setTeamAdminPin: (id: string, pinHash: string | null) => Promise<void>;
   deleteTeam: (id: string) => Promise<void>;
-  addPlayer: (teamId: string, name: string, phoneNumber?: string | null, battingStyle?: string, bowlingStyle?: string, isWicketKeeper?: boolean, isAllRounder?: boolean, isCaptain?: boolean, isViceCaptain?: boolean) => Promise<Player>;
-  updatePlayer: (id: string, name: string, phoneNumber: string | null, battingStyle: string, bowlingStyle: BowlingStyle, isWicketKeeper: boolean, isAllRounder: boolean, isCaptain: boolean, isViceCaptain?: boolean) => Promise<void>;
+  addPlayer: (teamId: string, name: string, phoneNumber?: string | null, battingStyle?: string, bowlingStyle?: string, isWicketKeeper?: boolean, isAllRounder?: boolean, isCaptain?: boolean, isViceCaptain?: boolean, jerseyNumber?: number | null, photoUri?: string | null) => Promise<Player>;
+  updatePlayer: (id: string, name: string, phoneNumber: string | null, battingStyle: string, bowlingStyle: BowlingStyle, isWicketKeeper: boolean, isAllRounder: boolean, isCaptain: boolean, isViceCaptain?: boolean, jerseyNumber?: number | null, photoUri?: string | null) => Promise<void>;
   deletePlayer: (playerId: string, teamId: string) => Promise<void>;
   // Cloud sync
   importCloudTeams: (cloudTeams: Team[], myTeamIds: string[]) => Promise<void>;
@@ -140,8 +140,8 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     });
   },
 
-  addPlayer: async (teamId, name, phoneNumber, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain) => {
-    const player = await teamRepo.addPlayer(teamId, name, phoneNumber, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain);
+  addPlayer: async (teamId, name, phoneNumber, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain, jerseyNumber, photoUri) => {
+    const player = await teamRepo.addPlayer(teamId, name, phoneNumber, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain, jerseyNumber, photoUri);
     const updatedTeams = get().teams.map(t =>
       t.id === teamId ? { ...t, players: [...t.players, player] } : t
     );
@@ -156,13 +156,13 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     return player;
   },
 
-  updatePlayer: async (id, name, phoneNumber, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain = false) => {
-    await teamRepo.updatePlayer(id, name, phoneNumber, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain);
+  updatePlayer: async (id, name, phoneNumber, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain = false, jerseyNumber = null, photoUri = null) => {
+    await teamRepo.updatePlayer(id, name, phoneNumber, battingStyle, bowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain, jerseyNumber, photoUri);
     const updatedTeams = get().teams.map(t => ({
       ...t,
       players: t.players.map(p =>
         p.id === id
-          ? { ...p, name, phoneNumber, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle: bowlingStyle as BowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain }
+          ? { ...p, name, phoneNumber, battingStyle: battingStyle as Player['battingStyle'], bowlingStyle: bowlingStyle as BowlingStyle, isWicketKeeper, isAllRounder, isCaptain, isViceCaptain, jerseyNumber, photoUri }
           : p
       ),
     }));

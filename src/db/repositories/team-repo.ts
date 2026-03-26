@@ -92,6 +92,7 @@ export async function getPlayersForTeam(teamId: string): Promise<Player[]> {
   const rows = await db.getAllAsync<{
     id: string; name: string; phone_number: string | null; batting_style: string; bowling_style: string;
     is_wicket_keeper: number; is_all_rounder: number; is_captain: number; is_vice_captain: number;
+    jersey_number: number | null; photo_uri: string | null;
   }>('SELECT * FROM players WHERE team_id = ? ORDER BY name', teamId);
 
   return rows.map(row => ({
@@ -104,6 +105,8 @@ export async function getPlayersForTeam(teamId: string): Promise<Player[]> {
     isAllRounder: (row.is_all_rounder ?? 0) === 1,
     isCaptain: (row.is_captain ?? 0) === 1,
     isViceCaptain: (row.is_vice_captain ?? 0) === 1,
+    jerseyNumber: row.jersey_number ?? null,
+    photoUri: row.photo_uri ?? null,
   }));
 }
 
@@ -127,19 +130,23 @@ export async function addPlayer(
   isAllRounder: boolean = false,
   isCaptain: boolean = false,
   isViceCaptain: boolean = false,
+  jerseyNumber: number | null = null,
+  photoUri: string | null = null,
 ): Promise<Player> {
   const db = await getDatabase();
   const id = uuidv4();
   await db.runAsync(
-    'INSERT INTO players (id, team_id, name, phone_number, batting_style, bowling_style, is_wicket_keeper, is_all_rounder, is_captain, is_vice_captain) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO players (id, team_id, name, phone_number, batting_style, bowling_style, is_wicket_keeper, is_all_rounder, is_captain, is_vice_captain, jersey_number, photo_uri) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     id, teamId, name, phoneNumber ?? null, battingStyle, bowlingStyle,
-    isWicketKeeper ? 1 : 0, isAllRounder ? 1 : 0, isCaptain ? 1 : 0, isViceCaptain ? 1 : 0
+    isWicketKeeper ? 1 : 0, isAllRounder ? 1 : 0, isCaptain ? 1 : 0, isViceCaptain ? 1 : 0,
+    jerseyNumber ?? null, photoUri ?? null,
   );
   return {
     id, name, phoneNumber: phoneNumber ?? null,
     battingStyle: battingStyle as Player['battingStyle'],
     bowlingStyle: bowlingStyle as BowlingStyle,
     isWicketKeeper, isAllRounder, isCaptain, isViceCaptain,
+    jerseyNumber: jerseyNumber ?? null, photoUri: photoUri ?? null,
   };
 }
 
@@ -153,12 +160,15 @@ export async function updatePlayer(
   isAllRounder: boolean,
   isCaptain: boolean,
   isViceCaptain: boolean = false,
+  jerseyNumber: number | null = null,
+  photoUri: string | null = null,
 ): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    'UPDATE players SET name = ?, phone_number = ?, batting_style = ?, bowling_style = ?, is_wicket_keeper = ?, is_all_rounder = ?, is_captain = ?, is_vice_captain = ? WHERE id = ?',
+    'UPDATE players SET name = ?, phone_number = ?, batting_style = ?, bowling_style = ?, is_wicket_keeper = ?, is_all_rounder = ?, is_captain = ?, is_vice_captain = ?, jersey_number = ?, photo_uri = ? WHERE id = ?',
     name, phoneNumber ?? null, battingStyle, bowlingStyle,
-    isWicketKeeper ? 1 : 0, isAllRounder ? 1 : 0, isCaptain ? 1 : 0, isViceCaptain ? 1 : 0, id
+    isWicketKeeper ? 1 : 0, isAllRounder ? 1 : 0, isCaptain ? 1 : 0, isViceCaptain ? 1 : 0,
+    jerseyNumber ?? null, photoUri ?? null, id,
   );
 }
 
@@ -188,10 +198,11 @@ export async function importCloudTeam(team: Team): Promise<void> {
   for (const p of team.players) {
     await db.runAsync(
       `INSERT OR IGNORE INTO players
-         (id, team_id, name, phone_number, batting_style, bowling_style, is_wicket_keeper, is_all_rounder, is_captain, is_vice_captain)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, team_id, name, phone_number, batting_style, bowling_style, is_wicket_keeper, is_all_rounder, is_captain, is_vice_captain, jersey_number, photo_uri)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       p.id, team.id, p.name, p.phoneNumber ?? null, p.battingStyle, p.bowlingStyle,
       p.isWicketKeeper ? 1 : 0, p.isAllRounder ? 1 : 0, p.isCaptain ? 1 : 0, p.isViceCaptain ? 1 : 0,
+      p.jerseyNumber ?? null, p.photoUri ?? null,
     );
   }
 }

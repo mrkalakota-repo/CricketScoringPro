@@ -12,6 +12,7 @@ import { useRole } from '../../../src/hooks/useRole';
 import { useSyncStatus } from '../../../src/hooks/useSyncStatus';
 import { isCloudEnabled } from '../../../src/config/supabase';
 import { formatOvers, formatBallOutcome } from '../../../src/utils/formatters';
+import { getLiveFeed } from '../../../src/utils/commentary';
 import { currentRunRate, requiredRunRate } from '../../../src/utils/cricket-math';
 import { colors } from '../../../src/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -149,6 +150,9 @@ export default function ScoringScreen() {
     const allPlayers = [...match.team1.players, ...match.team2.players];
     return allPlayers.find(p => p.id === playerId)?.name ?? '?';
   };
+
+  const commentaryCtx = { getName: (id: string) => getPlayerName(id) };
+  const liveFeed = innings ? getLiveFeed(innings.allBalls, commentaryCtx, 5) : [];
 
   const crr = innings ? currentRunRate(innings.totalRuns, innings.totalOvers, innings.totalBalls) : 0;
   const rrr = innings?.target && match.config.oversPerInnings
@@ -442,6 +446,24 @@ export default function ScoringScreen() {
           ))}
         </ScrollView>
       </View>
+
+      {/* Live Commentary Feed */}
+      {liveFeed.length > 0 && (
+        <View style={[styles.liveFeed, { backgroundColor: theme.colors.surfaceVariant }]}>
+          {liveFeed.map((line, i) => (
+            <Text
+              key={i}
+              style={[
+                styles.liveFeedLine,
+                { color: i === 0 ? theme.colors.onSurface : theme.colors.onSurfaceVariant },
+              ]}
+              numberOfLines={2}
+            >
+              {line}
+            </Text>
+          ))}
+        </View>
+      )}
 
       {/* Observer banner — team2 admin watching live */}
       {canScore && !isHost && !isMatchComplete && (
@@ -981,4 +1003,8 @@ const styles = StyleSheet.create({
     borderRadius: 20, borderWidth: 1,
   },
   dismissalText: { fontSize: 13, fontWeight: '600' },
+
+  // Live Commentary Feed
+  liveFeed: { paddingHorizontal: 14, paddingVertical: 8, gap: 4 },
+  liveFeedLine: { fontSize: 12, lineHeight: 18 },
 });

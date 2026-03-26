@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, useTheme, SegmentedButtons, Divider, Surface, IconButton, Button } from 'react-native-paper';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMatchStore } from '../../../src/store/match-store';
-import { formatOvers, formatBatterScore, formatBowlerFigures, dismissalDescription } from '../../../src/utils/formatters';
+import { formatOvers, formatBatterScore, formatBowlerFigures, dismissalDescription, formatBallOutcome } from '../../../src/utils/formatters';
+import { getBallCommentary } from '../../../src/utils/commentary';
 import { strikeRate, economyRate } from '../../../src/utils/cricket-math';
 import { buildScorecardText } from '../../../src/utils/scorecard-export';
 
@@ -197,6 +198,45 @@ export default function ScorecardScreen() {
           ))}
         </Surface>
       )}
+      {/* Ball-by-Ball Commentary */}
+      {innings.overs.length > 0 && (
+        <Surface style={styles.card} elevation={1}>
+          <Text variant="titleSmall" style={styles.cardTitle}>Ball by Ball</Text>
+          {innings.overs.map((over, oi) => (
+            <View key={over.number}>
+              {oi > 0 && <Divider />}
+              <View style={[styles.overHeader, { backgroundColor: theme.colors.surfaceVariant }]}>
+                <Text style={[styles.overHeaderText, { color: theme.colors.onSurfaceVariant }]}>
+                  Over {over.number + 1}
+                </Text>
+                <Text style={[styles.overHeaderText, { color: theme.colors.onSurfaceVariant }]}>
+                  {over.runs} runs{over.wickets > 0 ? `, ${over.wickets}W` : ''}{over.isMaiden ? ' — Maiden' : ''}
+                </Text>
+              </View>
+              {over.balls.map((ball, bi) => {
+                const commentary = getBallCommentary(ball, { getName: getPlayerName });
+                const isWicket = !!ball.dismissal;
+                return (
+                  <View key={bi} style={styles.ballRow}>
+                    <View style={[
+                      styles.ballBubble,
+                      { backgroundColor: isWicket ? '#C62828' : !ball.isLegal ? '#6A1B9A' : ball.runs === 6 ? '#1565C0' : ball.runs === 4 ? '#1B5E20' : ball.runs === 0 ? theme.colors.surfaceVariant : theme.colors.primaryContainer },
+                    ]}>
+                      <Text style={[styles.ballBubbleText, { color: isWicket || !ball.isLegal || ball.runs >= 4 ? '#FFF' : theme.colors.onSurface }]}>
+                        {formatBallOutcome(ball)}
+                      </Text>
+                    </View>
+                    <Text style={[styles.ballCommentary, { color: isWicket ? '#C62828' : theme.colors.onSurface }]} numberOfLines={2}>
+                      {commentary}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          ))}
+        </Surface>
+      )}
+
       {/* Share Button */}
       <View style={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16) + 16 }}>
         <Button
@@ -238,4 +278,12 @@ const styles = StyleSheet.create({
   partnershipBarContainer: { height: 8, backgroundColor: '#E0E0E0', borderRadius: 4, marginVertical: 4 },
   partnershipBar: { height: 8, borderRadius: 4 },
   partnershipValue: { fontSize: 12, fontWeight: '600' },
+
+  // Ball-by-Ball Commentary
+  overHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 6 },
+  overHeaderText: { fontSize: 11, fontWeight: '700' },
+  ballRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, gap: 10 },
+  ballBubble: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  ballBubbleText: { fontSize: 11, fontWeight: '700' },
+  ballCommentary: { flex: 1, fontSize: 12, lineHeight: 18, paddingTop: 8 },
 });
