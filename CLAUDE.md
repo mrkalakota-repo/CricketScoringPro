@@ -138,6 +138,19 @@ When writing test helpers that bowl multiple overs, use a **pool of ≥5 bowlers
 - Other device enters code → verified + deleted (single-use) → `delegateTeamIds` stored locally
 - Requires `isCloudEnabled` (real Supabase credentials in `.env`)
 
+### Match Creation Flow
+Match creation goes **directly to toss** — no cross-device acceptance/invitation flow. The `pending_acceptance` status and invitation banners exist in the codebase but are no longer triggered. Do not re-introduce `needsAcceptance` logic in `app/match/create.tsx`.
+
+### Toss Screen
+`canDoToss = true` always — any device that opens the toss screen can record it. The per-team ownership gate (team1-only) was removed. The observer "Waiting for toss…" screen still exists in the code but is never shown.
+
+### Retire Batter (Engine)
+`MatchEngine.retireBatter(batsmanId, type)` marks a batter retired **without consuming a ball delivery** (happens between balls, not on a delivery):
+- `retired_hurt` — NOT a wicket; batter may return later
+- `retired_out` — IS a wicket; fall of wicket recorded
+
+Exposed as `retireBatter(batsmanId, type)` in `useMatchStore`. The scoring UI shows a **Retire** button in the bottom actions and opens a modal to pick which batter and the reason.
+
 ### Match ID
 `matchRepo.createMatch()` takes a client-generated UUID — never let the repo generate its own ID.
 
@@ -261,6 +274,9 @@ Supported key formats: legacy JWT (`length > 100`) **or** new publishable format
 
 - `src/utils/player-icons.ts` — `bowlingIcon(style)` and `battingIcon(style)` — use these instead of local icon lookups in UI files
 - `src/utils/avatar.ts` — `getAvatarColor(name)` and `AVATAR_COLORS` constant — use for team/player avatar backgrounds and chat message colors. Do not redefine a local `getColor`/`MSG_COLORS` — this is the single source of truth.
+
+### Stats Screen Team Count
+`app/(tabs)/stats.tsx` derives team count from **prefs** (`myTeamIds.length + playerTeamIds.length`) rather than `teams.length`, because prefs are updated by the cloud sync before the local SQLite import completes. This gives the correct count immediately after login without waiting for `importCloudTeams` to finish. Fall back to `teams.length` only when prefs are empty (`|| teams.length`).
 - `src/utils/formatters.ts` — `formatOvers(overs, balls)` (e.g. `"3.2"`) and other display formatters — import from here, do not redefine locally
 - `src/components/NearbyLiveCard.tsx` — shared card for nearby live match display (used by home tab + guest screen). Also exports `LIVE_RED = '#D32F2F'` — use this constant anywhere live/in-progress status needs a red color instead of hardcoding the hex.
 
@@ -296,4 +312,6 @@ Android package: `com.gullycricket.scorer` · versionCode: bump in `app.json` be
 - **Do not** put PRAGMAs and CREATE TABLE in the same `execAsync` call (Android bug)
 - **Do not** use `headerBackTitleVisible` — it was removed in React Navigation v7; use `headerBackButtonDisplayMode: 'minimal'`
 - **Do not** use a ref as a trigger for a `useEffect` — refs don't cause re-renders; use state instead
-- **Do not** call `getCurrentPositionAsync` on iOS without `timeoutInterval` — it can hang indefinitely
+- **Do not** pass `timeoutInterval` to `getCurrentPositionAsync` — it is not a valid expo-location option and is silently ignored; use `Promise.race` with a manual `setTimeout` reject instead
+- **Do not** re-introduce the match acceptance/invitation flow — matches go directly to toss; `pending_acceptance` status is intentionally unused
+- **Do not** gate the toss screen on team ownership — `canDoToss` is `true` for all devices
