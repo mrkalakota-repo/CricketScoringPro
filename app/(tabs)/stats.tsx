@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Card, useTheme, Divider, Surface, ActivityIndicator } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
 import { usePrefsStore } from '../../src/store/prefs-store';
@@ -75,6 +75,7 @@ function computeWktStats(completedMatches: Match[]): PlayerWktStat[] {
 export default function StatsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const matches = useMatchStore(s => s.matches);
   const { teams, loading: teamsLoading, loadTeams } = useTeamStore();
   const myTeamIds = usePrefsStore(s => s.myTeamIds);
@@ -136,10 +137,10 @@ export default function StatsScreen() {
   const wktStats = useMemo(() => computeWktStats(allCompleted), [allCompleted]);
 
   const overviewStats = [
-    { icon: 'cricket' as const,        value: completedCount, label: 'Completed' },
-    { icon: 'trophy' as const,         value: totalCount,     label: 'Total Matches' },
-    { icon: 'shield-account' as const, value: teamsCount,     label: 'Teams' },
-    { icon: 'account-group' as const,  value: totalPlayers,   label: 'Players' },
+    { icon: 'cricket' as const,        value: completedCount, label: 'Completed',     onPress: () => router.push('/matches') },
+    { icon: 'trophy' as const,         value: totalCount,     label: 'Total Matches', onPress: () => router.push('/matches') },
+    { icon: 'shield-account' as const, value: teamsCount,     label: 'Teams',         onPress: () => router.push('/teams') },
+    { icon: 'account-group' as const,  value: totalPlayers,   label: 'Players',       onPress: () => router.push('/teams') },
   ];
 
   return (
@@ -170,8 +171,8 @@ export default function StatsScreen() {
 
         {/* Overview counts */}
         <View style={styles.grid}>
-          {overviewStats.map(({ icon, value, label }) => (
-            <Card key={label} style={styles.statCard}>
+          {overviewStats.map(({ icon, value, label, onPress }) => (
+            <Card key={label} style={styles.statCard} onPress={onPress}>
               <Card.Content style={styles.statContent}>
                 <MaterialCommunityIcons name={icon} size={28} color={theme.colors.primary} />
                 {statsLoading && value === 0 ? (
