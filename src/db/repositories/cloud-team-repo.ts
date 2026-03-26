@@ -44,7 +44,7 @@ export async function publishTeam(team: Team, ownerPhone?: string | null): Promi
     }
     return { success: true };
   } catch (err) {
-    const message = (err as any)?.message ?? String(err);
+    const message = err instanceof Error ? err.message : String(err);
     console.error('[cloud-team-repo] publishTeam failed:', message);
     return { success: false, error: message };
   }
@@ -124,7 +124,7 @@ export async function fetchTeamOwnerPhone(teamId: string): Promise<string | null
       }
       return null;
     }
-    return (data as any)?.owner_phone ?? null;
+    return (data as { owner_phone?: string | null })?.owner_phone ?? null;
   } catch (err) {
     console.error('[cloud-team-repo] fetchTeamOwnerPhone failed:', (err as Error).message);
     return null;
@@ -144,7 +144,7 @@ export async function fetchTeamsByIds(ids: string[]): Promise<Team[]> {
     if (!teamRows || teamRows.length === 0) return [];
     return fetchPlayersAndBuild(teamRows);
   } catch (err) {
-    console.error('[cloud-team-repo] fetchTeamsByIds failed:', (err as any)?.message ?? err);
+    console.error('[cloud-team-repo] fetchTeamsByIds failed:', err instanceof Error ? err.message : String(err));
     return [];
   }
 }
@@ -181,7 +181,7 @@ export async function fetchNearbyTeams(
 
     return fetchPlayersAndBuild(teamRows);
   } catch (err) {
-    console.error('[cloud-team-repo] fetchNearbyTeams failed:', (err as any)?.message ?? err);
+    console.error('[cloud-team-repo] fetchNearbyTeams failed:', err instanceof Error ? err.message : String(err));
     return [];
   }
 }
@@ -214,7 +214,7 @@ export async function searchCloudTeams(
 
     return fetchPlayersAndBuild(teamRows);
   } catch (err) {
-    console.error('[cloud-team-repo] searchCloudTeams failed:', (err as any)?.message ?? err);
+    console.error('[cloud-team-repo] searchCloudTeams failed:', err instanceof Error ? err.message : String(err));
     return [];
   }
 }

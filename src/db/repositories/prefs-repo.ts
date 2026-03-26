@@ -1,4 +1,5 @@
 import { getDatabase } from '../database';
+import * as SecureStore from 'expo-secure-store';
 
 const MY_TEAM_IDS_KEY = 'my_team_ids';
 
@@ -112,8 +113,16 @@ export async function removeDelegateTeamId(teamId: string): Promise<void> {
 }
 
 // ── User Profile ──────────────────────────────────────────────────────────────
+//
+// Security split:
+//   • Non-sensitive metadata (phone, name, role) → SQLite user_prefs
+//   • PIN hash → expo-secure-store (hardware-backed keystore on Android/iOS)
+//
+// Migration: existing installs may have pinHash stored in the SQLite JSON blob.
+// On first read we migrate it out to SecureStore automatically.
 
 const USER_PROFILE_KEY = 'user_profile';
+const SECURE_PIN_KEY = 'user_profile_pin_hash';
 
 export interface StoredUserProfile {
   phone: string;
@@ -127,25 +136,40 @@ export async function getUserProfile(): Promise<StoredUserProfile | null> {
     const raw = await getStringPref(USER_PROFILE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (
-      typeof parsed?.phone !== 'string' ||
-      typeof parsed?.name !== 'string' ||
-      typeof parsed?.pinHash !== 'string'
-    ) {
+    if (typeof parsed?.phone !== 'string' || typeof parsed?.name !== 'string') {
       console.error('[prefs-repo] getUserProfile: stored profile has unexpected shape, ignoring');
       return null;
     }
-    return parsed as StoredUserProfile;
+
+    // Read PIN hash from SecureStore (preferred) — fall back to SQLite blob for migration
+    let pinHash: string = (await SecureStore.getItemAsync(SECURE_PIN_KEY)) ?? '';
+    if (!pinHash && typeof parsed?.pinHash === 'string' && parsed.pinHash) {
+      // Migrate legacy pinHash from SQLite to SecureStore
+      pinHash = parsed.pinHash;
+      await SecureStore.setItemAsync(SECURE_PIN_KEY, pinHash);
+      // Remove it from the SQLite blob
+      const { pinHash: _removed, ...rest } = parsed;
+      await setStringPref(USER_PROFILE_KEY, JSON.stringify(rest));
+    }
+
+    return { phone: parsed.phone, name: parsed.name, pinHash, role: parsed.role } as StoredUserProfile;
   } catch { return null; }
 }
 
 export async function setUserProfile(profile: StoredUserProfile): Promise<void> {
-  await setStringPref(USER_PROFILE_KEY, JSON.stringify(profile));
+  // Store PIN hash in SecureStore; everything else in SQLite
+  await SecureStore.setItemAsync(SECURE_PIN_KEY, profile.pinHash);
+  await setStringPref(USER_PROFILE_KEY, JSON.stringify({
+    phone: profile.phone,
+    name: profile.name,
+    role: profile.role,
+  }));
 }
 
 export async function clearUserProfile(): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM user_prefs WHERE key = ?', [USER_PROFILE_KEY]);
+  await SecureStore.deleteItemAsync(SECURE_PIN_KEY).catch(() => {});
 }
 
 // ── Chat Identity ─────────────────────────────────────────────────────────────

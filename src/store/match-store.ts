@@ -7,6 +7,11 @@ import * as teamRepo from '../db/repositories/team-repo';
 import * as cloudMatchRepo from '../db/repositories/cloud-match-repo';
 import { useUserAuth } from '../hooks/useUserAuth';
 
+/** Read the authenticated user's phone without creating a React subscription. */
+function ownerPhone(): string | undefined {
+  return useUserAuth.getState().profile?.phone ?? undefined;
+}
+
 interface MatchStore {
   // Active match state
   engine: MatchEngine | null;
@@ -78,7 +83,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
               const matches = await matchRepo.getAllMatches();
               set({ matches });
             }
-          }).catch(() => {});
+          }).catch(err => console.error('[match-store] fetchCloudMatchState failed:', (err as Error).message));
         }
       } catch (err) {
         console.error('[match-store] loadMatch: corrupted match_state_json for id', id, (err as Error).message);
@@ -100,7 +105,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     set({ engine: newEngine });
     const _m0 = newEngine.getMatch();
     cloudMatchRepo.publishLiveMatch(_m0);
-    cloudMatchRepo.publishMatchState(_m0, useUserAuth.getState().profile?.phone ?? undefined);
+    cloudMatchRepo.publishMatchState(_m0, ownerPhone());
   },
 
   setOpeners: (strikerId, nonStrikerId) => {
@@ -141,7 +146,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
         console.error('[match-store] auto-save after recordBall failed:', (err as Error).message);
       });
       cloudMatchRepo.publishLiveMatch(m);
-      cloudMatchRepo.publishMatchState(m, useUserAuth.getState().profile?.phone ?? undefined);
+      cloudMatchRepo.publishMatchState(m, ownerPhone());
     }
   },
 
@@ -157,7 +162,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
         console.error('[match-store] auto-save after undoLastBall failed:', (err as Error).message);
       });
       cloudMatchRepo.publishLiveMatch(m);
-      cloudMatchRepo.publishMatchState(m, useUserAuth.getState().profile?.phone ?? undefined);
+      cloudMatchRepo.publishMatchState(m, ownerPhone());
     }
   },
 
@@ -205,7 +210,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     set({ engine: newEngine });
     const _m1 = newEngine.getMatch();
     cloudMatchRepo.publishLiveMatch(_m1);
-    cloudMatchRepo.publishMatchState(_m1, useUserAuth.getState().profile?.phone ?? undefined);
+    cloudMatchRepo.publishMatchState(_m1, ownerPhone());
   },
 
   startSuperOver: () => {
@@ -218,7 +223,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     });
     const _m2 = newEngine.getMatch();
     cloudMatchRepo.publishLiveMatch(_m2);
-    cloudMatchRepo.publishMatchState(_m2, useUserAuth.getState().profile?.phone ?? undefined);
+    cloudMatchRepo.publishMatchState(_m2, ownerPhone());
   },
 
   declareInnings: () => {
@@ -228,7 +233,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     set({ engine: newEngine });
     const _m3 = newEngine.getMatch();
     cloudMatchRepo.publishLiveMatch(_m3);
-    cloudMatchRepo.publishMatchState(_m3, useUserAuth.getState().profile?.phone ?? undefined);
+    cloudMatchRepo.publishMatchState(_m3, ownerPhone());
   },
 
   saveMatch: async () => {
@@ -238,7 +243,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     await matchRepo.saveMatchState(matchId, m);
     // Re-publish final state to cloud so completed matches are visible on other devices.
     cloudMatchRepo.publishLiveMatch(m);
-    cloudMatchRepo.publishMatchState(m, useUserAuth.getState().profile?.phone ?? undefined);
+    cloudMatchRepo.publishMatchState(m, ownerPhone());
   },
 
   deleteMatch: async (id) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text, Button, useTheme, Portal, Modal, Card, RadioButton, Surface, Dialog } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -70,6 +70,42 @@ export default function ScoringScreen() {
   const match = engine?.getMatch();
   const innings = engine?.getCurrentInnings();
 
+  // Memoized player lookups — computed once per engine update, not on every render
+  const battingTeamPlayers = useMemo(() => {
+    if (!innings || !match) return [];
+    return innings.battingTeamId === match.team1.id
+      ? match.team1.players.filter(p => match.team1PlayingXI.includes(p.id))
+      : match.team2.players.filter(p => match.team2PlayingXI.includes(p.id));
+  }, [innings, match]);
+
+  const bowlingTeamPlayers = useMemo(() => {
+    if (!innings || !match) return [];
+    return innings.bowlingTeamId === match.team1.id
+      ? match.team1.players.filter(p => match.team1PlayingXI.includes(p.id))
+      : match.team2.players.filter(p => match.team2PlayingXI.includes(p.id));
+  }, [innings, match]);
+
+  const battedPlayerIds = useMemo(
+    () => new Set(innings?.batters.map(b => b.playerId) ?? []),
+    [innings?.batters],
+  );
+
+  const availableBatters = useMemo(
+    () => battingTeamPlayers.filter(p => !battedPlayerIds.has(p.id)),
+    [battingTeamPlayers, battedPlayerIds],
+  );
+
+  // O(1) player name lookup via Map — avoids rebuilding array + linear scan on every render
+  const playerMap = useMemo(
+    () => new Map([...(match?.team1.players ?? []), ...(match?.team2.players ?? [])].map(p => [p.id, p.name])),
+    [match],
+  );
+
+  const getPlayerName = useCallback(
+    (playerId: string | null): string => (playerId ? (playerMap.get(playerId) ?? '?') : '?'),
+    [playerMap],
+  );
+
   // Observer = owns team2 but NOT team1 (prevents cross-device double-scoring).
   // Team1 owners, delegates, and neutral scorers (no team ownership) can all score.
   const ownsTeam1 = match
@@ -124,29 +160,11 @@ export default function ScoringScreen() {
   const isInningsComplete = innings && (innings.status === 'completed' || innings.status === 'declared');
   const isMatchComplete = match.status === 'completed';
 
-  // Get batting/bowling team players
-  const battingTeamPlayers = innings?.battingTeamId === match.team1.id
-    ? match.team1.players.filter(p => match.team1PlayingXI.includes(p.id))
-    : match.team2.players.filter(p => match.team2PlayingXI.includes(p.id));
-
-  const bowlingTeamPlayers = innings?.bowlingTeamId === match.team1.id
-    ? match.team1.players.filter(p => match.team1PlayingXI.includes(p.id))
-    : match.team2.players.filter(p => match.team2PlayingXI.includes(p.id));
-
-  const battedPlayerIds = new Set(innings?.batters.map(b => b.playerId) ?? []);
-  const availableBatters = battingTeamPlayers?.filter(p => !battedPlayerIds.has(p.id)) ?? [];
-
   const striker = engine.getStriker();
   const nonStriker = engine.getNonStriker();
   const bowler = engine.getCurrentBowler();
   const partnership = engine.getCurrentPartnership();
   const isFreeHit = engine.isFreeHit();
-
-  const getPlayerName = (playerId: string | null): string => {
-    if (!playerId) return '?';
-    const allPlayers = [...match.team1.players, ...match.team2.players];
-    return allPlayers.find(p => p.id === playerId)?.name ?? '?';
-  };
 
   const crr = innings ? currentRunRate(innings.totalRuns, innings.totalOvers, innings.totalBalls) : 0;
   const rrr = innings?.target && match.config.oversPerInnings
