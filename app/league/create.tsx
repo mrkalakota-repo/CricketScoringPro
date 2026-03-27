@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { TextInput, Button, Text, useTheme, SegmentedButtons, Card } from 'react-native-paper';
 import { Stack, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLeagueStore } from '../../src/store/league-store';
 import type { LeagueFormat } from '../../src/engine/types';
@@ -12,6 +13,7 @@ const MAX_SHORT = 8;
 export default function CreateLeagueScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const createLeague = useLeagueStore(s => s.createLeague);
 
   const [name, setName] = useState('');
@@ -38,7 +40,7 @@ export default function CreateLeagueScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen options={{ title: 'New League' }} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
         <TextInput
           label="League Name"
           value={name}

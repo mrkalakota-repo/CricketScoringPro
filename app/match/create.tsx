@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Button, Card, useTheme, TextInput, RadioButton, Checkbox, Divider } from 'react-native-paper';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTeamStore } from '../../src/store/team-store';
 import { useMatchStore } from '../../src/store/match-store';
@@ -18,6 +19,7 @@ type Step = 'format' | 'teams' | 'playing_xi' | 'venue' | 'confirm';
 export default function CreateMatchScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const teams = useTeamStore(s => s.teams);
   const { createAndStartMatch, loadMatches } = useMatchStore();
   const { canCreateMatch } = useRole();
@@ -113,7 +115,7 @@ export default function CreateMatchScreen() {
     : (team1XI.size === requiredXI && team2XI.size === requiredXI);
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}>
       {/* Progress Indicator */}
       <View style={styles.progress}>
         {(['format', 'teams', 'playing_xi', 'venue', 'confirm'] as Step[]).map((s, i) => (

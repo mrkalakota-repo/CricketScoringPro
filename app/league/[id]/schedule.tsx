@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, TextInput, Button, Card, useTheme, SegmentedButtons, Portal, Dialog, Divider } from 'react-native-paper';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ export default function ScheduleScreen() {
   const { id, fixtureId } = useLocalSearchParams<{ id: string; fixtureId?: string }>();
   const router = useRouter();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { leagues, fixtures: allFixtures, createFixture, updateFixtureResult, deleteFixture, generateRoundRobin, generateKnockout, loadFixtures } = useLeagueStore();
   const teams = useTeamStore(s => s.teams);
   const myLeagueIds = usePrefsStore(s => s.myLeagueIds);
@@ -172,7 +174,7 @@ export default function ScheduleScreen() {
         </Dialog>
       </Portal>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
         {!editFixture && (
           <SegmentedButtons
             value={mode}

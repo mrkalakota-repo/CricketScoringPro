@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { TextInput, Button, Text, useTheme, Switch, HelperText } from 'react-native-paper';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTeamStore } from '../../src/store/team-store';
 import { useAdminAuth, hashAdminPin } from '../../src/hooks/useAdminAuth';
 import { usePrefsStore } from '../../src/store/prefs-store';
@@ -12,6 +13,7 @@ import * as Location from 'expo-location';
 export default function CreateTeamScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const createTeam = useTeamStore(s => s.createTeam);
   const teams = useTeamStore(s => s.teams);
   const setTeamAdminPin = useTeamStore(s => s.setTeamAdminPin);
@@ -80,7 +82,7 @@ export default function CreateTeamScreen() {
 
   if (ownedTeam) {
     return (
-      <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}>
         <View style={styles.form}>
           <View style={styles.header}>
             <View style={[styles.headerIcon, { backgroundColor: theme.colors.primary + '18' }]}>
@@ -104,7 +106,7 @@ export default function CreateTeamScreen() {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} keyboardShouldPersistTaps="handled">
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}>
       <View style={styles.form}>
         {/* Header */}
         <View style={styles.header}>

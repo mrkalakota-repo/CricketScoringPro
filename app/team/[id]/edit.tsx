@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { TextInput, Button, Text, useTheme, Portal, Dialog } from 'react-native-paper';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTeamStore } from '../../../src/store/team-store';
 import { usePrefsStore } from '../../../src/store/prefs-store';
 import { useAdminAuth } from '../../../src/hooks/useAdminAuth';
@@ -9,6 +10,7 @@ import { useAdminAuth } from '../../../src/hooks/useAdminAuth';
 export default function EditTeamScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const teams = useTeamStore(s => s.teams);
   const updateTeamAction = useTeamStore(s => s.updateTeam);
@@ -110,7 +112,7 @@ export default function EditTeamScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}>
       <Stack.Screen options={{ title: `Edit ${team.name}` }} />
       <View style={styles.form}>
         <TextInput

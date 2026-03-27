@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TextInput, Button, Text, Card, useTheme, IconButton, SegmentedButtons, Switch, Portal, Dialog, HelperText } from 'react-native-paper';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -28,6 +29,7 @@ const MAX_NAME_LENGTH = 50;
 export default function RosterScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const teams = useTeamStore(s => s.teams);
   const addPlayer = useTeamStore(s => s.addPlayer);
@@ -324,7 +326,7 @@ export default function RosterScreen() {
         )}
       />
 
-      <View style={[styles.footer, { borderTopColor: theme.colors.outlineVariant }]}>
+      <View style={[styles.footer, { borderTopColor: theme.colors.outlineVariant, paddingBottom: Math.max(insets.bottom, 12) }]}>
         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
           {team.players.length} player{team.players.length !== 1 ? 's' : ''}
         </Text>
