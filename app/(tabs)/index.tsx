@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Card, Button, useTheme, Surface } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
+import { usePrefsStore } from '../../src/store/prefs-store';
 import * as cloudMatchRepo from '../../src/db/repositories/cloud-match-repo';
 import { isCloudEnabled } from '../../src/config/supabase';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -13,6 +14,20 @@ import { useUserAuth } from '../../src/hooks/useUserAuth';
 import { useRole } from '../../src/hooks/useRole';
 import { LIVE_RED } from '../../src/components/NearbyLiveCard';
 import { formatOvers } from '../../src/utils/formatters';
+import * as Location from 'expo-location';
+import Constants from 'expo-constants';
+
+const SIMULATOR_DEFAULT_LOC = { lat: 37.3318, lng: -122.0312 };
+const RADIUS_KM = 80.47; // 50 miles
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 interface ScoreLine { label: string; score: string; live?: boolean }
 
@@ -96,6 +111,38 @@ export default function HomeScreen() {
     })();
   }, [myPhone]);
 
+  const myTeamIds = usePrefsStore(s => s.myTeamIds);
+  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        const lastKnown = await Location.getLastKnownPositionAsync({ maxAge: 5 * 60 * 1000 });
+        if (lastKnown) { setUserLoc({ lat: lastKnown.coords.latitude, lng: lastKnown.coords.longitude }); return; }
+        const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(), 10_000));
+        const loc = await Promise.race([Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }), timeout]);
+        setUserLoc({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+      } catch {
+        try {
+          const fallback = await Location.getLastKnownPositionAsync();
+          if (fallback) { setUserLoc({ lat: fallback.coords.latitude, lng: fallback.coords.longitude }); return; }
+        } catch {}
+        if (Platform.OS === 'ios' && !Constants.isDevice) setUserLoc(SIMULATOR_DEFAULT_LOC);
+      }
+    })();
+  }, []);
+
+  const nearbyTeamCount = useMemo(() => {
+    if (!userLoc) return teams.length;
+    return teams.filter(t => {
+      if (myTeamIds.includes(t.id)) return true;
+      if (t.latitude == null || t.longitude == null) return false;
+      return haversineKm(userLoc.lat, userLoc.lng, t.latitude, t.longitude) <= RADIUS_KM;
+    }).length;
+  }, [teams, userLoc, myTeamIds]);
+
   const liveMatches = useMemo(
     () => matches.filter(m => m.status === 'in_progress' || m.status === 'toss'),
     [matches]
@@ -125,8 +172,8 @@ export default function HomeScreen() {
         {profile && (
           <View style={styles.roleBadge}>
             <MaterialCommunityIcons name={roleIcon as any} size={14} color={roleColor} />
-            <Text style={[styles.roleBadgeText, { color: roleColor }]}>
-              {profile.name} · {roleLabel}
+            <Text style={[styles.roleBadgeText, { color: roleColor }]} numberOfLines={1}>
+              {profile.name || 'My Account'} · {roleLabel}
             </Text>
           </View>
         )}
@@ -145,22 +192,17 @@ export default function HomeScreen() {
         )}
       </Surface>
 
-      {/* Quick Actions Row */}
-      <View style={styles.quickActions}>
-        <Button compact mode="text" icon="account-circle" onPress={() => router.push('/my-profile')} labelStyle={styles.actionLabel}>
-          My Profile
-        </Button>
-      </View>
-
       {/* Quick Stats */}
       <View style={styles.statsRow}>
         <TouchableOpacity onPress={() => router.push('/(tabs)/teams')} activeOpacity={0.75} style={styles.statTouchable}>
           <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
             <MaterialCommunityIcons name="shield-account" size={22} color={theme.colors.primary} />
             <Text variant="headlineMedium" style={[styles.statNum, { color: theme.colors.primary }]}>
-              {teams.length}
+              {nearbyTeamCount}
             </Text>
-            <Text variant="bodySmall" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>Teams</Text>
+            <Text variant="bodySmall" style={[styles.statLabel, { color: theme.colors.onSurfaceVariant }]}>
+              {userLoc ? 'Nearby' : 'Teams'}
+            </Text>
           </Surface>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => router.push('/(tabs)/matches')} activeOpacity={0.75} style={styles.statTouchable}>
@@ -284,9 +326,6 @@ export default function HomeScreen() {
             <Button mode="contained" onPress={() => router.push('/team/create')} icon="shield-account" style={{ borderRadius: 12 }}>
               Create Team
             </Button>
-            <Button mode="text" onPress={() => router.push('/profile')} icon="account-search">
-              Find My Profile
-            </Button>
           </View>
         </View>
       )}
@@ -308,22 +347,15 @@ const styles = StyleSheet.create({
   },
   heroTitle: { color: '#FFFFFF', fontWeight: '900', marginTop: 10, letterSpacing: 0.3 },
   heroSubtitle: { color: 'rgba(255,255,255,0.75)', marginTop: 4 },
-  roleBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, backgroundColor: 'rgba(255,255,255,0.92)', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
-  roleBadgeText: { fontSize: 12, fontWeight: '700' },
+  roleBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, backgroundColor: 'rgba(255,255,255,0.92)', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, maxWidth: '88%' },
+  roleBadgeText: { fontSize: 12, fontWeight: '700', flexShrink: 1 },
   heroButton: { marginTop: 20, borderRadius: 28, paddingHorizontal: 8 },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingTop: 8,
-    gap: 0,
-  },
-  actionLabel: { fontSize: 11 },
   statsRow: {
     flexDirection: 'row',
     gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginTop: -16,
+    marginTop: 12,
   },
   statTouchable: { flex: 1 },
   statCard: {

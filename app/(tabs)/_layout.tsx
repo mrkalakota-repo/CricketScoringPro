@@ -1,7 +1,8 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TouchableOpacity } from 'react-native';
 import { useMatchStore } from '../../src/store/match-store';
 
 const APP_NAME = 'Gully Cricket Scorer';
@@ -12,6 +13,18 @@ function TabIcon({ name, activeName, color, size, focused }: {
   name: IconName; activeName: IconName; color: string; size: number; focused: boolean;
 }) {
   return <MaterialCommunityIcons name={focused ? activeName : name} size={size} color={color} />;
+}
+
+function ProfileHeaderButton() {
+  const router = useRouter();
+  return (
+    <TouchableOpacity
+      onPress={() => router.push('/my-profile')}
+      style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+    >
+      <MaterialCommunityIcons name="account-circle" size={26} color="#FFFFFF" />
+    </TouchableOpacity>
+  );
 }
 
 export default function TabsLayout() {
@@ -50,6 +63,7 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           headerTitle: APP_NAME,
+          headerRight: () => <ProfileHeaderButton />,
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="home-outline" activeName="home" color={color} size={size} focused={focused} />
           ),
