@@ -71,7 +71,7 @@ export default function ScheduleScreen() {
     </View>;
   }
 
-  if (!isOwner) {
+  if (!isOwner && !fixtureId) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <Stack.Screen options={{ title: 'Schedule' }} />
@@ -181,7 +181,11 @@ export default function ScheduleScreen() {
             onValueChange={v => { setMode(v as Mode); setError(''); }}
             buttons={[
               { value: 'add', label: 'Add Fixture', icon: 'plus' },
-              { value: 'roundrobin', label: 'Round Robin', icon: 'autorenew' },
+              {
+                value: 'roundrobin',
+                label: league.format === 'knockout' ? 'Knockout' : 'Round Robin',
+                icon: league.format === 'knockout' ? 'tournament' : 'autorenew',
+              },
             ]}
             style={styles.segmented}
           />
