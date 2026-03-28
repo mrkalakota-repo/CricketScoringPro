@@ -159,7 +159,9 @@ export default function ScoringScreen() {
     ? requiredRunRate(
         innings.target,
         innings.totalRuns,
-        match.config.oversPerInnings - innings.totalOvers,
+        innings.totalBalls > 0
+          ? match.config.oversPerInnings - innings.totalOvers - 1
+          : match.config.oversPerInnings - innings.totalOvers,
         innings.totalBalls > 0 ? 6 - innings.totalBalls : 0
       )
     : null;
@@ -476,7 +478,7 @@ export default function ScoringScreen() {
             mode="contained-tonal"
             compact
             icon="arrow-left"
-            onPress={() => router.back()}
+            onPress={() => router.replace('/(tabs)/matches')}
             style={{ marginLeft: 8, borderRadius: 8 }}
             labelStyle={{ fontSize: 11 }}
             buttonColor="rgba(255,255,255,0.25)"
@@ -497,7 +499,7 @@ export default function ScoringScreen() {
             mode="contained-tonal"
             compact
             icon="arrow-left"
-            onPress={() => router.back()}
+            onPress={() => router.replace('/(tabs)/matches')}
             style={{ marginLeft: 8, borderRadius: 8 }}
             labelStyle={{ fontSize: 11 }}
             buttonColor="rgba(255,255,255,0.25)"
@@ -607,7 +609,7 @@ export default function ScoringScreen() {
             </Button>
             <Button
               mode="text"
-              onPress={() => router.back()}
+              onPress={() => router.replace('/(tabs)/matches')}
               compact
             >
               Exit

@@ -22,6 +22,7 @@ npm run web            # Mobile web (http://localhost:8081)
 npm test               # Jest unit tests (engine only)
 npm test -- --testPathPattern=functional          # Run a single test file by name
 npm test -- --testNamePattern="strike rotation"   # Run tests matching a name pattern
+npm test -- --coverage                            # Coverage report
 npx expo install <pkg> # Add Expo package (add --legacy-peer-deps if it fails)
 ```
 
@@ -65,7 +66,11 @@ const newEngine = engine.recordBall(input);   // ✓ returns new instance
 set({ engine: newEngine });
 engine.recordBall(input);                      // ✗ wrong — return value ignored
 ```
-Test files live in `src/engine/__tests__/` (`match-engine.test.ts` — unit tests; `functional.test.ts` — end-to-end scenarios).
+Test files live in `src/engine/__tests__/`:
+- `match-engine.test.ts` — unit tests for individual engine methods
+- `functional.test.ts` — end-to-end ball-by-ball scenarios
+- `commentary.test.ts` — deterministic commentary generation
+- `roles-and-rules.test.ts` — bowling rule enforcement and RBAC
 
 ### Store Pattern
 All mutations go through Zustand stores, never directly through repos.
@@ -242,7 +247,7 @@ Primary: `#1B6B28` (green) · Secondary: `#E65100` (orange) · Light bg: `#EAF7E
 ```sql
 teams(id, name, short_name, admin_pin_hash, latitude, longitude, created_at, updated_at)
 players(id, team_id, name, batting_style, bowling_style, is_wicket_keeper, is_all_rounder,
-        is_captain, is_vice_captain)
+        is_captain, is_vice_captain, jersey_number INTEGER, photo_uri TEXT)
 matches(id, format, config_json, status, team1_id, team2_id, team1_playing_xi,
         team2_playing_xi, toss_json, venue, match_date, result, match_state_json,
         created_at, updated_at)
@@ -274,6 +279,12 @@ Supported key formats: legacy JWT (`length > 100`) **or** new publishable format
 
 - `src/utils/player-icons.ts` — `bowlingIcon(style)` and `battingIcon(style)` — use these instead of local icon lookups in UI files
 - `src/utils/avatar.ts` — `getAvatarColor(name)` and `AVATAR_COLORS` constant — use for team/player avatar backgrounds and chat message colors. Do not redefine a local `getColor`/`MSG_COLORS` — this is the single source of truth.
+- `src/utils/commentary.ts` — `getBallCommentary(ball, ctx)` and `getLiveFeed(balls, ctx, limit)`. Deterministic via `ball.id` hash — all devices produce identical commentary for the same ball. Import from here; do not write local commentary logic.
+- `src/utils/constants.ts` — `BALLS_PER_OVER = 6` and other shared constants. Import from here; do not redefine inline.
+- `src/utils/player-stats.ts` — `aggregatePlayerStats(matches, playerId)` — computes career batting/bowling stats across all stored matches. Used by player profile screens.
+- `src/utils/scorecard-export.ts` — generates a plain-text scorecard string from a `MatchEngine` instance (for sharing/copying).
+- `src/components/AdminPinModal.tsx` — modal for entering an existing team admin PIN; used on team detail screens. `src/components/SetAdminPinModal.tsx` — modal for creating/changing a PIN.
+- `src/hooks/useResponsive.ts` — breakpoint hook returning `{ isSmallPhone, isTablet, contentPadding, modalMaxWidth }`. Use this for all responsive layout decisions; do not scatter `useWindowDimensions` calls.
 
 ### Stats Screen Team Count
 `app/(tabs)/stats.tsx` derives team count from **prefs** (`myTeamIds.length + playerTeamIds.length`) rather than `teams.length`, because prefs are updated by the cloud sync before the local SQLite import completes. This gives the correct count immediately after login without waiting for `importCloudTeams` to finish. Fall back to `teams.length` only when prefs are empty (`|| teams.length`).
