@@ -1,4 +1,4 @@
-import { supabase, isCloudEnabled } from '../../config/supabase';
+import { supabase, isCloudEnabled, isSchemaNotReady } from '../../config/supabase';
 import type { League, LeagueFixture, LeagueFixtureStatus, LeagueFormat, FixtureNRRData } from '../../engine/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ export async function pushLeague(league: League, ownerPhone: string): Promise<vo
       owner_phone: ownerPhone,
       updated_at: Date.now(),
     });
-    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    if (error && !isSchemaNotReady(error)) throw error;
   } catch (err) {
     console.error('[cloud-league-repo] pushLeague failed:', (err as Error).message);
   }
@@ -78,7 +78,7 @@ export async function pushFixture(fixture: LeagueFixture): Promise<void> {
       bracket_slot: fixture.bracketSlot ?? null,
       updated_at: Date.now(),
     });
-    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    if (error && !isSchemaNotReady(error)) throw error;
   } catch (err) {
     console.error('[cloud-league-repo] pushFixture failed:', (err as Error).message);
   }
@@ -106,7 +106,7 @@ export async function pushFixtures(fixtures: LeagueFixture[]): Promise<void> {
       updated_at: Date.now(),
     }));
     const { error } = await supabase.from('cloud_league_fixtures').upsert(rows);
-    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    if (error && !isSchemaNotReady(error)) throw error;
   } catch (err) {
     console.error('[cloud-league-repo] pushFixtures failed:', (err as Error).message);
   }
@@ -147,7 +147,7 @@ export async function fetchLeaguesByOwner(ownerPhone: string): Promise<{
       .order('updated_at', { ascending: false });
 
     if (le) {
-      if ((le as { code?: string }).code === 'PGRST205') return { leagues: [], fixturesByLeague: {} };
+      if (isSchemaNotReady(le)) return { leagues: [], fixturesByLeague: {} };
       throw le;
     }
     if (!leagueRows || leagueRows.length === 0) return { leagues: [], fixturesByLeague: {} };
@@ -158,7 +158,7 @@ export async function fetchLeaguesByOwner(ownerPhone: string): Promise<{
       .select('*')
       .in('league_id', leagueIds);
 
-    if (fe && (fe as { code?: string }).code !== 'PGRST205') throw fe;
+    if (fe && !isSchemaNotReady(fe)) throw fe;
 
     const leagues: League[] = leagueRows.map(mapLeagueRow);
 
@@ -196,7 +196,7 @@ export async function fetchLeaguesByTeamIds(teamIds: string[]): Promise<{
       .limit(200);
 
     if (le) {
-      if ((le as { code?: string }).code === 'PGRST205') return { leagues: [], fixturesByLeague: {} };
+      if (isSchemaNotReady(le)) return { leagues: [], fixturesByLeague: {} };
       throw le;
     }
     if (!leagueRows || leagueRows.length === 0) return { leagues: [], fixturesByLeague: {} };
@@ -216,7 +216,7 @@ export async function fetchLeaguesByTeamIds(teamIds: string[]): Promise<{
       .select('*')
       .in('league_id', leagueIds);
 
-    if (fe && (fe as { code?: string }).code !== 'PGRST205') throw fe;
+    if (fe && !isSchemaNotReady(fe)) throw fe;
 
     const leagues: League[] = matching.map(mapLeagueRow);
     const fixturesByLeague: Record<string, LeagueFixture[]> = {};

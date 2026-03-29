@@ -1,4 +1,4 @@
-import { supabase, isCloudEnabled } from '../../config/supabase';
+import { supabase, isCloudEnabled, isSchemaNotReady } from '../../config/supabase';
 import type { Match } from '../../engine/types';
 
 export interface LiveMatchSummary {
@@ -126,7 +126,7 @@ async function tryUpsert(match: Match): Promise<boolean> {
   if (!supabase) return false;
   try {
     const { error } = await supabase.from('live_matches').upsert(buildRow(match));
-    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    if (error && !isSchemaNotReady(error)) throw error;
     return true;
   } catch {
     return false;
@@ -218,11 +218,11 @@ export async function fetchNearbyLiveMatches(
       .limit(20);
 
     // PGRST205 = table not found (SQL not yet run in Supabase) — fail silently
-    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    if (error && !isSchemaNotReady(error)) throw error;
     return (data ?? []).map(rowToSummary);
   } catch (err) {
     const code = (err as { code?: string })?.code;
-    if (code !== 'PGRST205') {
+    if (!isSchemaNotReady({ code })) {
       console.error('[cloud-match-repo] fetchNearbyLiveMatches failed:', (err as Error).message);
     }
     return [];
@@ -293,7 +293,7 @@ export async function publishMatchState(match: Match, ownerPhone?: string): Prom
     const { error } = await supabase
       .from('cloud_match_states')
       .upsert(matchToCloudRow(match, ownerPhone));
-    if (error && (error as { code?: string }).code !== 'PGRST205') {
+    if (error && !isSchemaNotReady(error)) {
       console.error('[cloud-match-repo] publishMatchState failed:', error.message);
     }
   } catch (err) {
@@ -320,7 +320,7 @@ export async function fetchRecentCloudMatches(days = 7): Promise<CloudMatchRow[]
       .gte('updated_at', since)
       .order('updated_at', { ascending: false })
       .limit(50);
-    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    if (error && !isSchemaNotReady(error)) throw error;
     return (data ?? []).map((r: Record<string, unknown>) => ({
       id: r.id as string,
       team1Name: r.team1_name as string,
@@ -338,7 +338,7 @@ export async function fetchRecentCloudMatches(days = 7): Promise<CloudMatchRow[]
     }));
   } catch (err) {
     const code = (err as { code?: string })?.code;
-    if (code !== 'PGRST205') {
+    if (!isSchemaNotReady({ code })) {
       console.error('[cloud-match-repo] fetchRecentCloudMatches failed:', (err as Error).message);
     }
     return [];
@@ -356,7 +356,7 @@ export async function fetchMyCloudMatches(ownerPhone: string, days = 30): Promis
       .gte('updated_at', since)
       .order('updated_at', { ascending: false })
       .limit(50);
-    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    if (error && !isSchemaNotReady(error)) throw error;
     return (data ?? []).map((r: Record<string, unknown>) => ({
       id: r.id as string,
       team1Name: r.team1_name as string,
@@ -374,7 +374,7 @@ export async function fetchMyCloudMatches(ownerPhone: string, days = 30): Promis
     }));
   } catch (err) {
     const code = (err as { code?: string })?.code;
-    if (code !== 'PGRST205') {
+    if (!isSchemaNotReady({ code })) {
       console.error('[cloud-match-repo] fetchMyCloudMatches failed:', (err as Error).message);
     }
     return [];
@@ -399,7 +399,7 @@ export async function fetchCompletedCloudMatchStates(ownerPhone: string | null, 
       .order('updated_at', { ascending: false })
       .limit(100);
     const { data, error } = await query;
-    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    if (error && !isSchemaNotReady(error)) throw error;
     const results: Match[] = [];
     for (const r of data ?? []) {
       try {
@@ -418,7 +418,7 @@ export async function fetchCompletedCloudMatchStates(ownerPhone: string | null, 
         .lt('updated_at', since)
         .order('updated_at', { ascending: false })
         .limit(50);
-      if (!ownerErr || (ownerErr as { code?: string }).code === 'PGRST205') {
+      if (!ownerErr || isSchemaNotReady(ownerErr)) {
         const seen = new Set(results.map(m => m.id));
         for (const r of ownerData ?? []) {
           if (seen.has(r.id as string)) continue;
@@ -431,7 +431,7 @@ export async function fetchCompletedCloudMatchStates(ownerPhone: string | null, 
     return results;
   } catch (err) {
     const code = (err as { code?: string })?.code;
-    if (code !== 'PGRST205') {
+    if (!isSchemaNotReady({ code })) {
       console.error('[cloud-match-repo] fetchCompletedCloudMatchStates failed:', (err as Error).message);
     }
     return [];
@@ -446,7 +446,7 @@ export async function fetchCloudMatchState(matchId: string): Promise<Match | nul
       .select('match_state_json')
       .eq('id', matchId)
       .maybeSingle();
-    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    if (error && !isSchemaNotReady(error)) throw error;
     if (!data?.match_state_json) return null;
     return JSON.parse(data.match_state_json) as Match;
   } catch (err) {
@@ -521,7 +521,7 @@ export async function publishMatchInvitation(
       expires_at: now + TWENTY_FOUR_HOURS,
       match_state_json: JSON.stringify(match),
     });
-    if (invErr && (invErr as { code?: string }).code !== 'PGRST205') {
+    if (invErr && !isSchemaNotReady(invErr)) {
       console.error('[cloud-match-repo] publishMatchInvitation invitation write failed:', invErr.message);
     }
 
@@ -531,7 +531,7 @@ export async function publishMatchInvitation(
     const { error: stateErr } = await supabase
       .from('cloud_match_states')
       .upsert(matchToCloudRow(match, team1OwnerPhone));
-    if (stateErr && (stateErr as { code?: string }).code !== 'PGRST205') {
+    if (stateErr && !isSchemaNotReady(stateErr)) {
       console.error('[cloud-match-repo] publishMatchInvitation state write failed:', stateErr.message);
     }
   } catch (err) {
@@ -550,7 +550,7 @@ export async function respondToInvitation(
       .from('match_invitations')
       .update({ status: response })
       .eq('match_id', matchId);
-    if (error && (error as { code?: string }).code !== 'PGRST205') {
+    if (error && !isSchemaNotReady(error)) {
       console.error('[cloud-match-repo] respondToInvitation failed:', error.message);
     }
   } catch (err) {
@@ -569,11 +569,11 @@ export async function fetchPendingInvitations(myPhone: string): Promise<MatchInv
       .eq('status', 'pending')
       .gt('expires_at', Date.now())
       .order('created_at', { ascending: false });
-    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    if (error && !isSchemaNotReady(error)) throw error;
     return (data ?? []).map(rowToInvitation);
   } catch (err) {
     const code = (err as { code?: string })?.code;
-    if (code !== 'PGRST205') {
+    if (!isSchemaNotReady({ code })) {
       console.error('[cloud-match-repo] fetchPendingInvitations failed:', (err as Error).message);
     }
     return [];
@@ -589,7 +589,7 @@ export async function fetchInvitationStatus(matchId: string): Promise<MatchInvit
       .select('*')
       .eq('match_id', matchId)
       .single();
-    if (error && (error as { code?: string }).code !== 'PGRST205' && (error as { code?: string }).code !== 'PGRST116') throw error;
+    if (error && !isSchemaNotReady(error, true)) throw error;
     if (!data) return null;
     return rowToInvitation(data as Record<string, unknown>);
   } catch (err) {
@@ -611,7 +611,7 @@ export async function fetchMatchFromInvitation(matchId: string): Promise<import(
       .select('match_state_json')
       .eq('match_id', matchId)
       .maybeSingle();
-    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    if (error && !isSchemaNotReady(error)) throw error;
     if (!data?.match_state_json) return null;
     return JSON.parse(data.match_state_json) as import('../engine/types').Match;
   } catch (err) {

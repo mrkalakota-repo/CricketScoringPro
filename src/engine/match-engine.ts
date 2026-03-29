@@ -1,6 +1,18 @@
-import * as Crypto from 'expo-crypto';
-const uuidv4 = () => Crypto.randomUUID();
 import { produce } from 'immer';
+
+// Default UUID factory: uses the platform-provided crypto.randomUUID() (available in
+// React Native / Expo via the global polyfill, and in modern Node.js for tests).
+// Callers can inject a custom factory via the constructor for testing or non-Expo envs.
+const defaultUuidFactory = (): string => {
+  if (typeof globalThis !== 'undefined' && typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  // RFC 4122 v4 fallback (no external deps)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+};
 import type {
   Match,
   Innings,
@@ -22,10 +34,12 @@ import { BALLS_PER_OVER, MAX_WICKETS_PER_INNINGS, DISMISSALS_NOT_CREDITED_TO_BOW
 export class MatchEngine {
   private match: Match;
   private undoStack: ScoringAction[];
+  private uuidFactory: () => string;
 
-  constructor(match: Match, undoStack: ScoringAction[] = []) {
+  constructor(match: Match, undoStack: ScoringAction[] = [], uuidFactory: () => string = defaultUuidFactory) {
     this.match = match;
     this.undoStack = undoStack;
+    this.uuidFactory = uuidFactory;
   }
 
   getMatch(): Match {
@@ -96,14 +110,14 @@ export class MatchEngine {
       draft.status = 'toss';
       draft.updatedAt = Date.now();
     });
-    return new MatchEngine(newMatch, this.undoStack);
+    return new MatchEngine(newMatch, this.undoStack, this.uuidFactory);
   }
 
   startMatch(battingTeamId: string, bowlingTeamId: string): MatchEngine {
     const newMatch = produce(this.match, draft => {
       draft.status = 'in_progress';
       const innings = createInnings(
-        uuidv4(),
+        this.uuidFactory(),
         1,
         battingTeamId,
         bowlingTeamId,
@@ -113,7 +127,7 @@ export class MatchEngine {
       draft.currentInningsIndex = 0;
       draft.updatedAt = Date.now();
     });
-    return new MatchEngine(newMatch, []);
+    return new MatchEngine(newMatch, [], this.uuidFactory);
   }
 
   setOpeners(strikerId: string, nonStrikerId: string): MatchEngine {
@@ -128,7 +142,7 @@ export class MatchEngine {
       innings.partnerships = [createPartnership(strikerId, nonStrikerId)];
       draft.updatedAt = Date.now();
     });
-    return new MatchEngine(newMatch, this.undoStack);
+    return new MatchEngine(newMatch, this.undoStack, this.uuidFactory);
   }
 
   setBowler(bowlerId: string): MatchEngine {
@@ -162,7 +176,7 @@ export class MatchEngine {
       }
       draft.updatedAt = Date.now();
     });
-    return new MatchEngine(newMatch, this.undoStack);
+    return new MatchEngine(newMatch, this.undoStack, this.uuidFactory);
   }
 
   // ===== Core Scoring =====
@@ -232,7 +246,7 @@ export class MatchEngine {
     }
 
     const ballOutcome: BallOutcome = {
-      id: uuidv4(),
+      id: this.uuidFactory(),
       overNumber: innings.totalOvers,
       ballInOver: isLegal ? innings.totalBalls : innings.totalBalls,
       batsmanId: innings.currentStrikerId,
@@ -430,7 +444,7 @@ export class MatchEngine {
       timestamp: Date.now(),
     }];
 
-    return new MatchEngine(newMatch, newUndoStack);
+    return new MatchEngine(newMatch, newUndoStack, this.uuidFactory);
   }
 
   undoLastBall(): MatchEngine {
@@ -449,7 +463,7 @@ export class MatchEngine {
       }
     });
 
-    return new MatchEngine(newMatch, this.undoStack.slice(0, -1));
+    return new MatchEngine(newMatch, this.undoStack.slice(0, -1), this.uuidFactory);
   }
 
   // ===== Innings Transitions =====
@@ -470,13 +484,13 @@ export class MatchEngine {
       draft.status = 'in_progress';
       draft.result = null;
       draft.superOver = true;
-      const soInnings = createInnings(uuidv4(), draft.innings.length + 1, soInn1BattingTeamId, soInn1BowlingTeamId, draft.config);
+      const soInnings = createInnings(this.uuidFactory(), draft.innings.length + 1, soInn1BattingTeamId, soInn1BowlingTeamId, draft.config);
       soInnings.isSuperOver = true;
       draft.innings.push(soInnings);
       draft.currentInningsIndex = draft.innings.length - 1;
       draft.updatedAt = Date.now();
     });
-    return new MatchEngine(newMatch, this.undoStack);
+    return new MatchEngine(newMatch, this.undoStack, this.uuidFactory);
   }
 
   startNextInnings(): MatchEngine {
@@ -493,14 +507,14 @@ export class MatchEngine {
       const bowlingTeamId = currentInnings.battingTeamId;
       const target = currentInnings.totalRuns + 1;
       const newMatch = produce(this.match, draft => {
-        const soInn2 = createInnings(uuidv4(), draft.innings.length + 1, battingTeamId, bowlingTeamId, draft.config);
+        const soInn2 = createInnings(this.uuidFactory(), draft.innings.length + 1, battingTeamId, bowlingTeamId, draft.config);
         soInn2.isSuperOver = true;
         soInn2.target = target;
         draft.innings.push(soInn2);
         draft.currentInningsIndex = draft.innings.length - 1;
         draft.updatedAt = Date.now();
       });
-      return new MatchEngine(newMatch, this.undoStack);
+      return new MatchEngine(newMatch, this.undoStack, this.uuidFactory);
     }
 
     const nextInningsNumber = currentInnings.inningsNumber + 1;
@@ -530,7 +544,7 @@ export class MatchEngine {
 
     const newMatch = produce(this.match, draft => {
       const newInnings = createInnings(
-        uuidv4(),
+        this.uuidFactory(),
         nextInningsNumber,
         battingTeamId,
         bowlingTeamId,
@@ -542,7 +556,7 @@ export class MatchEngine {
       draft.updatedAt = Date.now();
     });
 
-    return new MatchEngine(newMatch, []);
+    return new MatchEngine(newMatch, [], this.uuidFactory);
   }
 
   declareInnings(): MatchEngine {
@@ -557,7 +571,7 @@ export class MatchEngine {
       inn.currentBowlerId = null;
       draft.updatedAt = Date.now();
     });
-    return new MatchEngine(newMatch, this.undoStack);
+    return new MatchEngine(newMatch, this.undoStack, this.uuidFactory);
   }
 
   canFollowOn(): boolean {
@@ -597,7 +611,7 @@ export class MatchEngine {
 
       draft.updatedAt = Date.now();
     });
-    return new MatchEngine(newMatch, this.undoStack);
+    return new MatchEngine(newMatch, this.undoStack, this.uuidFactory);
   }
 
   // Retire a batter mid-innings (retired hurt or retired out).
@@ -639,7 +653,7 @@ export class MatchEngine {
 
       draft.updatedAt = Date.now();
     });
-    return new MatchEngine(newMatch, this.undoStack);
+    return new MatchEngine(newMatch, this.undoStack, this.uuidFactory);
   }
 
   swapStrike(): MatchEngine {
@@ -654,7 +668,7 @@ export class MatchEngine {
       }
       draft.updatedAt = Date.now();
     });
-    return new MatchEngine(newMatch, this.undoStack);
+    return new MatchEngine(newMatch, this.undoStack, this.uuidFactory);
   }
 
   // ===== Private Helpers =====

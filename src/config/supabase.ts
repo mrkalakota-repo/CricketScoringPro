@@ -19,6 +19,16 @@ if (!isCloudEnabled && (SUPABASE_URL || SUPABASE_ANON_KEY)) {
   console.warn('[supabase] Cloud sync disabled — fill in real credentials in .env');
 }
 
+/**
+ * Returns true when the Supabase error indicates the schema or table doesn't exist yet
+ * (PGRST205) or a single-row query returned no results (PGRST116).
+ * Use this to decide whether to suppress an error vs. rethrow it.
+ */
+export function isSchemaNotReady(error: unknown, includePgrst116 = false): boolean {
+  const code = (error as { code?: string } | null)?.code;
+  return code === 'PGRST205' || (includePgrst116 && code === 'PGRST116');
+}
+
 export const supabase: SupabaseClient | null = isCloudEnabled
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },

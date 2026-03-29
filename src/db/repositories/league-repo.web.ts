@@ -1,7 +1,7 @@
 import type { League, LeagueFixture, LeagueFixtureStatus, FixtureNRRData, LeagueFormat } from '../../engine/types';
-import * as Crypto from 'expo-crypto';
 
-const uuidv4 = () => Crypto.randomUUID();
+
+const uuidv4 = (): string => globalThis.crypto.randomUUID();
 
 const LEAGUES_KEY = 'csp_leagues';
 const FIXTURES_KEY = 'csp_league_fixtures';

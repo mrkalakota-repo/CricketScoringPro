@@ -21,6 +21,9 @@ import type { VerifyResult } from '../db/repositories/cloud-user-repo';
 export type RestoreStatus = 'idle' | 'fetching' | 'not_found' | 'wrong_pin' | 'error' | 'success';
 export type RestoreStatusWithMessage = { status: RestoreStatus; errorMessage?: string };
 
+const MAX_LOGIN_ATTEMPTS = 3;
+const LOGIN_LOCKOUT_MS = 5 * 60 * 1000; // 5 minutes
+
 interface UserAuthStore {
   profile: UserProfile | null;
   isAuthenticated: boolean;
@@ -38,13 +41,25 @@ interface UserAuthStore {
   /** Error message from the last failed restore attempt (e.g. server error details). */
   restoreErrorMessage: string;
 
+  /** Number of consecutive failed local login attempts (in-memory, resets on restart). */
+  loginAttempts: number;
+  /**
+   * Timestamp (ms) until which local login is locked out after too many failed attempts.
+   * 0 = not locked. Resets on successful login or app restart.
+   */
+  loginLockedUntil: number;
+
   /** Load stored profile from local DB — call once on app startup. */
   loadProfile: () => Promise<void>;
 
   /** Register a new user (first launch). Saves locally + pushes to cloud. */
   register: (phone: string, name: string, pin: string, role?: UserRole) => Promise<void>;
 
-  /** Verify PIN against local profile. Returns true if correct. */
+  /**
+   * Verify PIN against local profile. Returns true if correct.
+   * Enforces rate limiting: after MAX_LOGIN_ATTEMPTS wrong PINs, locks for LOGIN_LOCKOUT_MS.
+   * Returns false (without hashing) when locked out.
+   */
   login: (pin: string) => Promise<boolean>;
 
   /**
@@ -75,6 +90,8 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
   sessionExpired: false,
   restoreStatus: 'idle',
   restoreErrorMessage: '',
+  loginAttempts: 0,
+  loginLockedUntil: 0,
 
   loadProfile: async () => {
     try {
@@ -109,15 +126,26 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
   },
 
   login: async (pin) => {
-    const { profile } = get();
+    const { profile, loginAttempts, loginLockedUntil } = get();
     if (!profile) return false;
+
+    // Enforce lockout
+    if (loginLockedUntil > 0 && Date.now() < loginLockedUntil) {
+      return false;
+    }
+
     const hash = await hashPin(pin);
     if (hash === profile.pinHash) {
-      set({ isAuthenticated: true });
+      set({ isAuthenticated: true, loginAttempts: 0, loginLockedUntil: 0 });
       // Re-push to cloud in case the initial registration push failed (e.g. table didn't exist yet).
       cloudUserRepo.pushUserProfile({ phone: profile.phone, name: profile.name, pinHash: profile.pinHash, role: profile.role }).catch(() => {});
       return true;
     }
+
+    // Wrong PIN — track attempts and lock if threshold reached
+    const attempts = loginAttempts + 1;
+    const lockedUntil = attempts >= MAX_LOGIN_ATTEMPTS ? Date.now() + LOGIN_LOCKOUT_MS : 0;
+    set({ loginAttempts: attempts, loginLockedUntil: lockedUntil });
     return false;
   },
 

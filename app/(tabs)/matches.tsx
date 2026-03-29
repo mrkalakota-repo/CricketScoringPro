@@ -330,6 +330,10 @@ export default function MatchesScreen() {
         contentContainerStyle={[styles.list, { paddingBottom: fabBottom + 56 }]}
         onRefresh={() => { loadMatches(); loadCloud(); }}
         refreshing={loading || cloudLoading}
+        removeClippedSubviews
+        maxToRenderPerBatch={12}
+        updateCellsBatchingPeriod={50}
+        windowSize={10}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="trophy-outline" size={56} color={theme.colors.outlineVariant} />

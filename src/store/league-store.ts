@@ -109,7 +109,7 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
     const league = await leagueRepo.createLeague(name, shortName, format);
     set({ leagues: [...get().leagues, league] });
     const phone = ownerPhone();
-    if (phone) cloudLeagueRepo.pushLeague(league, phone).catch(() => {});
+    if (phone) cloudLeagueRepo.pushLeague(league, phone).catch((e: unknown) => console.error('[league-store] pushLeague failed:', (e as Error).message));
     await usePrefsStore.getState().addMyLeague(league.id);
     return league;
   },
@@ -120,14 +120,14 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
     set({ leagues: updated });
     const phone = ownerPhone();
     const league = updated.find(l => l.id === id);
-    if (phone && league) cloudLeagueRepo.pushLeague(league, phone).catch(() => {});
+    if (phone && league) cloudLeagueRepo.pushLeague(league, phone).catch((e: unknown) => console.error('[league-store] pushLeague failed:', (e as Error).message));
   },
 
   deleteLeague: async (id) => {
     await leagueRepo.deleteLeague(id);
     const { [id]: _, ...rest } = get().fixtures;
     set({ leagues: get().leagues.filter(l => l.id !== id), fixtures: rest });
-    cloudLeagueRepo.deleteCloudLeague(id).catch(() => {});
+    cloudLeagueRepo.deleteCloudLeague(id).catch((e: unknown) => console.error('[league-store] deleteCloudLeague failed:', (e as Error).message));
     await usePrefsStore.getState().removeMyLeague(id);
   },
 
@@ -141,7 +141,7 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
     set({ leagues: updated });
     const phone = ownerPhone();
     const league = updated.find(l => l.id === leagueId);
-    if (phone && league) cloudLeagueRepo.pushLeague(league, phone).catch(() => {});
+    if (phone && league) cloudLeagueRepo.pushLeague(league, phone).catch((e: unknown) => console.error('[league-store] pushLeague failed:', (e as Error).message));
   },
 
   removeTeamFromLeague: async (leagueId, teamId) => {
@@ -154,13 +154,13 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
     set({ leagues: updated });
     const phone = ownerPhone();
     const league = updated.find(l => l.id === leagueId);
-    if (phone && league) cloudLeagueRepo.pushLeague(league, phone).catch(() => {});
+    if (phone && league) cloudLeagueRepo.pushLeague(league, phone).catch((e: unknown) => console.error('[league-store] pushLeague failed:', (e as Error).message));
   },
 
   createFixture: async (leagueId, team1Id, team2Id, venue, date, round = null, bracketSlot = null) => {
     const fixture = await leagueRepo.createFixture(leagueId, team1Id, team2Id, venue, date, round, bracketSlot);
     set({ fixtures: { ...get().fixtures, [leagueId]: [...(get().fixtures[leagueId] ?? []), fixture] } });
-    cloudLeagueRepo.pushFixture(fixture).catch(() => {});
+    cloudLeagueRepo.pushFixture(fixture).catch((e: unknown) => console.error('[league-store] pushFixture failed:', (e as Error).message));
     return fixture;
   },
 
@@ -191,7 +191,7 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
           [leagueId]: [...(get().fixtures[leagueId] ?? []), completedBye],
         },
       });
-      cloudLeagueRepo.pushFixture(completedBye).catch(() => {});
+      cloudLeagueRepo.pushFixture(completedBye).catch((e: unknown) => console.error('[league-store] pushFixture(bye) failed:', (e as Error).message));
     }
   },
 
@@ -218,7 +218,7 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
     const updatedFixture = targetLeagueId
       ? updated[targetLeagueId]?.find(f => f.id === fixtureId)
       : undefined;
-    if (updatedFixture) cloudLeagueRepo.pushFixture(updatedFixture).catch(() => {});
+    if (updatedFixture) cloudLeagueRepo.pushFixture(updatedFixture).catch((e: unknown) => console.error('[league-store] pushFixture(result) failed:', (e as Error).message));
 
     // Knockout auto-advance: if all fixtures in this round are done, generate next round
     if (!targetLeagueId) return;
@@ -256,7 +256,7 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
           [targetLeagueId]: [...(get().fixtures[targetLeagueId] ?? []), completedByeNext],
         },
       });
-      cloudLeagueRepo.pushFixture(completedByeNext).catch(() => {});
+      cloudLeagueRepo.pushFixture(completedByeNext).catch((e: unknown) => console.error('[league-store] pushFixture(byeNext) failed:', (e as Error).message));
     }
   },
 
@@ -268,7 +268,7 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
         [leagueId]: (get().fixtures[leagueId] ?? []).filter(f => f.id !== fixtureId),
       },
     });
-    cloudLeagueRepo.deleteCloudFixture(fixtureId).catch(() => {});
+    cloudLeagueRepo.deleteCloudFixture(fixtureId).catch((e: unknown) => console.error('[league-store] deleteCloudFixture failed:', (e as Error).message));
   },
 
   generateRoundRobin: async (leagueId, startDate, daysApart, venue) => {

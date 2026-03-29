@@ -1,4 +1,4 @@
-import { supabase, isCloudEnabled } from '../../config/supabase';
+import { supabase, isCloudEnabled, isSchemaNotReady } from '../../config/supabase';
 
 export interface CloudUserProfile {
   phone: string;
@@ -28,10 +28,10 @@ export async function pushUserProfile(profile: CloudUserProfile): Promise<void> 
       role: profile.role ?? 'scorer',
       updated_at: Date.now(),
     });
-    if (error && (error as { code?: string }).code !== 'PGRST205') throw error;
+    if (error && !isSchemaNotReady(error)) throw error;
   } catch (err) {
     const code = (err as { code?: string })?.code;
-    if (code !== 'PGRST205') {
+    if (!isSchemaNotReady({ code })) {
       // Log error code/message only — never log profile data (phone, name, pinHash)
     console.error('[cloud-user-repo] pushUserProfile failed:', (err as { code?: string; message?: string })?.code, (err as Error).message);
     }
@@ -77,7 +77,7 @@ export async function verifyUserProfile(
       if (error) {
         const code = (error as { code?: string }).code;
         // PGRST205 = table/function not found — degrade gracefully
-        if (code === 'PGRST205') return { status: 'error', message: 'Cloud table not ready' };
+        if (isSchemaNotReady(error)) return { status: 'error', message: 'Cloud table not ready' };
         // Schema cache error — Supabase free tier waking up; retry after delay
         if (isSchemaCacheError(error.message) && attempt < MAX_RETRIES) {
           await sleep(RETRY_DELAY_MS);

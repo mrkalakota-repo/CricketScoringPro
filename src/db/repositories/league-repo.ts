@@ -1,8 +1,8 @@
 import { getDatabase } from '../database';
 import type { League, LeagueFixture, LeagueFixtureStatus, FixtureNRRData, LeagueFormat } from '../../engine/types';
-import * as Crypto from 'expo-crypto';
 
-const uuidv4 = () => Crypto.randomUUID();
+
+const uuidv4 = (): string => globalThis.crypto.randomUUID();
 
 type LeagueRow = {
   id: string; name: string; short_name: string;

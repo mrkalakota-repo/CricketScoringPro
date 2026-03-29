@@ -32,7 +32,8 @@ function computeRunStats(completedMatches: Match[]): PlayerRunStat[] {
   const map = new Map<string, PlayerRunStat>();
   for (const match of completedMatches) {
     const allPlayers = [...match.team1.players, ...match.team2.players];
-    const getName = (id: string) => allPlayers.find(p => p.id === id)?.name ?? id;
+    const playerNames = new Map(allPlayers.map(p => [p.id, p.name]));
+    const getName = (id: string) => playerNames.get(id) ?? id;
     for (const inn of match.innings) {
       for (const b of inn.batters) {
         const name = getName(b.playerId);
@@ -53,7 +54,8 @@ function computeWktStats(completedMatches: Match[]): PlayerWktStat[] {
   const map = new Map<string, PlayerWktStat>();
   for (const match of completedMatches) {
     const allPlayers = [...match.team1.players, ...match.team2.players];
-    const getName = (id: string) => allPlayers.find(p => p.id === id)?.name ?? id;
+    const playerNames = new Map(allPlayers.map(p => [p.id, p.name]));
+    const getName = (id: string) => playerNames.get(id) ?? id;
     for (const inn of match.innings) {
       for (const b of inn.bowlers) {
         const name = getName(b.playerId);

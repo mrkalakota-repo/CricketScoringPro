@@ -43,28 +43,28 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
       await prefsRepo.addMyTeamId(teamId);
       const ids = get().myTeamIds;
       if (!ids.includes(teamId)) set({ myTeamIds: [...ids, teamId] });
-    } catch { /* ignore */ }
+    } catch (e) { console.error('[prefs-store]', (e as Error).message); }
   },
 
   removeMyTeam: async (teamId) => {
     try {
       await prefsRepo.removeMyTeamId(teamId);
       set({ myTeamIds: get().myTeamIds.filter(id => id !== teamId) });
-    } catch { /* ignore */ }
+    } catch (e) { console.error('[prefs-store]', (e as Error).message); }
   },
 
   setMyTeamIds: async (teamIds) => {
     try {
       await prefsRepo.setMyTeamIds(teamIds);
       set({ myTeamIds: teamIds });
-    } catch { /* ignore */ }
+    } catch (e) { console.error('[prefs-store]', (e as Error).message); }
   },
 
   setPlayerTeamIds: async (teamIds) => {
     try {
       await prefsRepo.setPlayerTeamIds(teamIds);
       set({ playerTeamIds: teamIds });
-    } catch { /* ignore */ }
+    } catch (e) { console.error('[prefs-store]', (e as Error).message); }
   },
 
   addDelegateTeam: async (teamId) => {
@@ -72,14 +72,14 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
       await prefsRepo.addDelegateTeamId(teamId);
       const ids = get().delegateTeamIds;
       if (!ids.includes(teamId)) set({ delegateTeamIds: [...ids, teamId] });
-    } catch { /* ignore */ }
+    } catch (e) { console.error('[prefs-store]', (e as Error).message); }
   },
 
   removeDelegateTeam: async (teamId) => {
     try {
       await prefsRepo.removeDelegateTeamId(teamId);
       set({ delegateTeamIds: get().delegateTeamIds.filter(id => id !== teamId) });
-    } catch { /* ignore */ }
+    } catch (e) { console.error('[prefs-store]', (e as Error).message); }
   },
 
   addMyLeague: async (leagueId) => {
@@ -87,20 +87,20 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
       await prefsRepo.addMyLeagueId(leagueId);
       const ids = get().myLeagueIds;
       if (!ids.includes(leagueId)) set({ myLeagueIds: [...ids, leagueId] });
-    } catch { /* ignore */ }
+    } catch (e) { console.error('[prefs-store]', (e as Error).message); }
   },
 
   removeMyLeague: async (leagueId) => {
     try {
       await prefsRepo.removeMyLeagueId(leagueId);
       set({ myLeagueIds: get().myLeagueIds.filter(id => id !== leagueId) });
-    } catch { /* ignore */ }
+    } catch (e) { console.error('[prefs-store]', (e as Error).message); }
   },
 
   setMyLeagueIds: async (leagueIds) => {
     try {
       await prefsRepo.setMyLeagueIds(leagueIds);
       set({ myLeagueIds: leagueIds });
-    } catch { /* ignore */ }
+    } catch (e) { console.error('[prefs-store]', (e as Error).message); }
   },
 }));

@@ -1,7 +1,7 @@
 import type { Match, MatchConfig } from '../../engine/types';
-import * as Crypto from 'expo-crypto';
 
-const uuidv4 = () => Crypto.randomUUID();
+
+const uuidv4 = (): string => globalThis.crypto.randomUUID();
 
 const MATCHES_KEY = 'csp_matches';
 

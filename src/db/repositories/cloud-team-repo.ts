@@ -1,4 +1,4 @@
-import { supabase, isCloudEnabled } from '../../config/supabase';
+import { supabase, isCloudEnabled, isSchemaNotReady } from '../../config/supabase';
 import type { Team } from '../../engine/types';
 
 // ── Publish / Delete ──────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ export async function fetchTeamIdsByOwner(ownerPhone: string): Promise<string[]>
       .select('id')
       .eq('owner_phone', ownerPhone);
     if (error) {
-      if ((error as { code?: string }).code !== 'PGRST205') {
+      if (!isSchemaNotReady(error)) {
         console.error('[cloud-team-repo] fetchTeamIdsByOwner failed:', error.message);
       }
       return [];
@@ -96,7 +96,7 @@ export async function fetchTeamIdsByPlayerPhone(playerPhone: string): Promise<st
       .select('team_id')
       .eq('phone_number', playerPhone);
     if (error) {
-      if ((error as { code?: string }).code !== 'PGRST205') {
+      if (!isSchemaNotReady(error)) {
         console.error('[cloud-team-repo] fetchTeamIdsByPlayerPhone failed:', error.message);
       }
       return [];
@@ -121,7 +121,7 @@ export async function fetchTeamOwnerPhone(teamId: string): Promise<string | null
       .eq('id', teamId)
       .single();
     if (error) {
-      if ((error as { code?: string }).code !== 'PGRST205' && (error as { code?: string }).code !== 'PGRST116') {
+      if (!isSchemaNotReady(error, true)) {
         console.error('[cloud-team-repo] fetchTeamOwnerPhone failed:', error.message);
       }
       return null;

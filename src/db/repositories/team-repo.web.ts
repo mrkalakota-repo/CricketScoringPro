@@ -1,7 +1,6 @@
 import type { Team, Player, BowlingStyle } from '../../engine/types';
-import * as Crypto from 'expo-crypto';
 
-const uuidv4 = () => Crypto.randomUUID();
+const uuidv4 = (): string => globalThis.crypto.randomUUID();
 
 const TEAMS_KEY = 'csp_teams';
 const PLAYERS_KEY = 'csp_players';

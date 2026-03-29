@@ -1,8 +1,7 @@
 import { getDatabase } from '../database';
 import type { Team, Player, BowlingStyle } from '../../engine/types';
-import * as Crypto from 'expo-crypto';
 
-const uuidv4 = () => Crypto.randomUUID();
+const uuidv4 = (): string => globalThis.crypto.randomUUID();
 
 type TeamRow = {
   id: string; name: string; short_name: string; admin_pin_hash: string | null;
@@ -27,11 +26,39 @@ function rowToTeam(row: TeamRow, players: Player[]): Team {
 export async function getAllTeams(): Promise<Team[]> {
   const db = await getDatabase();
   const teamRows = await db.getAllAsync<TeamRow>('SELECT * FROM teams ORDER BY name');
-  const teams: Team[] = [];
-  for (const row of teamRows) {
-    teams.push(rowToTeam(row, await getPlayersForTeam(row.id)));
+  if (teamRows.length === 0) return [];
+
+  // Batch-fetch all players in a single query instead of one per team (avoids N+1)
+  const placeholders = teamRows.map(() => '?').join(', ');
+  const teamIds = teamRows.map(r => r.id);
+  const playerRows = await db.getAllAsync<{
+    id: string; team_id: string; name: string; phone_number: string | null;
+    batting_style: string; bowling_style: string;
+    is_wicket_keeper: number; is_all_rounder: number; is_captain: number; is_vice_captain: number;
+    jersey_number: number | null; photo_uri: string | null;
+  }>(`SELECT * FROM players WHERE team_id IN (${placeholders}) ORDER BY name`, ...teamIds);
+
+  const playersByTeam = new Map<string, Player[]>();
+  for (const row of playerRows) {
+    const player: Player = {
+      id: row.id,
+      name: row.name,
+      phoneNumber: row.phone_number ?? null,
+      battingStyle: (row.batting_style ?? 'right') as Player['battingStyle'],
+      bowlingStyle: (row.bowling_style ?? 'none') as BowlingStyle,
+      isWicketKeeper: (row.is_wicket_keeper ?? 0) === 1,
+      isAllRounder: (row.is_all_rounder ?? 0) === 1,
+      isCaptain: (row.is_captain ?? 0) === 1,
+      isViceCaptain: (row.is_vice_captain ?? 0) === 1,
+      jerseyNumber: row.jersey_number ?? null,
+      photoUri: row.photo_uri ?? null,
+    };
+    const bucket = playersByTeam.get(row.team_id);
+    if (bucket) bucket.push(player);
+    else playersByTeam.set(row.team_id, [player]);
   }
-  return teams;
+
+  return teamRows.map(row => rowToTeam(row, playersByTeam.get(row.id) ?? []));
 }
 
 export async function getTeamById(id: string): Promise<Team | null> {
