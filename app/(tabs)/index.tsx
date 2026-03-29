@@ -7,6 +7,7 @@ import { useMatchStore } from '../../src/store/match-store';
 import { useTeamStore } from '../../src/store/team-store';
 import { usePrefsStore } from '../../src/store/prefs-store';
 import * as cloudMatchRepo from '../../src/db/repositories/cloud-match-repo';
+import type { CloudMatchRow } from '../../src/db/repositories/cloud-match-repo';
 import { isCloudEnabled } from '../../src/config/supabase';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { MatchRow } from '../../src/db/repositories/match-repo';
@@ -30,6 +31,14 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
 }
 
 interface ScoreLine { label: string; score: string; live?: boolean }
+
+interface RecentMatchEntry {
+  id: string;
+  teams: string;
+  scoreLines: ScoreLine[];
+  result: string | null;
+  venue: string;
+}
 
 function getMatchDisplayInfo(row: MatchRow): { teams: string; scoreLines: ScoreLine[] } {
   if (!row.match_state_json) {
@@ -87,26 +96,31 @@ export default function HomeScreen() {
   const myPhone = useUserAuth(s => s.profile?.phone ?? null);
   const { roleLabel, roleIcon, roleColor, canCreateMatch } = useRole();
   const [cloudOnlyCount, setCloudOnlyCount] = useState(0);
+  const [myCloudMatches, setMyCloudMatches] = useState<CloudMatchRow[]>([]);
 
   // Load on mount (initial launch — useFocusEffect doesn't fire on first render in Expo Router)
   useEffect(() => { loadMatches(); loadTeams(); }, []);
+  // Re-trigger cloud sync when auth loads after mount (phone was null on initial mount)
+  useEffect(() => { if (myPhone) loadTeams(); }, [myPhone]);
   // Reload on every subsequent focus (returning from other tabs)
   useFocusEffect(useCallback(() => { loadMatches(); loadTeams(); }, []));
 
-  // Fetch cloud-only match count (matches on other devices not in local SQLite)
+  // Fetch cloud-only matches (cross-device history not in local SQLite)
   useEffect(() => {
     if (!isCloudEnabled) return;
     (async () => {
       try {
         const localIds = new Set(useMatchStore.getState().matches.map(m => m.id));
-        let count = 0;
+        let mine: CloudMatchRow[] = [];
         if (myPhone) {
-          const mine = await cloudMatchRepo.fetchMyCloudMatches(myPhone, 90);
-          mine.forEach(m => { if (!localIds.has(m.id)) { localIds.add(m.id); count++; } });
+          const all = await cloudMatchRepo.fetchMyCloudMatches(myPhone, 90);
+          mine = all.filter(m => !localIds.has(m.id));
+          mine.forEach(m => localIds.add(m.id));
         }
         const community = await cloudMatchRepo.fetchRecentCloudMatches(90);
-        community.forEach(m => { if (!localIds.has(m.id)) count++; });
-        setCloudOnlyCount(count);
+        const communityNew = community.filter(m => !localIds.has(m.id));
+        setCloudOnlyCount(mine.length + communityNew.length);
+        setMyCloudMatches(mine);
       } catch { /* silent — stat card falls back to local count */ }
     })();
   }, [myPhone]);
@@ -147,10 +161,25 @@ export default function HomeScreen() {
     () => matches.filter(m => m.status === 'in_progress' || m.status === 'toss'),
     [matches]
   );
-  const recentMatches = useMemo(
-    () => matches.filter(m => m.status === 'completed').slice(0, 5),
-    [matches]
-  );
+  const recentMatches = useMemo<RecentMatchEntry[]>(() => {
+    const localEntries: RecentMatchEntry[] = matches
+      .filter(m => m.status === 'completed')
+      .map(m => {
+        const { teams, scoreLines } = getMatchDisplayInfo(m);
+        return { id: m.id, teams, scoreLines, result: m.result, venue: m.venue };
+      });
+    const localIds = new Set(localEntries.map(e => e.id));
+    const cloudEntries: RecentMatchEntry[] = myCloudMatches
+      .filter(m => m.status === 'completed' && !localIds.has(m.id))
+      .map(m => ({
+        id: m.id,
+        teams: `${m.team1Short} vs ${m.team2Short}`,
+        scoreLines: [],
+        result: m.result,
+        venue: m.venue,
+      }));
+    return [...localEntries, ...cloudEntries].slice(0, 5);
+  }, [matches, myCloudMatches]);
 
   const handleLiveMatchPress = (match: MatchRow) => {
     if (match.status === 'toss') {
@@ -165,7 +194,14 @@ export default function HomeScreen() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Hero */}
-      <Surface style={[styles.hero, { backgroundColor: theme.colors.primary }]} elevation={3}>
+      <Surface style={[styles.hero, { backgroundColor: theme.colors.primary, paddingTop: insets.top + 20 }]} elevation={3}>
+        <TouchableOpacity
+          onPress={() => router.push('/my-profile')}
+          style={[styles.heroProfileButton, { top: insets.top + 8 }]}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MaterialCommunityIcons name="account-circle" size={28} color="rgba(255,255,255,0.9)" />
+        </TouchableOpacity>
         <MaterialCommunityIcons name="cricket" size={52} color="rgba(255,255,255,0.9)" />
         <Text variant="headlineMedium" style={styles.heroTitle}>Gully Cricket Scorer</Text>
         <Text variant="bodyMedium" style={styles.heroSubtitle}>Score matches like a pro</Text>
@@ -275,38 +311,35 @@ export default function HomeScreen() {
       {recentMatches.length > 0 && (
         <View style={styles.section}>
           <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Recent Matches</Text>
-          {recentMatches.map(match => {
-            const { teams: teamNames, scoreLines } = getMatchDisplayInfo(match);
-            return (
-              <Card
-                key={match.id}
-                style={styles.matchCard}
-                onPress={() => router.push(`/match/${match.id}`)}
-              >
-                <Card.Content style={styles.recentCardContent}>
-                  <View style={styles.recentInfo}>
-                    <Text variant="titleSmall" style={[styles.recentTeams, { color: theme.colors.onSurface }]}>{teamNames}</Text>
-                    {scoreLines.length > 0 ? (
-                      <View style={[styles.scoreBlock, { marginTop: 3 }]}>
-                        {scoreLines.map((line, i) => (
-                          <View key={i} style={styles.scoreLine}>
-                            <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant }]}>{line.label}</Text>
-                            <Text style={[styles.scoreValue, { color: theme.colors.onSurfaceVariant }]}>{line.score}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    ) : null}
-                    {match.result ? <Text variant="bodySmall" style={{ color: theme.colors.primary, marginTop: 3, fontWeight: '600' }}>{match.result}</Text> : null}
-                    {match.venue ? <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 1 }}>{match.venue}</Text> : null}
-                  </View>
-                  <View style={[styles.doneChip, { backgroundColor: theme.colors.primaryContainer }]}>
-                    <MaterialCommunityIcons name="check" size={12} color={theme.colors.onPrimaryContainer} />
-                    <Text style={[styles.doneChipText, { color: theme.colors.onPrimaryContainer }]}>DONE</Text>
-                  </View>
-                </Card.Content>
-              </Card>
-            );
-          })}
+          {recentMatches.map(entry => (
+            <Card
+              key={entry.id}
+              style={styles.matchCard}
+              onPress={() => router.push(`/match/${entry.id}`)}
+            >
+              <Card.Content style={styles.recentCardContent}>
+                <View style={styles.recentInfo}>
+                  <Text variant="titleSmall" style={[styles.recentTeams, { color: theme.colors.onSurface }]}>{entry.teams}</Text>
+                  {entry.scoreLines.length > 0 ? (
+                    <View style={[styles.scoreBlock, { marginTop: 3 }]}>
+                      {entry.scoreLines.map((line, i) => (
+                        <View key={i} style={styles.scoreLine}>
+                          <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant }]}>{line.label}</Text>
+                          <Text style={[styles.scoreValue, { color: theme.colors.onSurfaceVariant }]}>{line.score}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                  {entry.result ? <Text variant="bodySmall" style={{ color: theme.colors.primary, marginTop: 3, fontWeight: '600' }}>{entry.result}</Text> : null}
+                  {entry.venue ? <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 1 }}>{entry.venue}</Text> : null}
+                </View>
+                <View style={[styles.doneChip, { backgroundColor: theme.colors.primaryContainer }]}>
+                  <MaterialCommunityIcons name="check" size={12} color={theme.colors.onPrimaryContainer} />
+                  <Text style={[styles.doneChipText, { color: theme.colors.onPrimaryContainer }]}>DONE</Text>
+                </View>
+              </Card.Content>
+            </Card>
+          ))}
         </View>
       )}
 
@@ -340,10 +373,14 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   hero: {
     padding: 36,
-    paddingTop: 40,
     alignItems: 'center',
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
+  },
+  heroProfileButton: {
+    position: 'absolute',
+    right: 16,
+    padding: 4,
   },
   heroTitle: { color: '#FFFFFF', fontWeight: '900', marginTop: 10, letterSpacing: 0.3 },
   heroSubtitle: { color: 'rgba(255,255,255,0.75)', marginTop: 4 },

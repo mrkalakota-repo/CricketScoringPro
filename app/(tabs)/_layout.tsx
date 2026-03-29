@@ -62,8 +62,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Home',
-          headerTitle: APP_NAME,
-          headerRight: () => <ProfileHeaderButton />,
+          headerShown: false,
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="home-outline" activeName="home" color={color} size={size} focused={focused} />
           ),
