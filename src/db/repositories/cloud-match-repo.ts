@@ -603,7 +603,7 @@ export async function fetchInvitationStatus(matchId: string): Promise<MatchInvit
  * Used as a fallback in acceptMatchInvitation when cloud_match_states
  * doesn't have the row yet (e.g. written before the publishMatchInvitation fix).
  */
-export async function fetchMatchFromInvitation(matchId: string): Promise<import('../engine/types').Match | null> {
+export async function fetchMatchFromInvitation(matchId: string): Promise<Match | null> {
   if (!isCloudEnabled || !supabase) return null;
   try {
     const { data, error } = await supabase
@@ -613,7 +613,7 @@ export async function fetchMatchFromInvitation(matchId: string): Promise<import(
       .maybeSingle();
     if (error && !isSchemaNotReady(error)) throw error;
     if (!data?.match_state_json) return null;
-    return JSON.parse(data.match_state_json) as import('../engine/types').Match;
+    return JSON.parse(data.match_state_json) as Match;
   } catch (err) {
     console.error('[cloud-match-repo] fetchMatchFromInvitation failed:', (err as Error).message);
     return null;
