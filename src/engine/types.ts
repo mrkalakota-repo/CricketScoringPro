@@ -123,6 +123,7 @@ export interface BallOutcome {
   dismissal: Dismissal | null;
   isFreeHit: boolean;
   timestamp: number;
+  scoringZone?: number; // 0–7 representing 45° field zones (0=straight, clockwise); only on scoring shots
 }
 
 // ===== Innings Aggregates =====
@@ -205,6 +206,11 @@ export interface Innings {
   powerplays: PowerplayConfig[];
   target: number | null;
   isSuperOver: boolean;
+  // DLS fields — set when an admin applies a rain interruption ruling
+  revisedTarget?: number;   // DLS/Gully-mode revised target
+  revisedOvers?: number;    // Revised overs quota after interruption
+  dlsMode?: 'standard' | 'gully'; // Which DLS variant was applied
+  dlsGullyRunsPerOver?: number;   // Gully-mode custom RPO override
 }
 
 export interface OverSummary {
@@ -267,6 +273,7 @@ export interface BallInput {
     batsmanId?: string; // For run outs (could be non-striker)
   } | null;
   isBoundary: boolean;
+  scoringZone?: number; // 0–7 field zone tap; only on scoring shots, optional
 }
 
 // ===== League Models =====
@@ -301,6 +308,11 @@ export interface LeagueFixture {
   bracketSlot: number | null;  // position within round (0-based) for pairing
   createdAt: number;
   updatedAt: number;
+  // Verification — set by a league_admin to lock the result against further edits
+  isVerified?: boolean;
+  verifiedByPhone?: string | null;
+  verifiedAt?: number | null;
+  verifiedByName?: string | null;
 }
 
 export type LeagueFormat = 'round_robin' | 'knockout';

@@ -34,6 +34,10 @@ function mapFixtureRow(r: any): LeagueFixture {
     bracketSlot: r.bracket_slot ?? null,
     createdAt: r.updated_at ?? Date.now(),
     updatedAt: r.updated_at ?? Date.now(),
+    isVerified: r.is_verified ?? false,
+    verifiedByPhone: r.verified_by_phone ?? null,
+    verifiedAt: r.verified_at ?? null,
+    verifiedByName: r.verified_by_name ?? null,
   };
 }
 
@@ -76,11 +80,38 @@ export async function pushFixture(fixture: LeagueFixture): Promise<void> {
       nrr_data_json: fixture.nrrData ? JSON.stringify(fixture.nrrData) : null,
       round: fixture.round ?? null,
       bracket_slot: fixture.bracketSlot ?? null,
+      is_verified: fixture.isVerified ?? false,
+      verified_by_phone: fixture.verifiedByPhone ?? null,
+      verified_at: fixture.verifiedAt ?? null,
+      verified_by_name: fixture.verifiedByName ?? null,
       updated_at: Date.now(),
     });
     if (error && !isSchemaNotReady(error)) throw error;
   } catch (err) {
     console.error('[cloud-league-repo] pushFixture failed:', (err as Error).message);
+  }
+}
+
+export async function verifyCloudFixture(
+  fixtureId: string,
+  verifiedByPhone: string,
+  verifiedByName: string,
+): Promise<void> {
+  if (!isCloudEnabled || !supabase) return;
+  try {
+    const { error } = await supabase
+      .from('cloud_league_fixtures')
+      .update({
+        is_verified: true,
+        verified_by_phone: verifiedByPhone,
+        verified_at: Date.now(),
+        verified_by_name: verifiedByName,
+        updated_at: Date.now(),
+      })
+      .eq('id', fixtureId);
+    if (error && !isSchemaNotReady(error)) throw error;
+  } catch (err) {
+    console.error('[cloud-league-repo] verifyCloudFixture failed:', (err as Error).message);
   }
 }
 
@@ -103,6 +134,10 @@ export async function pushFixtures(fixtures: LeagueFixture[]): Promise<void> {
       nrr_data_json: f.nrrData ? JSON.stringify(f.nrrData) : null,
       round: f.round ?? null,
       bracket_slot: f.bracketSlot ?? null,
+      is_verified: f.isVerified ?? false,
+      verified_by_phone: f.verifiedByPhone ?? null,
+      verified_at: f.verifiedAt ?? null,
+      verified_by_name: f.verifiedByName ?? null,
       updated_at: Date.now(),
     }));
     const { error } = await supabase.from('cloud_league_fixtures').upsert(rows);

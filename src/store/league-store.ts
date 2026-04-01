@@ -26,6 +26,7 @@ interface LeagueStore {
   deleteFixture: (fixtureId: string, leagueId: string) => Promise<void>;
   generateRoundRobin: (leagueId: string, startDate: number, daysApart: number, venue: string) => Promise<void>;
   computeStandings: (leagueId: string) => LeagueStandingRow[];
+  verifyFixture: (fixtureId: string, leagueId: string, verifiedByPhone: string, verifiedByName: string) => Promise<void>;
 }
 
 export const useLeagueStore = create<LeagueStore>((set, get) => ({
@@ -269,6 +270,25 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
       },
     });
     cloudLeagueRepo.deleteCloudFixture(fixtureId).catch((e: unknown) => console.error('[league-store] deleteCloudFixture failed:', (e as Error).message));
+  },
+
+  verifyFixture: async (fixtureId, leagueId, verifiedByPhone, verifiedByName) => {
+    await leagueRepo.verifyFixture(fixtureId, verifiedByPhone, verifiedByName);
+    // Update local state
+    const now = Date.now();
+    set({
+      fixtures: {
+        ...get().fixtures,
+        [leagueId]: (get().fixtures[leagueId] ?? []).map(f =>
+          f.id === fixtureId
+            ? { ...f, isVerified: true, verifiedByPhone, verifiedAt: now, verifiedByName }
+            : f
+        ),
+      },
+    });
+    cloudLeagueRepo.verifyCloudFixture(fixtureId, verifiedByPhone, verifiedByName).catch(
+      (e: unknown) => console.error('[league-store] verifyCloudFixture failed:', (e as Error).message),
+    );
   },
 
   generateRoundRobin: async (leagueId, startDate, daysApart, venue) => {

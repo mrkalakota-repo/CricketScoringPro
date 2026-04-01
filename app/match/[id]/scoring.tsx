@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, TextInput as RNTextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useResponsive } from '../../../src/hooks/useResponsive';
 import { Text, Button, useTheme, Portal, Modal, Card, RadioButton, Surface, Dialog } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -14,8 +14,10 @@ import { isCloudEnabled } from '../../../src/config/supabase';
 import { formatOvers, formatBallOutcome } from '../../../src/utils/formatters';
 import { getLiveFeed } from '../../../src/utils/commentary';
 import { currentRunRate, requiredRunRate } from '../../../src/utils/cricket-math';
+import { calculateDLSParScore, calculateDLSTarget, calculateGullyTarget } from '../../../src/utils/dls-calculator';
 import { colors } from '../../../src/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { ZONE_LABELS } from '../../../src/components/WagonWheel';
 
 const DISMISSAL_TYPES: { type: DismissalType; label: string }[] = [
   { type: 'bowled', label: 'Bowled' },
@@ -34,7 +36,7 @@ export default function ScoringScreen() {
   const {
     engine, recordBall, undoLastBall, setOpeners, setBowler,
     setNewBatter, retireBatter, swapStrike, startNextInnings, startSuperOver, saveMatch,
-    syncMatchFromCloud, loadMatches,
+    syncMatchFromCloud, loadMatches, applyDLS,
   } = useMatchStore();
   const { myTeamIds, delegateTeamIds } = usePrefsStore();
 
@@ -59,6 +61,17 @@ export default function ScoringScreen() {
   const [retireModal, setRetireModal] = useState(false);
   const [retireBatsmanId, setRetireBatsmanId] = useState<string | null>(null);
   const [retireType, setRetireType] = useState<'retired_hurt' | 'retired_out'>('retired_hurt');
+
+  // DLS / Rain Delay
+  const [dlsModal, setDlsModal] = useState(false);
+  const [dlsNewOvers, setDlsNewOvers] = useState('');
+  const [dlsMode, setDlsMode] = useState<'standard' | 'gully'>('standard');
+  const [dlsGullyRPO, setDlsGullyRPO] = useState('');
+  const [dlsApplying, setDlsApplying] = useState(false);
+
+  // Wagon Wheel zone selector
+  const [zoneModal, setZoneModal] = useState(false);
+  const [pendingBallInput, setPendingBallInput] = useState<BallInput | null>(null);
 
   // Selection state
   const [selectedDismissal, setSelectedDismissal] = useState<DismissalType>('bowled');
@@ -176,18 +189,7 @@ export default function ScoringScreen() {
     setIsLegBye(false);
   };
 
-  const handleRun = (runs: number) => {
-    if (recording) return;
-    setRecording(true);
-    const input: BallInput = {
-      runs,
-      isWide,
-      isNoBall,
-      isBye,
-      isLegBye,
-      dismissal: null,
-      isBoundary: runs >= 4,
-    };
+  const doRecordBall = (input: BallInput) => {
     recordBall(input);
     clearExtras();
 
@@ -207,6 +209,30 @@ export default function ScoringScreen() {
         setNewBatterModal(true);
       }
     }, 300);
+  };
+
+  const handleRun = (runs: number) => {
+    if (recording) return;
+    setRecording(true);
+    const input: BallInput = {
+      runs,
+      isWide,
+      isNoBall,
+      isBye,
+      isLegBye,
+      dismissal: null,
+      isBoundary: runs >= 4,
+    };
+
+    // For scoring shots (1+), prompt zone if no extras (wide/bye/lb don't count for wagon wheel)
+    if (runs >= 1 && !isWide && !isBye && !isLegBye) {
+      setPendingBallInput(input);
+      setZoneModal(true);
+      setRecording(false);
+      return;
+    }
+
+    doRecordBall(input);
   };
 
   const handleWicket = () => {
@@ -313,6 +339,34 @@ export default function ScoringScreen() {
     }, 100);
   };
 
+  const handleZoneSelect = (zone: number | null) => {
+    setZoneModal(false);
+    if (!pendingBallInput) return;
+    const input = zone !== null ? { ...pendingBallInput, scoringZone: zone } : pendingBallInput;
+    setPendingBallInput(null);
+    setRecording(true);
+    doRecordBall(input);
+  };
+
+  const handleApplyDLS = () => {
+    const newOvers = parseInt(dlsNewOvers, 10);
+    if (isNaN(newOvers) || newOvers < 1) return;
+    if (dlsMode === 'gully') {
+      const rpo = parseFloat(dlsGullyRPO);
+      if (isNaN(rpo) || rpo <= 0) return;
+      setDlsApplying(true);
+      try { applyDLS(newOvers, 'gully', rpo); } catch (e) { console.error(e); }
+      setDlsApplying(false);
+    } else {
+      setDlsApplying(true);
+      try { applyDLS(newOvers, 'standard'); } catch (e) { console.error(e); }
+      setDlsApplying(false);
+    }
+    setDlsModal(false);
+    setDlsNewOvers('');
+    setDlsGullyRPO('');
+  };
+
   const handleNextInnings = async () => {
     setInningsCompleteModal(false);
     startNextInnings();
@@ -378,6 +432,24 @@ export default function ScoringScreen() {
                     ? (match.config.oversPerInnings * 6 - (innings.totalOvers * 6 + innings.totalBalls))
                     : '?'
               }
+            </Text>
+          )}
+          {/* DLS Par Score — shown when a revised target has been applied */}
+          {innings?.revisedTarget && match.config.oversPerInnings && (
+            <Text style={[styles.rateText, { color: '#FFCC80' }]}>
+              Par: {calculateDLSParScore(
+                innings.revisedTarget,
+                match.innings[0]?.totalRuns ?? 0,
+                innings.revisedOvers ?? match.config.oversPerInnings,
+                innings.totalWickets,
+                innings.totalOvers,
+                innings.totalBalls,
+              )}
+            </Text>
+          )}
+          {innings?.revisedTarget && (
+            <Text style={[styles.rateText, { color: '#FFCC80', fontWeight: '700' }]}>
+              DLS {innings.dlsMode === 'gully' ? '(Gully)' : ''}↓{innings.revisedOvers}ov
             </Text>
           )}
         </View>
@@ -598,6 +670,19 @@ export default function ScoringScreen() {
                 style={{ borderColor: theme.colors.error }}
               >
                 Retire
+              </Button>
+            )}
+            {/* Rain Delay / DLS — only in 2nd innings of limited-overs matches */}
+            {innings && innings.inningsNumber === 2 && match.config.oversPerInnings && (
+              <Button
+                mode="outlined"
+                icon="weather-rainy"
+                onPress={() => { setDlsNewOvers(''); setDlsGullyRPO(''); setDlsMode('standard'); setDlsModal(true); }}
+                compact
+                textColor="#1565C0"
+                style={{ borderColor: '#1565C0' }}
+              >
+                DLS
               </Button>
             )}
             <Button
@@ -907,6 +992,109 @@ export default function ScoringScreen() {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+
+      {/* Zone Selector Modal — shown after a scoring shot to optionally tag the field zone */}
+      <Portal>
+        <Modal
+          visible={zoneModal}
+          onDismiss={() => handleZoneSelect(null)}
+          contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 420, alignSelf: 'center' as const }]}
+        >
+          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 4, color: theme.colors.onSurface }}>
+            Where was the shot played?
+          </Text>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 16 }}>
+            Tap a zone or Skip to record without zone data.
+          </Text>
+          <View style={styles.zoneGrid}>
+            {ZONE_LABELS.map((label, idx) => (
+              <Pressable
+                key={idx}
+                style={[styles.zoneButton, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}
+                onPress={() => handleZoneSelect(idx)}
+              >
+                <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color={theme.colors.primary} />
+                <Text style={[styles.zoneText, { color: theme.colors.onSurface }]}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Button mode="text" onPress={() => handleZoneSelect(null)} style={{ marginTop: 8 }}>
+            Skip
+          </Button>
+        </Modal>
+      </Portal>
+
+      {/* DLS / Rain Delay Modal */}
+      <Portal>
+        <Dialog visible={dlsModal} onDismiss={() => setDlsModal(false)}>
+          <Dialog.Title>Rain Delay / DLS</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 12 }}>
+              Enter the revised overs quota for the 2nd innings after the interruption.
+            </Text>
+
+            <Text variant="labelMedium" style={{ color: theme.colors.onSurface, marginBottom: 4 }}>Mode</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+              {(['standard', 'gully'] as const).map(m => (
+                <Pressable
+                  key={m}
+                  style={[styles.dismissalButton, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface }, dlsMode === m && { backgroundColor: '#1565C0', borderColor: '#1565C0' }]}
+                  onPress={() => setDlsMode(m)}
+                >
+                  <Text style={[styles.dismissalText, { color: theme.colors.onSurface }, dlsMode === m && { color: '#FFF' }]}>
+                    {m === 'standard' ? 'Standard DLS' : 'Gully Mode'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text variant="labelMedium" style={{ color: theme.colors.onSurface, marginBottom: 4 }}>New Overs Quota</Text>
+            <RNTextInput
+              value={dlsNewOvers}
+              onChangeText={setDlsNewOvers}
+              keyboardType="number-pad"
+              placeholder={`Max ${match.config.oversPerInnings ?? '?'}`}
+              placeholderTextColor={theme.colors.onSurfaceVariant}
+              style={[styles.dlsInput, { borderColor: theme.colors.outlineVariant, color: theme.colors.onSurface, backgroundColor: theme.colors.surface }]}
+            />
+
+            {dlsMode === 'gully' && (
+              <>
+                <Text variant="labelMedium" style={{ color: theme.colors.onSurface, marginBottom: 4, marginTop: 12 }}>League Runs-per-Over Rate</Text>
+                <RNTextInput
+                  value={dlsGullyRPO}
+                  onChangeText={setDlsGullyRPO}
+                  keyboardType="decimal-pad"
+                  placeholder="e.g. 8.5"
+                  placeholderTextColor={theme.colors.onSurfaceVariant}
+                  style={[styles.dlsInput, { borderColor: theme.colors.outlineVariant, color: theme.colors.onSurface, backgroundColor: theme.colors.surface }]}
+                />
+              </>
+            )}
+
+            {dlsNewOvers && !isNaN(parseInt(dlsNewOvers, 10)) && match.innings[0] && match.config.oversPerInnings && (
+              <Text variant="bodySmall" style={{ color: '#1565C0', marginTop: 12 }}>
+                {dlsMode === 'standard'
+                  ? (() => { try { return `DLS Revised Target ≈ ${calculateDLSTarget(match.innings[0].totalRuns, match.config.oversPerInnings, parseInt(dlsNewOvers, 10), innings?.totalWickets ?? 0, innings ? innings.totalOvers + innings.totalBalls / 6 : 0)}`; } catch { return ''; } })()
+                  : dlsGullyRPO && !isNaN(parseFloat(dlsGullyRPO))
+                    ? (() => { try { return `Gully Target ≈ ${calculateGullyTarget(match.innings[0].totalRuns, match.config.oversPerInnings, parseInt(dlsNewOvers, 10), parseFloat(dlsGullyRPO))}`; } catch { return ''; } })()
+                    : ''
+                }
+              </Text>
+            )}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDlsModal(false)}>Cancel</Button>
+            <Button
+              onPress={handleApplyDLS}
+              loading={dlsApplying}
+              disabled={dlsApplying || !dlsNewOvers || (dlsMode === 'gully' && !dlsGullyRPO)}
+            >
+              Apply
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 }
@@ -1009,4 +1197,18 @@ const styles = StyleSheet.create({
   // Live Commentary Feed
   liveFeed: { paddingHorizontal: 14, paddingVertical: 8, gap: 4 },
   liveFeedLine: { fontSize: 12, lineHeight: 18 },
+
+  // Zone selector
+  zoneGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  zoneButton: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, borderWidth: 1,
+  },
+  zoneText: { fontSize: 12, fontWeight: '600' },
+
+  // DLS input
+  dlsInput: {
+    borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8,
+    fontSize: 16,
+  },
 });

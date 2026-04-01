@@ -370,6 +370,13 @@ DO $$ BEGIN
   CREATE POLICY "public_delete_cloud_fixtures" ON public.cloud_league_fixtures FOR DELETE USING (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- ── Fixture verification (league_admin result locking) ───────────────────────
+
+ALTER TABLE public.cloud_league_fixtures ADD COLUMN IF NOT EXISTS is_verified     BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.cloud_league_fixtures ADD COLUMN IF NOT EXISTS verified_by_phone TEXT;
+ALTER TABLE public.cloud_league_fixtures ADD COLUMN IF NOT EXISTS verified_at      BIGINT;
+ALTER TABLE public.cloud_league_fixtures ADD COLUMN IF NOT EXISTS verified_by_name TEXT;
+
 -- ── Cloud Match States (full match history, cross-device) ─────────────────────
 -- Stores the complete match engine state JSON for every match.
 -- Updated on every ball (same cadence as live_matches).

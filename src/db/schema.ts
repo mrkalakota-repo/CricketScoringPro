@@ -153,4 +153,21 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
   try {
     await db.execAsync(`ALTER TABLE players ADD COLUMN photo_uri TEXT;`);
   } catch { /* already exists */ }
+
+  // Fixture verification — league_admin can lock completed results
+  try {
+    await db.execAsync(`ALTER TABLE league_fixtures ADD COLUMN is_verified INTEGER DEFAULT 0;`);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE league_fixtures ADD COLUMN verified_by_phone TEXT;`);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE league_fixtures ADD COLUMN verified_at INTEGER;`);
+  } catch { /* already exists */ }
+
+  try {
+    await db.execAsync(`ALTER TABLE league_fixtures ADD COLUMN verified_by_name TEXT;`);
+  } catch { /* already exists */ }
 }
