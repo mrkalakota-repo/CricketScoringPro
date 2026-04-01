@@ -17,6 +17,9 @@ interface MatchStore {
   loading: boolean;
   pendingInvitationCount: number;
 
+  // Whether the current match's linked fixture is verified (locks scoring)
+  isVerified: boolean;
+
   // Actions
   loadMatches: () => Promise<void>;
   createAndStartMatch: (match: Match) => void;
@@ -35,6 +38,8 @@ interface MatchStore {
   startNextInnings: () => void;
   startSuperOver: () => void;
   declareInnings: () => void;
+  applyDLS: (newOvers: number, mode?: 'standard' | 'gully', gullyRPO?: number) => void;
+  setMatchVerified: (verified: boolean) => void;
   saveMatch: () => Promise<void>;
   deleteMatch: (id: string) => Promise<void>;
   clearActiveMatch: () => void;
@@ -49,6 +54,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   matches: [],
   loading: false,
   pendingInvitationCount: 0,
+  isVerified: false,
 
   loadMatches: async () => {
     set({ loading: true });
@@ -130,8 +136,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   },
 
   recordBall: (input) => {
-    const { engine } = get();
+    const { engine, isVerified } = get();
     if (!engine) return;
+    if (isVerified) throw new Error('This match is verified and locked.');
     const newEngine = engine.recordBall(input);
     set({ engine: newEngine });
     const state = get();
@@ -146,8 +153,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   },
 
   undoLastBall: () => {
-    const { engine } = get();
+    const { engine, isVerified } = get();
     if (!engine || !engine.canUndo()) return;
+    if (isVerified) throw new Error('This match is verified and locked.');
     const newEngine = engine.undoLastBall();
     set({ engine: newEngine });
     const state = get();
@@ -229,6 +237,25 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     const _m3 = newEngine.getMatch();
     cloudMatchRepo.publishLiveMatch(_m3);
     cloudMatchRepo.publishMatchState(_m3, useUserAuth.getState().profile?.phone ?? undefined);
+  },
+
+  applyDLS: (newOvers, mode = 'standard', gullyRPO) => {
+    const { engine, matchId } = get();
+    if (!engine) return;
+    const newEngine = engine.applyDLS(newOvers, mode, gullyRPO);
+    set({ engine: newEngine });
+    if (matchId) {
+      const m = newEngine.getMatch();
+      matchRepo.saveMatchState(matchId, m).catch(err => {
+        console.error('[match-store] auto-save after applyDLS failed:', (err as Error).message);
+      });
+      cloudMatchRepo.publishLiveMatch(m);
+      cloudMatchRepo.publishMatchState(m, useUserAuth.getState().profile?.phone ?? undefined);
+    }
+  },
+
+  setMatchVerified: (verified) => {
+    set({ isVerified: verified });
   },
 
   saveMatch: async () => {

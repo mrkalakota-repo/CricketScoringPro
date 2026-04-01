@@ -6,6 +6,7 @@ import { useMatchStore } from '../../../src/store/match-store';
 import { useTeamStore } from '../../../src/store/team-store';
 import { useLiveScoresStore } from '../../../src/store/live-scores-store';
 import { usePrefsStore } from '../../../src/store/prefs-store';
+import { useLeagueStore } from '../../../src/store/league-store';
 import { useUserAuth } from '../../../src/hooks/useUserAuth';
 import { useRole } from '../../../src/hooks/useRole';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -22,13 +23,22 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { canScore } = useRole();
+  const { canScore, canCreateLeague } = useRole();
   const { syncMatchFromCloud } = useMatchStore();
   const [cloudMatch, setCloudMatch] = useState<import('../../../src/engine/types').Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [showScorecard, setShowScorecard] = useState(false);
   const [scorecardInnings, setScorecardInnings] = useState('0');
   const [resuming, setResuming] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  const { profile } = useUserAuth();
+  // canCreateLeague === league_admin role
+  const { fixtures, verifyFixture } = useLeagueStore();
+
+  // Find the fixture linked to this match (if any)
+  const linkedFixture = Object.values(fixtures).flat().find(f => f.matchId === matchId) ?? null;
+  const linkedLeagueId = linkedFixture?.leagueId ?? null;
 
   useEffect(() => {
     cloudMatchRepo.fetchCloudMatchState(matchId).then(m => {
@@ -108,6 +118,49 @@ function CloudMatchDetail({ matchId, fallback }: { matchId: string; fallback: Li
               </Card.Content>
             </Card>
           ) : null}
+
+          {/* Verification badge — shown when result is locked by a league admin */}
+          {linkedFixture?.isVerified && (
+            <Card style={[styles.inningsCard, { backgroundColor: '#E8F5E9' }]}>
+              <Card.Content style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <MaterialCommunityIcons name="shield-check" size={20} color="#2E7D32" />
+                <View style={{ flex: 1 }}>
+                  <Text variant="labelMedium" style={{ color: '#2E7D32', fontWeight: '700' }}>Result Verified</Text>
+                  {linkedFixture.verifiedByName ? (
+                    <Text variant="bodySmall" style={{ color: '#388E3C' }}>
+                      By {linkedFixture.verifiedByName}
+                      {linkedFixture.verifiedAt ? ` · ${new Date(linkedFixture.verifiedAt).toLocaleDateString()}` : ''}
+                    </Text>
+                  ) : null}
+                </View>
+              </Card.Content>
+            </Card>
+          )}
+
+          {/* Verify Match — league_admin only, completed matches with a linked unverified fixture */}
+          {canCreateLeague && cloudMatch.status === 'completed' && linkedFixture && !linkedFixture.isVerified && (
+            <Button
+              mode="contained"
+              icon="shield-check"
+              loading={verifying}
+              disabled={verifying}
+              buttonColor="#2E7D32"
+              onPress={async () => {
+                if (!profile || !linkedLeagueId) return;
+                setVerifying(true);
+                try {
+                  await verifyFixture(linkedFixture.id, linkedLeagueId, profile.phone, profile.name);
+                } catch (e) {
+                  console.error('[index] verifyFixture failed:', (e as Error).message);
+                } finally {
+                  setVerifying(false);
+                }
+              }}
+              style={[styles.inningsCard, { borderRadius: 12, marginBottom: 0 }]}
+            >
+              Verify &amp; Lock Result
+            </Button>
+          )}
 
           {canScore && cloudMatch.status === 'in_progress' && (
             <Button

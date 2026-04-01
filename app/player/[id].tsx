@@ -9,8 +9,9 @@ import { useMatchStore } from '../../src/store/match-store';
 import { computePlayerStats, formatBestFigures, formatBowlingOvers } from '../../src/utils/player-stats';
 import { getPlayerCode } from '../../src/utils/player-code';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import type { Match, BowlingStyle } from '../../src/engine/types';
+import type { Match, BowlingStyle, BallOutcome } from '../../src/engine/types';
 import { bowlingIcon, battingIcon } from '../../src/utils/player-icons';
+import WagonWheel from '../../src/components/WagonWheel';
 
 const BOWLING_STYLES: BowlingStyle[] = [
   'none', 'Right-arm fast', 'Right-arm medium', 'Right-arm off-break',
@@ -95,6 +96,26 @@ export default function PlayerProfileScreen() {
       .map(m => { try { return JSON.parse(m.match_state_json!); } catch { return null; } })
       .filter((m): m is Match => m !== null && m.status === 'completed');
     return computePlayerStats(player.id, completedMatches);
+  }, [player?.id, matchRows]);
+
+  // Collect all balls struck by this player that have a scoringZone (for Wagon Wheel)
+  const wagonWheelBalls = useMemo((): BallOutcome[] => {
+    if (!player) return [];
+    const allMatches: Match[] = matchRows
+      .filter(m => m.match_state_json)
+      .map(m => { try { return JSON.parse(m.match_state_json!); } catch { return null; } })
+      .filter((m): m is Match => m !== null);
+    const balls: BallOutcome[] = [];
+    for (const match of allMatches) {
+      for (const inn of match.innings) {
+        for (const ball of inn.allBalls) {
+          if (ball.batsmanId === player.id && ball.scoringZone !== undefined && ball.runs > 0) {
+            balls.push(ball);
+          }
+        }
+      }
+    }
+    return balls;
   }, [player?.id, matchRows]);
 
   if (!player || !team) {
@@ -328,6 +349,20 @@ export default function PlayerProfileScreen() {
                     <StatBox label="4s" value={String(stats.batting.fours)} />
                     <StatBox label="6s" value={String(stats.batting.sixes)} />
                   </View>
+                </Card.Content>
+              </Card>
+            )}
+
+            {/* Wagon Wheel — only when zone data exists */}
+            {wagonWheelBalls.length > 0 && (
+              <Card style={styles.card}>
+                <Card.Content>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <MaterialCommunityIcons name="radar" size={18} color={theme.colors.primary} />
+                    <Text variant="titleSmall" style={[styles.cardTitle, { color: theme.colors.onSurface }]}>Wagon Wheel</Text>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 4 }}>({wagonWheelBalls.length} shots)</Text>
+                  </View>
+                  <WagonWheel balls={wagonWheelBalls} size={240} />
                 </Card.Content>
               </Card>
             )}

@@ -17,6 +17,10 @@ type FixtureRow = {
   nrr_data_json: string | null;
   round: number | null; bracket_slot: number | null;
   created_at: number; updated_at: number;
+  is_verified: number | null;
+  verified_by_phone: string | null;
+  verified_at: number | null;
+  verified_by_name: string | null;
 };
 
 function rowToLeague(row: LeagueRow): League {
@@ -40,6 +44,10 @@ function rowToFixture(row: FixtureRow): LeagueFixture {
     nrrData: row.nrr_data_json ? JSON.parse(row.nrr_data_json) as FixtureNRRData : null,
     round: row.round ?? null, bracketSlot: row.bracket_slot ?? null,
     createdAt: row.created_at, updatedAt: row.updated_at,
+    isVerified: row.is_verified === 1,
+    verifiedByPhone: row.verified_by_phone ?? null,
+    verifiedAt: row.verified_at ?? null,
+    verifiedByName: row.verified_by_name ?? null,
   };
 }
 
@@ -186,6 +194,18 @@ export async function updateFixtureResult(
 export async function deleteFixture(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM league_fixtures WHERE id = ?', id);
+}
+
+export async function verifyFixture(
+  fixtureId: string,
+  verifiedByPhone: string,
+  verifiedByName: string,
+): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE league_fixtures SET is_verified = 1, verified_by_phone = ?, verified_at = ?, verified_by_name = ?, updated_at = ? WHERE id = ?`,
+    verifiedByPhone, Date.now(), verifiedByName, Date.now(), fixtureId,
+  );
 }
 
 export async function linkFixtureToMatch(fixtureId: string, matchId: string): Promise<void> {

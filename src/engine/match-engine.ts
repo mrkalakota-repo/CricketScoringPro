@@ -30,6 +30,7 @@ import type {
   FallOfWicket,
 } from './types';
 import { BALLS_PER_OVER, MAX_WICKETS_PER_INNINGS, DISMISSALS_NOT_CREDITED_TO_BOWLER, DISMISSALS_INVALID_ON_FREE_HIT } from '../utils/constants';
+import { calculateDLSTarget, calculateGullyTarget } from '../utils/dls-calculator';
 
 export class MatchEngine {
   private match: Match;
@@ -259,6 +260,7 @@ export class MatchEngine {
       dismissal,
       isFreeHit: freeHit,
       timestamp: Date.now(),
+      ...(input.scoringZone !== undefined ? { scoringZone: input.scoringZone } : {}),
     };
 
     const newMatch = produce(this.match, draft => {
@@ -569,6 +571,50 @@ export class MatchEngine {
       inn.currentStrikerId = null;
       inn.currentNonStrikerId = null;
       inn.currentBowlerId = null;
+      draft.updatedAt = Date.now();
+    });
+    return new MatchEngine(newMatch, this.undoStack, this.uuidFactory);
+  }
+
+  /**
+   * Apply a DLS or Gully-mode rain interruption ruling to the current (2nd) innings.
+   * Updates revisedTarget, revisedOvers, dlsMode, and dlsGullyRunsPerOver on the innings.
+   *
+   * @param newOvers      Revised overs quota after the interruption
+   * @param mode          'standard' for DLS table calculation, 'gully' for custom RPO rule
+   * @param gullyRPO      Required when mode === 'gully' — custom runs-per-over rate
+   */
+  applyDLS(newOvers: number, mode: 'standard' | 'gully' = 'standard', gullyRPO?: number): MatchEngine {
+    const innings = this.getCurrentInnings();
+    if (!innings || innings.inningsNumber !== 2) {
+      throw new Error('DLS can only be applied to the 2nd innings');
+    }
+    const { oversPerInnings } = this.match.config;
+    if (!oversPerInnings) throw new Error('DLS is not applicable to Test matches');
+
+    const firstInningsRuns = this.match.innings[0]?.totalRuns ?? 0;
+
+    let revisedTarget: number;
+    if (mode === 'gully') {
+      if (gullyRPO === undefined || gullyRPO <= 0) throw new Error('Gully mode requires a positive runs-per-over value');
+      revisedTarget = calculateGullyTarget(firstInningsRuns, oversPerInnings, newOvers, gullyRPO);
+    } else {
+      revisedTarget = calculateDLSTarget(
+        firstInningsRuns,
+        oversPerInnings,
+        newOvers,
+        innings.totalWickets,
+        innings.totalOvers + innings.totalBalls / 6,
+      );
+    }
+
+    const newMatch = produce(this.match, draft => {
+      const inn = draft.innings[draft.currentInningsIndex];
+      inn.revisedTarget = revisedTarget;
+      inn.revisedOvers = newOvers;
+      inn.dlsMode = mode;
+      inn.dlsGullyRunsPerOver = mode === 'gully' ? gullyRPO : undefined;
+      inn.target = revisedTarget; // update the live target so RRR is calculated correctly
       draft.updatedAt = Date.now();
     });
     return new MatchEngine(newMatch, this.undoStack, this.uuidFactory);
