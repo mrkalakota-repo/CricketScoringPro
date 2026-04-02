@@ -27,6 +27,7 @@ export default function PlayerProfileScreen() {
   const updatePlayer = useTeamStore(s => s.updatePlayer);
   const matchRows = useMatchStore(s => s.matches);
 
+  const [photoError, setPhotoError] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editBatStyle, setEditBatStyle] = useState('right');
   const [editBowlIndex, setEditBowlIndex] = useState(0);
@@ -55,6 +56,7 @@ export default function PlayerProfileScreen() {
     setEditIsViceCaptain(player.isViceCaptain);
     setEditJerseyNumber(player.jerseyNumber !== null ? String(player.jerseyNumber) : '');
     setEditPhotoUri(player.photoUri ?? null);
+    setPhotoError(false);
     setSaveError('');
     setEditing(true);
   };
@@ -139,9 +141,19 @@ export default function PlayerProfileScreen() {
 
         {/* Header */}
         <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-          {player.photoUri ? (
-            <Image source={{ uri: player.photoUri }} style={styles.headerPhoto} />
-          ) : null}
+          {player.photoUri && !photoError ? (
+            <Image
+              source={{ uri: player.photoUri }}
+              style={styles.headerPhoto}
+              onError={() => setPhotoError(true)}
+            />
+          ) : (
+            <View style={[styles.headerPhoto, styles.headerPhotoFallback]}>
+              <Text style={styles.headerPhotoInitial}>
+                {player.name.trim().charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
           <Text variant="headlineSmall" style={styles.headerName}>
             {player.jerseyNumber !== null ? `#${player.jerseyNumber}  ` : ''}{player.name}
           </Text>
@@ -460,6 +472,8 @@ const styles = StyleSheet.create({
 
   // Photo & jersey edit
   headerPhoto: { width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)', marginBottom: 8 },
+  headerPhotoFallback: { backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  headerPhotoInitial: { color: '#FFFFFF', fontSize: 28, fontWeight: 'bold' },
   photoJerseyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, marginBottom: 16 },
   photoPickerButton: { alignItems: 'center' },
   photoPreview: { width: 64, height: 64, borderRadius: 32 },

@@ -1,5 +1,6 @@
 import { supabase, isCloudEnabled, isSchemaNotReady } from '../../config/supabase';
 import type { Match } from '../../engine/types';
+import { migrateMatch } from '../../engine/migration';
 
 export interface LiveMatchSummary {
   id: string;
@@ -282,7 +283,9 @@ function matchToCloudRow(match: Match, ownerPhone?: string) {
     owner_phone: ownerPhone ?? null,
     match_state_json: JSON.stringify(match),
     match_date: match.createdAt ?? Date.now(),
-    updated_at: Date.now(),
+    // Use the match's own logical timestamp so concurrent writes from different
+    // devices are ordered by match state time, not wall-clock arrival time.
+    updated_at: match.updatedAt,
   };
 }
 
@@ -290,11 +293,32 @@ export async function publishMatchState(match: Match, ownerPhone?: string): Prom
   if (!isCloudEnabled || !supabase) return;
   if (match.status === 'scheduled' || match.status === 'pending_acceptance') return;
   try {
-    const { error } = await supabase
+    const row = matchToCloudRow(match, ownerPhone);
+
+    // Conditional update: only overwrite if the stored record is older.
+    // This prevents a slower device (e.g. scorer + delegate both open) from
+    // silently discarding balls that the faster device already published.
+    const { data: updated, error: updateErr } = await supabase
       .from('cloud_match_states')
-      .upsert(matchToCloudRow(match, ownerPhone));
-    if (error && !isSchemaNotReady(error)) {
-      console.error('[cloud-match-repo] publishMatchState failed:', error.message);
+      .update(row)
+      .eq('id', row.id)
+      .lt('updated_at', row.updated_at)
+      .select('id');
+
+    if (updateErr && !isSchemaNotReady(updateErr)) {
+      console.error('[cloud-match-repo] publishMatchState update failed:', updateErr.message);
+      return;
+    }
+
+    // No rows updated → row doesn't exist yet (first publish) or ours is stale.
+    // Use ignoreDuplicates so a concurrent first-publish on another device wins.
+    if (!updated || updated.length === 0) {
+      const { error: insertErr } = await supabase
+        .from('cloud_match_states')
+        .upsert(row, { onConflict: 'id', ignoreDuplicates: true });
+      if (insertErr && !isSchemaNotReady(insertErr)) {
+        console.error('[cloud-match-repo] publishMatchState insert failed:', insertErr.message);
+      }
     }
   } catch (err) {
     console.error('[cloud-match-repo] publishMatchState error:', (err as Error).message);
@@ -448,7 +472,7 @@ export async function fetchCloudMatchState(matchId: string): Promise<Match | nul
       .maybeSingle();
     if (error && !isSchemaNotReady(error)) throw error;
     if (!data?.match_state_json) return null;
-    return JSON.parse(data.match_state_json) as Match;
+    return migrateMatch(JSON.parse(data.match_state_json));
   } catch (err) {
     console.error('[cloud-match-repo] fetchCloudMatchState failed:', (err as Error).message);
     return null;
@@ -613,7 +637,7 @@ export async function fetchMatchFromInvitation(matchId: string): Promise<Match |
       .maybeSingle();
     if (error && !isSchemaNotReady(error)) throw error;
     if (!data?.match_state_json) return null;
-    return JSON.parse(data.match_state_json) as Match;
+    return migrateMatch(JSON.parse(data.match_state_json));
   } catch (err) {
     console.error('[cloud-match-repo] fetchMatchFromInvitation failed:', (err as Error).message);
     return null;

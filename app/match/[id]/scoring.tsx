@@ -57,6 +57,9 @@ export default function ScoringScreen() {
   const [bowlerModal, setBowlerModal] = useState(false);
   const [openerModal, setOpenerModal] = useState(false);
   const [newBatterModal, setNewBatterModal] = useState(false);
+  // Combined modal shown when a wicket and an over-end happen simultaneously,
+  // collapsing the 3-step chain (wicket → batter → bowler) into 2 steps.
+  const [batterAndBowlerModal, setBatterAndBowlerModal] = useState(false);
   const [inningsCompleteModal, setInningsCompleteModal] = useState(false);
   const [showUndoDialog, setShowUndoDialog] = useState(false);
   const [showAbandonDialog, setShowAbandonDialog] = useState(false);
@@ -271,8 +274,17 @@ export default function ScoringScreen() {
 
       if (currentInnings.status === 'completed' || currentInnings.status === 'declared') {
         setInningsCompleteModal(true);
-      } else if (!currentInnings.currentStrikerId || !currentInnings.currentNonStrikerId) {
-        setNewBatterModal(true);
+      } else {
+        const needsBatter = !currentInnings.currentStrikerId || !currentInnings.currentNonStrikerId;
+        const needsBowlerToo = !currentInnings.currentBowlerId;
+        if (needsBatter && needsBowlerToo) {
+          // Wicket on the last ball of an over: show combined modal instead of chaining two.
+          setSelectedNewBatter(null);
+          setSelectedBowler(null);
+          setBatterAndBowlerModal(true);
+        } else if (needsBatter) {
+          setNewBatterModal(true);
+        }
       }
       setRecording(false);
     }, 300);
@@ -309,17 +321,17 @@ export default function ScoringScreen() {
       setNewBatter(selectedNewBatter);
       setNewBatterModal(false);
       setSelectedNewBatter(null);
-
-      // Check if bowler needed after setting batter
-      setTimeout(() => {
-        const currentEngine = useMatchStore.getState().engine;
-        if (!currentEngine) return;
-        const currentInnings = currentEngine.getCurrentInnings();
-        if (currentInnings && !currentInnings.currentBowlerId) {
-          setBowlerModal(true);
-        }
-      }, 100);
     }
+  };
+
+  // Confirm handler for the combined batter+bowler modal (wicket on last ball of over).
+  const handleConfirmBatterAndBowler = () => {
+    if (!selectedNewBatter || !selectedBowler) return;
+    setNewBatter(selectedNewBatter);
+    setBowler(selectedBowler);
+    setBatterAndBowlerModal(false);
+    setSelectedNewBatter(null);
+    setSelectedBowler(null);
   };
 
   const handleRetire = () => {
@@ -946,6 +958,68 @@ export default function ScoringScreen() {
         </Modal>
       </Portal>
 
+      {/* Combined Batter + Bowler Modal — shown when a wicket falls on the last ball of an over */}
+      <Portal>
+        <Modal visible={batterAndBowlerModal} dismissable={false} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
+          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 4, color: theme.colors.onSurface }}>Wicket — End of Over</Text>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 16 }}>Select the next batter and bowler to continue.</Text>
+
+          <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 6 }}>New Batter</Text>
+          <ScrollView style={{ maxHeight: screenHeight * 0.2 }}>
+            {availableBatters.map(p => (
+              <Pressable
+                key={`cb-${p.id}`}
+                style={[styles.selectionRow, selectedNewBatter === p.id && { backgroundColor: theme.colors.primaryContainer }]}
+                onPress={() => setSelectedNewBatter(p.id)}
+              >
+                <RadioButton value={p.id} status={selectedNewBatter === p.id ? 'checked' : 'unchecked'} onPress={() => setSelectedNewBatter(p.id)} />
+                <Text style={[styles.modalName, { color: theme.colors.onSurface }]}>{p.name}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          <View style={[styles.combinedDivider, { borderColor: theme.colors.outlineVariant }]} />
+
+          <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 6 }}>New Bowler</Text>
+          <ScrollView style={{ maxHeight: screenHeight * 0.2 }}>
+            {(bowlingTeamPlayers ?? []).map(p => {
+              const prevBowler = innings?.overs.length ? innings.overs[innings.overs.length - 1].bowlerId : null;
+              const isSameAsPrev = p.id === prevBowler;
+              const oversPerInnings = match.config.oversPerInnings;
+              const maxOversPerBowler = oversPerInnings !== null ? Math.floor(oversPerInnings / 5) : null;
+              const bowlerSpell = innings?.bowlers.find(b => b.playerId === p.id);
+              const hasMaxOvers = maxOversPerBowler !== null && bowlerSpell !== undefined && bowlerSpell.overs >= maxOversPerBowler;
+              const isDisabled = isSameAsPrev || hasMaxOvers;
+              const disabledReason = isSameAsPrev ? ' (bowled last over)' : hasMaxOvers ? ` (max ${maxOversPerBowler})` : '';
+              return (
+                <Pressable
+                  key={`cbw-${p.id}`}
+                  style={[styles.selectionRow, selectedBowler === p.id && { backgroundColor: theme.colors.primaryContainer }, isDisabled && { opacity: 0.4 }]}
+                  onPress={() => !isDisabled && setSelectedBowler(p.id)}
+                  disabled={isDisabled}
+                >
+                  <RadioButton value={p.id} status={selectedBowler === p.id ? 'checked' : 'unchecked'} onPress={() => !isDisabled && setSelectedBowler(p.id)} disabled={isDisabled} />
+                  <View>
+                    <Text style={[styles.modalName, { color: theme.colors.onSurface }, isDisabled && { color: theme.colors.onSurfaceVariant }]}>
+                      {p.name}{disabledReason}
+                    </Text>
+                    {bowlerSpell && (
+                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                        {`${bowlerSpell.overs}.${bowlerSpell.ballsBowled}-${bowlerSpell.maidens}-${bowlerSpell.runsConceded}-${bowlerSpell.wickets}`}
+                      </Text>
+                    )}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <Button mode="contained" onPress={handleConfirmBatterAndBowler} disabled={!selectedNewBatter || !selectedBowler} style={{ marginTop: 16 }}>
+            Confirm
+          </Button>
+        </Modal>
+      </Portal>
+
       {/* Innings Complete Modal */}
       <Portal>
         <Modal visible={inningsCompleteModal} dismissable={false} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}>
@@ -1270,6 +1344,8 @@ const styles = StyleSheet.create({
     borderRadius: 20, borderWidth: 1,
   },
   dismissalText: { fontSize: 13, fontWeight: '600' },
+
+  combinedDivider: { borderTopWidth: 1, marginVertical: 12 },
 
   // Live Commentary Feed
   liveFeed: { paddingHorizontal: 14, paddingVertical: 8, gap: 4 },

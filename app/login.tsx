@@ -132,12 +132,21 @@ export default function LoginScreen() {
     setBusy(true);
     setFieldErrors({});
     try {
-      const ok = await restoreFromCloud(fullPhone, pin);
+      let ok = await restoreFromCloud(fullPhone, pin);
       if (!ok) {
         const { restoreStatus: status, restoreErrorMessage: msg } = useUserAuth.getState();
-        if (status === 'not_found') setFieldErrors({ restorePhone: 'No account found for this phone number.' });
-        else if (status === 'wrong_pin') setFieldErrors({ pin: 'Incorrect PIN. Try again.' });
-        else setFieldErrors({ pin: msg || 'Could not restore account. Try again.' });
+        // Fallback: accounts registered before international phone support stored bare
+        // local digits with no country code prefix (e.g. "2025550101" not "12025550101").
+        // Retry with the bare digits so existing users aren't locked out after upgrade.
+        if (status === 'not_found') {
+          ok = await restoreFromCloud(cleaned, pin);
+        }
+        if (!ok) {
+          const { restoreStatus: status2, restoreErrorMessage: msg2 } = useUserAuth.getState();
+          if (status2 === 'not_found') setFieldErrors({ restorePhone: 'No account found for this phone number.' });
+          else if (status2 === 'wrong_pin') setFieldErrors({ pin: 'Incorrect PIN. Try again.' });
+          else setFieldErrors({ pin: msg2 || msg || 'Could not restore account. Try again.' });
+        }
       }
     } finally {
       setBusy(false);

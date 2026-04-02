@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Button, Card, useTheme, RadioButton, ActivityIndicator } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMatchStore } from '../../../src/store/match-store';
-import * as cloudMatchRepo from '../../../src/db/repositories/cloud-match-repo';
 import type { TossDecision } from '../../../src/engine/types';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -13,14 +12,13 @@ export default function TossScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { engine, loadMatch, syncMatchFromCloud, recordToss, startMatch, setOpeners, saveMatch } = useMatchStore();
+  const { engine, loadMatch, recordToss, startMatch, setOpeners, saveMatch } = useMatchStore();
   const matchId = Array.isArray(id) ? id[0] : id;
 
   const [matchLoading, setMatchLoading] = useState(true);
   const [winnerId, setWinnerId] = useState<string | null>(null);
   const [decision, setDecision] = useState<TossDecision>('bat');
   const [step, setStep] = useState<'winner' | 'decision' | 'done'>('winner');
-  const navigatingRef = useRef(false);
 
   useEffect(() => {
     if (matchId && (!engine || engine.getMatch().id !== matchId)) {
@@ -33,23 +31,6 @@ export default function TossScreen() {
   const match = engine?.getMatch();
 
   // Anyone who opens the toss screen can record the toss — no cross-device gating.
-  const canDoToss = true;
-
-  // Observer: subscribe to live_matches and auto-navigate when toss is done
-  useEffect(() => {
-    if (!matchId || canDoToss) return;
-    const unsub = cloudMatchRepo.subscribeToLiveMatch(matchId, (status) => {
-      if ((status === 'in_progress' || status === 'toss') && !navigatingRef.current) {
-        navigatingRef.current = true;
-        // Fetch full match state from cloud (includes innings created by startMatch)
-        // so local SQLite and engine are up-to-date before scoring begins.
-        syncMatchFromCloud(matchId).finally(() => {
-          router.replace(`/match/${matchId}/scoring`);
-        });
-      }
-    });
-    return unsub;
-  }, [matchId, canDoToss]);
 
   if (matchLoading) {
     return (
@@ -66,30 +47,6 @@ export default function TossScreen() {
         <MaterialCommunityIcons name="alert-circle-outline" size={48} color={theme.colors.outlineVariant} />
         <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>Match not found</Text>
         <Button mode="text" icon="arrow-left" onPress={() => router.back()} style={{ marginTop: 8 }}>Go Back</Button>
-      </View>
-    );
-  }
-
-  // Observer (team2 admin): show waiting screen while team1 admin does the toss
-  if (!canDoToss) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-          <MaterialCommunityIcons name="circle-outline" size={48} color="#FFFFFF" />
-          <Text variant="headlineSmall" style={styles.headerTitle}>Toss</Text>
-          <Text variant="bodyMedium" style={styles.headerSubtitle}>
-            {match.team1.shortName} vs {match.team2.shortName}
-          </Text>
-        </View>
-        <View style={[styles.center, { flex: 1 }]}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text variant="titleMedium" style={{ color: theme.colors.onSurface, marginTop: 16, fontWeight: '700' }}>
-            Waiting for toss…
-          </Text>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>
-            {match.team1.name} admin is recording the toss. You will be taken to the scoring screen automatically.
-          </Text>
-        </View>
       </View>
     );
   }

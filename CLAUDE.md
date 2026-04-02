@@ -75,7 +75,7 @@ Test files live in `src/engine/__tests__/`:
 ### Store Pattern
 All mutations go through Zustand stores, never directly through repos.
 - `useTeamStore` — team/player CRUD; `loadTeams` also does cloud ownership sync (60 s cooldown per phone)
-- `useMatchStore` — match lifecycle, scoring engine, undo, auto-save after every ball
+- `useMatchStore` — match lifecycle, scoring engine, undo, auto-save after every ball, match abandonment
 - `usePrefsStore` — device-local prefs: `myTeamIds` (owned), `playerTeamIds` (player-member, view-only), `delegateTeamIds`
 - `useLeagueStore` — leagues and fixtures; syncs to/from Supabase `cloud_leagues`/`cloud_league_fixtures` when the user is authenticated (owner-scoped by phone). `loadLeagues` fetches from cloud and upserts locally on every call.
 - `useChatStore` — real-time per-team chat
@@ -93,7 +93,7 @@ Key behaviours:
 - `restoreErrorMessage` — propagated from `verifyUserProfile` RPC so the UI can show actionable errors.
 - `verifyUserProfile` in `cloud-user-repo.ts` auto-retries up to 3× with a 2.5 s delay on Supabase schema-cache cold-start errors (`PGRST205` / "schema cache" phrase) before returning a friendly "Server is waking up" message.
 
-**Phone format:** US-only 10-digit input with a `+1` affix. Strip non-digits and validate `length === 10` before any auth call. Stored as bare 10 digits (no country code) in both local prefs and Supabase.
+**Phone format:** International, with a country picker defaulting to India `+91`. Ten cricket-playing nations are supported. The UI shows a flag + dial-code picker; each country defines its expected digit count (9 or 10). Phone numbers are stored as `{countryCodeDigits}{localDigits}` with no `+` and no separator — e.g. India `+91` + `9876543210` → `919876543210`, USA `+1` + `2025550101` → `12025550101`. This concatenated format is globally unique across all countries. Strip non-digits from input and validate `digits.length === country.digits` before any auth call. The login chip displays `+{profile.phone}` (the stored value already contains the country code digits).
 
 `src/hooks/useRole.ts` — pure function of `profile.role`; returns `RolePermissions` object. Use this for all gate checks; never inspect `profile.role` directly in UI.
 
@@ -147,7 +147,31 @@ When writing test helpers that bowl multiple overs, use a **pool of ≥5 bowlers
 Match creation goes **directly to toss** — no cross-device acceptance/invitation flow. The `pending_acceptance` status and invitation banners exist in the codebase but are no longer triggered. Do not re-introduce `needsAcceptance` logic in `app/match/create.tsx`.
 
 ### Toss Screen
-`canDoToss = true` always — any device that opens the toss screen can record it. The per-team ownership gate (team1-only) was removed. The observer "Waiting for toss…" screen still exists in the code but is never shown.
+`canDoToss = true` always — any device that opens the toss screen can record it. The per-team ownership gate (team1-only) was removed. The observer "Waiting for toss…" dead-code block has been deleted; do not re-add it.
+
+### Match Abandonment
+`MatchEngine.abandonMatch()` sets the match `status` to `'abandoned'`, marks the current innings `completed`, clears the current batter/bowler IDs, sets `result = 'Match abandoned'`, and returns a new engine with an **empty undo stack** (abandoned matches cannot be resumed).
+
+Exposed as `abandonMatch(): Promise<void>` in `useMatchStore` — saves to SQLite and publishes to cloud before refreshing the matches list. The scoring UI shows an **Abandon** button (red, `flag-off` icon) in the bottom actions row that opens a confirmation `Dialog` before proceeding. After confirmation the scorer is navigated to `/(tabs)/matches`.
+
+### Match State Schema Versioning
+`src/engine/migration.ts` — `CURRENT_SCHEMA_VERSION = 1` constant and `migrateMatch(raw: unknown): Match` function.
+
+`Match.schemaVersion?: number` is stamped on every match after migration. Call `migrateMatch(JSON.parse(json))` at every `JSON.parse → Match` boundary:
+- `useMatchStore` `loadMatch`, `acceptMatchInvitation`, `markMatchScheduled` (SQLite parse points)
+- `cloud-match-repo` `fetchCloudMatchState`, `fetchMatchFromInvitation` (cloud parse points)
+
+**Adding a new migration:** increment `CURRENT_SCHEMA_VERSION` and add one `if`-block inside `migrateMatch` that backfills the new field with a safe default for matches where it is absent. Keep earlier version blocks intact.
+
+Do **not** add `JSON.parse(...) as Match` anywhere without wrapping it in `migrateMatch()`.
+
+### Concurrent Scoring / Cloud Write Protection
+`publishMatchState` in `cloud-match-repo.ts` uses a **conditional two-step write** to prevent a slower device from overwriting a faster device's balls:
+
+1. `UPDATE cloud_match_states WHERE id = ? AND updated_at < match.updatedAt` — only overwrites if stored record is older.
+2. If 0 rows updated (first publish, or our state is stale) → `UPSERT WITH ignoreDuplicates: true` — inserts if row doesn't exist, skips if a concurrent write already won.
+
+`matchToCloudRow` uses `match.updatedAt` (the engine's logical timestamp, set by `produce` on every ball) as the `updated_at` column value — **not** `Date.now()`. This makes ordering semantic rather than network-latency-dependent. Do not change it back to `Date.now()`.
 
 ### Retire Batter (Engine)
 `MatchEngine.retireBatter(batsmanId, type)` marks a batter retired **without consuming a ball delivery** (happens between balls, not on a delivery):
@@ -277,6 +301,7 @@ Supported key formats: legacy JWT (`length > 100`) **or** new publishable format
 
 ## Shared Utilities & Components
 
+- `src/engine/migration.ts` — `migrateMatch(raw)` and `CURRENT_SCHEMA_VERSION`. Always wrap `JSON.parse(...) as Match` with this; see **Match State Schema Versioning** above.
 - `src/utils/player-icons.ts` — `bowlingIcon(style)` and `battingIcon(style)` — use these instead of local icon lookups in UI files
 - `src/utils/avatar.ts` — `getAvatarColor(name)` and `AVATAR_COLORS` constant — use for team/player avatar backgrounds and chat message colors. Do not redefine a local `getColor`/`MSG_COLORS` — this is the single source of truth.
 - `src/utils/commentary.ts` — `getBallCommentary(ball, ctx)` and `getLiveFeed(balls, ctx, limit)`. Deterministic via `ball.id` hash — all devices produce identical commentary for the same ball. Import from here; do not write local commentary logic.
@@ -290,6 +315,23 @@ Supported key formats: legacy JWT (`length > 100`) **or** new publishable format
 `app/(tabs)/stats.tsx` derives team count from **prefs** (`myTeamIds.length + playerTeamIds.length`) rather than `teams.length`, because prefs are updated by the cloud sync before the local SQLite import completes. This gives the correct count immediately after login without waiting for `importCloudTeams` to finish. Fall back to `teams.length` only when prefs are empty (`|| teams.length`).
 - `src/utils/formatters.ts` — `formatOvers(overs, balls)` (e.g. `"3.2"`) and other display formatters — import from here, do not redefine locally
 - `src/components/NearbyLiveCard.tsx` — shared card for nearby live match display (used by home tab + guest screen). Also exports `LIVE_RED = '#D32F2F'` — use this constant anywhere live/in-progress status needs a red color instead of hardcoding the hex.
+
+---
+
+## Scoring UI Conventions
+
+### Wicket Modal Chain
+After a wicket, `confirmWicket` checks two things before opening any modal:
+- **Wicket mid-over** (bowler still set after ball): opens **New Batter** modal only — 2 steps total (Wicket → Batter).
+- **Wicket on last ball of over** (bowler cleared after ball): opens the **combined Batter + Bowler** modal — 2 steps total (Wicket → Batter+Bowler). Do **not** re-introduce the old sequential chain (New Batter → then setTimeout → Bowler); use the combined modal (`batterAndBowlerModal` state).
+
+The combined modal reuses `selectedNewBatter` and `selectedBowler` state, has two labeled scroll sections, and requires both selections before enabling Confirm. It calls `setNewBatter` then `setBowler` in sequence — Zustand reads fresh state between calls so ordering is safe.
+
+### Match Creation Wizard Back Navigation
+`app/match/create.tsx` uses `Stack.Screen` with a custom `headerLeft` button to intercept the system/header back gesture. The `stepBack()` function maps the current step to `STEP_ORDER[idx - 1]`; on the first step (`format`) it calls `router.back()` to close the modal (button label "Cancel"). On all later steps it calls `setStep(prev)` (button label "Back"). The in-content Back buttons remain as a secondary affordance — do not remove them.
+
+### Player Photo Fallback
+`app/player/[id].tsx` tracks `photoError` state. The `<Image>` has `onError={() => setPhotoError(true)}`. When `photoUri` is absent or the file is gone (app reinstall, storage clear), a fallback circle is shown with the player's initial in white on a translucent primary-colour background. Reset `photoError` to `false` in `startEdit()` when a fresh photo URI is loaded.
 
 ---
 
@@ -325,4 +367,8 @@ Android package: `com.gullycricket.scorer` · versionCode: bump in `app.json` be
 - **Do not** use a ref as a trigger for a `useEffect` — refs don't cause re-renders; use state instead
 - **Do not** pass `timeoutInterval` to `getCurrentPositionAsync` — it is not a valid expo-location option and is silently ignored; use `Promise.race` with a manual `setTimeout` reject instead
 - **Do not** re-introduce the match acceptance/invitation flow — matches go directly to toss; `pending_acceptance` status is intentionally unused
-- **Do not** gate the toss screen on team ownership — `canDoToss` is `true` for all devices
+- **Do not** gate the toss screen on team ownership — `canDoToss` is `true` for all devices; do not re-add the observer "Waiting for toss…" block
+- **Do not** write `JSON.parse(json) as Match` without wrapping in `migrateMatch()` — old saved matches may be missing fields
+- **Do not** use `Date.now()` for `updated_at` in `matchToCloudRow` — use `match.updatedAt` (the engine's logical timestamp) so concurrent writes are ordered by match state, not network arrival
+- **Do not** re-introduce the sequential New Batter → Bowler modal chain after a wicket on the last ball of an over — use the combined `batterAndBowlerModal` instead
+- **Do not** store phone numbers with a `+` prefix or separator — stored format is `{countryCodeDigits}{localDigits}` (e.g. `919876543210`)

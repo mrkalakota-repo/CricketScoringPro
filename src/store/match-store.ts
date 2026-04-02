@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Match, BallInput, Toss, ScoringAction } from '../engine/types';
 import { MatchEngine, createNewMatch } from '../engine/match-engine';
+import { migrateMatch } from '../engine/migration';
 import * as matchRepo from '../db/repositories/match-repo';
 import type { MatchRow } from '../db/repositories/match-repo';
 import * as teamRepo from '../db/repositories/team-repo';
@@ -73,7 +74,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     const row = await matchRepo.getMatchById(id);
     if (row?.match_state_json) {
       try {
-        const match: Match = JSON.parse(row.match_state_json);
+        const match: Match = migrateMatch(JSON.parse(row.match_state_json));
         const engine = new MatchEngine(match);
         set({ engine, matchId: id });
         // If local state is stale (in_progress/toss), check if cloud has completed.
@@ -317,7 +318,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
       let match: Match | null = null;
       const row = await matchRepo.getMatchById(matchId);
       if (row?.match_state_json) {
-        match = JSON.parse(row.match_state_json) as Match;
+        match = migrateMatch(JSON.parse(row.match_state_json));
       } else {
         // Acceptor's device: fetch match from cloud_match_states, then fall back
         // to the invitation row (which carries the full match JSON since the fix).
@@ -374,7 +375,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     try {
       const row = await matchRepo.getMatchById(matchId);
       if (row?.match_state_json) {
-        const match: Match = JSON.parse(row.match_state_json);
+        const match: Match = migrateMatch(JSON.parse(row.match_state_json));
         const updated: Match = { ...match, status: 'scheduled' };
         await matchRepo.saveMatchState(matchId, updated);
         set({ engine: new MatchEngine(updated), matchId });

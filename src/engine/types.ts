@@ -242,6 +242,7 @@ export interface MatchConfig {
 
 export interface Match {
   id: string;
+  schemaVersion?: number; // Migration stamp — see src/engine/migration.ts
   config: MatchConfig;
   status: MatchStatus;
   team1: Team;

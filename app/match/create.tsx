@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Button, Card, useTheme, TextInput, RadioButton, Checkbox, Divider } from 'react-native-paper';
 import { useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTeamStore } from '../../src/store/team-store';
@@ -114,8 +115,33 @@ export default function CreateMatchScreen() {
     ? (team1XI.size >= 1 && team2XI.size >= 1)
     : (team1XI.size === requiredXI && team2XI.size === requiredXI);
 
+  const STEP_ORDER: Step[] = ['format', 'teams', 'playing_xi', 'venue', 'confirm'];
+  const stepBack = () => {
+    const idx = STEP_ORDER.indexOf(step);
+    if (idx > 0) {
+      setStep(STEP_ORDER[idx - 1]);
+    } else {
+      router.back();
+    }
+  };
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}>
+      <Stack.Screen
+        options={{
+          title: 'New Match',
+          headerLeft: () => (
+            <Button
+              compact
+              mode="text"
+              onPress={stepBack}
+              style={{ marginLeft: -8 }}
+            >
+              {step === 'format' ? 'Cancel' : 'Back'}
+            </Button>
+          ),
+        }}
+      />
       {/* Progress Indicator */}
       <View style={styles.progress}>
         {(['format', 'teams', 'playing_xi', 'venue', 'confirm'] as Step[]).map((s, i) => (
