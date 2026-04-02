@@ -270,7 +270,7 @@ Primary: `#1B6B28` (green) · Secondary: `#E65100` (orange) · Light bg: `#EAF7E
 
 ```sql
 teams(id, name, short_name, admin_pin_hash, latitude, longitude, created_at, updated_at)
-players(id, team_id, name, batting_style, bowling_style, is_wicket_keeper, is_all_rounder,
+players(id, team_id, name, phone_number TEXT, batting_style, bowling_style, is_wicket_keeper, is_all_rounder,
         is_captain, is_vice_captain, jersey_number INTEGER, photo_uri TEXT)
 matches(id, format, config_json, status, team1_id, team2_id, team1_playing_xi,
         team2_playing_xi, toss_json, venue, match_date, result, match_state_json,
@@ -279,7 +279,8 @@ user_prefs(key TEXT PRIMARY KEY, value TEXT)
 leagues(id, name, short_name, team_ids TEXT, format TEXT DEFAULT 'round_robin', created_at, updated_at)
 league_fixtures(id, league_id, team1_id, team2_id, match_id, venue, scheduled_date,
                 status, result, team1_score, team2_score, winner_team_id,
-                nrr_data_json TEXT, round INTEGER, bracket_slot INTEGER, created_at, updated_at)
+                nrr_data_json TEXT, round INTEGER, bracket_slot INTEGER, created_at, updated_at,
+                is_verified INTEGER, verified_by_phone TEXT, verified_at INTEGER, verified_by_name TEXT)
 ```
 
 Migrations: `ALTER TABLE ... ADD COLUMN` in try/catch. **Never `NOT NULL` in migrations** — breaks Android SQLite < 3.37.

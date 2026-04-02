@@ -72,13 +72,17 @@ export async function upsertFixture(fixture: LeagueFixture): Promise<void> {
     `INSERT INTO league_fixtures
        (id, league_id, team1_id, team2_id, match_id, venue, scheduled_date,
         status, result, team1_score, team2_score, winner_team_id,
-        nrr_data_json, round, bracket_slot, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        nrr_data_json, round, bracket_slot, created_at, updated_at,
+        is_verified, verified_by_phone, verified_at, verified_by_name)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        status = excluded.status, result = excluded.result,
        team1_score = excluded.team1_score, team2_score = excluded.team2_score,
        winner_team_id = excluded.winner_team_id, nrr_data_json = excluded.nrr_data_json,
-       match_id = excluded.match_id, updated_at = excluded.updated_at`,
+       match_id = excluded.match_id, round = excluded.round,
+       bracket_slot = excluded.bracket_slot, updated_at = excluded.updated_at,
+       is_verified = excluded.is_verified, verified_by_phone = excluded.verified_by_phone,
+       verified_at = excluded.verified_at, verified_by_name = excluded.verified_by_name`,
     fixture.id, fixture.leagueId, fixture.team1Id, fixture.team2Id,
     fixture.matchId ?? null, fixture.venue, fixture.scheduledDate,
     fixture.status, fixture.result ?? null, fixture.team1Score ?? null,
@@ -86,6 +90,8 @@ export async function upsertFixture(fixture: LeagueFixture): Promise<void> {
     fixture.nrrData ? JSON.stringify(fixture.nrrData) : null,
     fixture.round ?? null, fixture.bracketSlot ?? null,
     fixture.createdAt, fixture.updatedAt,
+    fixture.isVerified ? 1 : 0,
+    fixture.verifiedByPhone ?? null, fixture.verifiedAt ?? null, fixture.verifiedByName ?? null,
   );
 }
 
