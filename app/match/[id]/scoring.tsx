@@ -50,6 +50,7 @@ export default function ScoringScreen() {
   const [isLegBye, setIsLegBye] = useState(false);
 
   const [recording, setRecording] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Modals
   const [wicketModal, setWicketModal] = useState(false);
@@ -96,10 +97,10 @@ export default function ScoringScreen() {
     : false;
   const isHost = !(ownsTeam2 && !ownsTeam1);
 
-  // Observer: sync live match state from cloud on every ball recorded by the host.
+  // Non-host viewers (observers + view-only): sync live match state from cloud on every ball.
   const syncingRef = useRef(false);
   useEffect(() => {
-    if (!matchId || isHost) return;
+    if (!matchId || (canScore && isHost)) return;
     const unsub = cloudMatchRepo.subscribeToLiveMatch(matchId, (status) => {
       if (syncingRef.current) return;
       syncingRef.current = true;
@@ -379,6 +380,18 @@ export default function ScoringScreen() {
 
   const battingTeamName = innings?.battingTeamId === match.team1.id ? match.team1.shortName : match.team2.shortName;
 
+  const handleRefresh = async () => {
+    if (!matchId || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await syncMatchFromCloud(matchId);
+    } catch (e) {
+      console.error('[scoring] manual refresh failed:', (e as Error).message);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.background }]}>
       {/* Mini Scorecard */}
@@ -546,12 +559,27 @@ export default function ScoringScreen() {
           <Text variant="bodySmall" style={{ color: '#FFFFFF', flex: 1, fontWeight: '700' }}>
             Live viewing — {match?.team1.name ?? 'Host'} is scoring
           </Text>
+          {isCloudEnabled && (
+            <Button
+              mode="contained-tonal"
+              compact
+              icon={isRefreshing ? 'loading' : 'refresh'}
+              onPress={handleRefresh}
+              disabled={isRefreshing}
+              style={{ marginLeft: 4, borderRadius: 8 }}
+              labelStyle={{ fontSize: 11 }}
+              buttonColor="rgba(255,255,255,0.25)"
+              textColor="#FFFFFF"
+            >
+              {isRefreshing ? 'Syncing' : 'Refresh'}
+            </Button>
+          )}
           <Button
             mode="contained-tonal"
             compact
             icon="arrow-left"
             onPress={() => router.replace('/(tabs)/matches')}
-            style={{ marginLeft: 8, borderRadius: 8 }}
+            style={{ marginLeft: 4, borderRadius: 8 }}
             labelStyle={{ fontSize: 11 }}
             buttonColor="rgba(255,255,255,0.25)"
             textColor="#FFFFFF"
@@ -565,14 +593,29 @@ export default function ScoringScreen() {
         <View style={[styles.viewOnlyBanner, { backgroundColor: '#E65100' }]}>
           <MaterialCommunityIcons name="eye-outline" size={16} color="#FFFFFF" />
           <Text variant="bodySmall" style={{ color: '#FFFFFF', flex: 1, fontWeight: '700' }}>
-            View only — your role does not have scoring permissions
+            View only — live score
           </Text>
+          {isCloudEnabled && (
+            <Button
+              mode="contained-tonal"
+              compact
+              icon={isRefreshing ? 'loading' : 'refresh'}
+              onPress={handleRefresh}
+              disabled={isRefreshing}
+              style={{ marginLeft: 4, borderRadius: 8 }}
+              labelStyle={{ fontSize: 11 }}
+              buttonColor="rgba(255,255,255,0.25)"
+              textColor="#FFFFFF"
+            >
+              {isRefreshing ? 'Syncing' : 'Refresh'}
+            </Button>
+          )}
           <Button
             mode="contained-tonal"
             compact
             icon="arrow-left"
             onPress={() => router.replace('/(tabs)/matches')}
-            style={{ marginLeft: 8, borderRadius: 8 }}
+            style={{ marginLeft: 4, borderRadius: 8 }}
             labelStyle={{ fontSize: 11 }}
             buttonColor="rgba(255,255,255,0.25)"
             textColor="#FFFFFF"
