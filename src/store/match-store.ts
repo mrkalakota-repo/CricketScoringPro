@@ -39,6 +39,7 @@ interface MatchStore {
   startNextInnings: () => void;
   startSuperOver: () => void;
   declareInnings: () => void;
+  abandonMatch: () => Promise<void>;
   applyDLS: (newOvers: number, mode?: 'standard' | 'gully', gullyRPO?: number) => void;
   setMatchVerified: (verified: boolean) => void;
   saveMatch: () => Promise<void>;
@@ -238,6 +239,21 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     const _m3 = newEngine.getMatch();
     cloudMatchRepo.publishLiveMatch(_m3);
     cloudMatchRepo.publishMatchState(_m3, useUserAuth.getState().profile?.phone ?? undefined);
+  },
+
+  abandonMatch: async () => {
+    const { engine, matchId } = get();
+    if (!engine) return;
+    const newEngine = engine.abandonMatch();
+    set({ engine: newEngine });
+    const m = newEngine.getMatch();
+    if (matchId) {
+      await matchRepo.saveMatchState(matchId, m);
+      cloudMatchRepo.publishLiveMatch(m);
+      cloudMatchRepo.publishMatchState(m, useUserAuth.getState().profile?.phone ?? undefined);
+    }
+    const matches = await matchRepo.getAllMatches();
+    set({ matches });
   },
 
   applyDLS: (newOvers, mode = 'standard', gullyRPO) => {

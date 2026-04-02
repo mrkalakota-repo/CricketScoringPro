@@ -576,6 +576,23 @@ export class MatchEngine {
     return new MatchEngine(newMatch, this.undoStack, this.uuidFactory);
   }
 
+  /** Mark the match as abandoned (rain, no result, etc). Closes the active innings. */
+  abandonMatch(): MatchEngine {
+    const newMatch = produce(this.match, draft => {
+      const inn = draft.innings[draft.currentInningsIndex];
+      if (inn && inn.status === 'in_progress') {
+        inn.status = 'completed';
+        inn.currentStrikerId = null;
+        inn.currentNonStrikerId = null;
+        inn.currentBowlerId = null;
+      }
+      draft.status = 'abandoned';
+      draft.result = 'Match abandoned';
+      draft.updatedAt = Date.now();
+    });
+    return new MatchEngine(newMatch, [], this.uuidFactory);
+  }
+
   /**
    * Apply a DLS or Gully-mode rain interruption ruling to the current (2nd) innings.
    * Updates revisedTarget, revisedOvers, dlsMode, and dlsGullyRunsPerOver on the innings.

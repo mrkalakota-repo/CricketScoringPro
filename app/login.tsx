@@ -8,6 +8,20 @@ import type { UserRole } from '../src/engine/types';
 
 type Mode = 'register' | 'login' | 'restore';
 
+const COUNTRY_CODES = [
+  { code: '+91', flag: '🇮🇳', name: 'India',             digits: 10 },
+  { code: '+1',  flag: '🇺🇸', name: 'USA / Canada',      digits: 10 },
+  { code: '+92', flag: '🇵🇰', name: 'Pakistan',          digits: 10 },
+  { code: '+94', flag: '🇱🇰', name: 'Sri Lanka',         digits: 9  },
+  { code: '+44', flag: '🇬🇧', name: 'United Kingdom',    digits: 10 },
+  { code: '+61', flag: '🇦🇺', name: 'Australia',         digits: 9  },
+  { code: '+27', flag: '🇿🇦', name: 'South Africa',      digits: 9  },
+  { code: '+64', flag: '🇳🇿', name: 'New Zealand',       digits: 9  },
+  { code: '+880', flag: '🇧🇩', name: 'Bangladesh',       digits: 10 },
+  { code: '+263', flag: '🇿🇼', name: 'Zimbabwe',         digits: 9  },
+];
+type CountryEntry = typeof COUNTRY_CODES[number];
+
 // Dot-based PIN progress indicator
 function PinDots({ count, max, color, dimColor }: { count: number; max: number; color: string; dimColor: string }) {
   return (
@@ -47,9 +61,13 @@ export default function LoginScreen() {
   const [confirmPin, setConfirmPin] = useState('');
   const [showConfirmPin, setShowConfirmPin] = useState(false);
   const [role, setRole] = useState<UserRole>('scorer');
+  const [country, setCountry] = useState<CountryEntry>(COUNTRY_CODES[0]); // default +91
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
 
   // Restore only
-  const [restorePhone, setRestorePhone] = useState(profile?.phone ?? '');
+  const [restorePhone, setRestorePhone] = useState('');
+  const [restoreCountry, setRestoreCountry] = useState<CountryEntry>(COUNTRY_CODES[0]);
+  const [showRestoreCountryPicker, setShowRestoreCountryPicker] = useState(false);
 
   // Dialogs
   const [registerWarningVisible, setRegisterWarningVisible] = useState(false);
@@ -84,16 +102,19 @@ export default function LoginScreen() {
   // ── Register ──────────────────────────────────────────────────────────────
   const handleRegister = async () => {
     const errors: Record<string, string> = {};
-    if (!phone.trim()) errors.phone = 'Phone number is required';
-    else if (!/^[0-9]{10}$/.test(phone.replace(/\s/g, ''))) errors.phone = 'Enter a valid 10-digit US phone number';
+    const digits = phone.replace(/\D/g, '');
+    if (!digits) errors.phone = 'Phone number is required';
+    else if (digits.length !== country.digits) errors.phone = `Enter a valid ${country.digits}-digit number for ${country.name}`;
     if (!name.trim()) errors.name = 'Your name is required';
     if (pin.length < 4) errors.pin = 'PIN must be at least 4 digits';
     else if (pin !== confirmPin) errors.confirmPin = 'PINs do not match';
     if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
 
+    // Store phone as countryCodeDigits + localDigits (e.g. "919876543210")
+    const fullPhone = `${country.code.replace('+', '')}${digits}`;
     setBusy(true);
     try {
-      await register(phone.trim(), name.trim(), pin, role);
+      await register(fullPhone, name.trim(), pin, role);
     } finally {
       setBusy(false);
     }
@@ -103,14 +124,15 @@ export default function LoginScreen() {
   const handleRestore = async () => {
     const errors: Record<string, string> = {};
     const cleaned = restorePhone.replace(/\D/g, '');
-    if (cleaned.length !== 10) errors.restorePhone = 'Enter a valid 10-digit US phone number';
+    if (cleaned.length !== restoreCountry.digits) errors.restorePhone = `Enter a valid ${restoreCountry.digits}-digit number for ${restoreCountry.name}`;
     if (pin.length < 4) errors.pin = 'Enter your PIN';
     if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
 
+    const fullPhone = `${restoreCountry.code.replace('+', '')}${cleaned}`;
     setBusy(true);
     setFieldErrors({});
     try {
-      const ok = await restoreFromCloud(cleaned, pin);
+      const ok = await restoreFromCloud(fullPhone, pin);
       if (!ok) {
         const { restoreStatus: status, restoreErrorMessage: msg } = useUserAuth.getState();
         if (status === 'not_found') setFieldErrors({ restorePhone: 'No account found for this phone number.' });
@@ -169,6 +191,50 @@ export default function LoginScreen() {
         </Dialog>
       </Portal>
 
+      {/* Country code picker — register */}
+      <Portal>
+        <Dialog visible={showCountryPicker} onDismiss={() => setShowCountryPicker(false)}>
+          <Dialog.Title>Select Country</Dialog.Title>
+          <Dialog.ScrollArea style={{ maxHeight: 320 }}>
+            <ScrollView>
+              {COUNTRY_CODES.map(c => (
+                <TouchableOpacity
+                  key={c.code}
+                  onPress={() => { setCountry(c); setPhone(''); setShowCountryPicker(false); }}
+                  style={[styles.countryOption, c.code === country.code && { backgroundColor: theme.colors.primaryContainer }]}
+                >
+                  <Text style={{ fontSize: 20 }}>{c.flag}</Text>
+                  <Text style={{ flex: 1, marginLeft: 12, color: theme.colors.onSurface }}>{c.name}</Text>
+                  <Text style={{ color: theme.colors.onSurfaceVariant, fontWeight: '700' }}>{c.code}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Dialog.ScrollArea>
+        </Dialog>
+      </Portal>
+
+      {/* Country code picker — restore */}
+      <Portal>
+        <Dialog visible={showRestoreCountryPicker} onDismiss={() => setShowRestoreCountryPicker(false)}>
+          <Dialog.Title>Select Country</Dialog.Title>
+          <Dialog.ScrollArea style={{ maxHeight: 320 }}>
+            <ScrollView>
+              {COUNTRY_CODES.map(c => (
+                <TouchableOpacity
+                  key={c.code}
+                  onPress={() => { setRestoreCountry(c); setRestorePhone(''); setShowRestoreCountryPicker(false); }}
+                  style={[styles.countryOption, c.code === restoreCountry.code && { backgroundColor: theme.colors.primaryContainer }]}
+                >
+                  <Text style={{ fontSize: 20 }}>{c.flag}</Text>
+                  <Text style={{ flex: 1, marginLeft: 12, color: theme.colors.onSurface }}>{c.name}</Text>
+                  <Text style={{ color: theme.colors.onSurfaceVariant, fontWeight: '700' }}>{c.code}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Dialog.ScrollArea>
+        </Dialog>
+      </Portal>
+
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom, 28) }]} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
@@ -186,6 +252,17 @@ export default function LoginScreen() {
         {/* ── Register form ── */}
         {mode === 'register' && (
           <View style={styles.form}>
+            <TouchableOpacity
+              onPress={() => setShowCountryPicker(true)}
+              style={[styles.countryRow, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 20 }}>{country.flag}</Text>
+              <Text style={{ fontWeight: '700', color: theme.colors.onSurface, flex: 1, marginLeft: 8 }}>
+                {country.code}  {country.name}
+              </Text>
+              <MaterialCommunityIcons name="chevron-down" size={18} color={theme.colors.onSurfaceVariant} />
+            </TouchableOpacity>
             <TextInput
               label="Phone Number"
               value={phone}
@@ -193,17 +270,16 @@ export default function LoginScreen() {
               mode="outlined"
               style={styles.input}
               keyboardType="number-pad"
-              maxLength={10}
-              placeholder="e.g., 8001234567"
+              maxLength={country.digits}
+              placeholder={`${country.digits}-digit number`}
               left={<TextInput.Icon icon="phone" />}
-              right={<TextInput.Affix text="+1" />}
               error={!!fieldErrors.phone}
               autoFocus
               returnKeyType="next"
               onSubmitEditing={() => nameRef.current?.focus()}
             />
             <HelperText type={fieldErrors.phone ? 'error' : 'info'} visible={!!fieldErrors.phone || true} style={styles.helper}>
-              {fieldErrors.phone ?? 'US 10-digit number, no dashes or spaces'}
+              {fieldErrors.phone ?? `${country.digits}-digit number, no dashes or spaces`}
             </HelperText>
 
             <TextInput
@@ -342,7 +418,7 @@ export default function LoginScreen() {
                   {profile!.name}
                 </Text>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  +1 {profile!.phone}
+                  +{profile!.phone}
                 </Text>
               </View>
             </View>
@@ -408,6 +484,17 @@ export default function LoginScreen() {
         {/* ── Restore form ── */}
         {mode === 'restore' && (
           <View style={styles.form}>
+            <TouchableOpacity
+              onPress={() => setShowRestoreCountryPicker(true)}
+              style={[styles.countryRow, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 20 }}>{restoreCountry.flag}</Text>
+              <Text style={{ fontWeight: '700', color: theme.colors.onSurface, flex: 1, marginLeft: 8 }}>
+                {restoreCountry.code}  {restoreCountry.name}
+              </Text>
+              <MaterialCommunityIcons name="chevron-down" size={18} color={theme.colors.onSurfaceVariant} />
+            </TouchableOpacity>
             <TextInput
               label="Phone Number"
               value={restorePhone}
@@ -415,10 +502,9 @@ export default function LoginScreen() {
               mode="outlined"
               style={styles.input}
               keyboardType="number-pad"
-              maxLength={10}
-              placeholder="e.g., 8001234567"
+              maxLength={restoreCountry.digits}
+              placeholder={`${restoreCountry.digits}-digit number`}
               left={<TextInput.Icon icon="phone" />}
-              right={<TextInput.Affix text="+1" />}
               error={!!fieldErrors.restorePhone}
               autoFocus
               returnKeyType="next"
@@ -502,4 +588,6 @@ const styles = StyleSheet.create({
   roleCard: { flex: 1, minWidth: '44%', maxWidth: '48%', borderWidth: 2, borderRadius: 12, padding: 10, alignItems: 'center', gap: 4 },
   pinDots: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 6, marginBottom: 10 },
   pinDot: { width: 10, height: 10, borderRadius: 5 },
+  countryRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 8 },
+  countryOption: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8 },
 });

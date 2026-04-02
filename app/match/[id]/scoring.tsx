@@ -36,7 +36,7 @@ export default function ScoringScreen() {
   const {
     engine, recordBall, undoLastBall, setOpeners, setBowler,
     setNewBatter, retireBatter, swapStrike, startNextInnings, startSuperOver, saveMatch,
-    syncMatchFromCloud, loadMatches, applyDLS,
+    syncMatchFromCloud, loadMatches, applyDLS, abandonMatch,
   } = useMatchStore();
   const { myTeamIds, delegateTeamIds } = usePrefsStore();
 
@@ -59,6 +59,7 @@ export default function ScoringScreen() {
   const [newBatterModal, setNewBatterModal] = useState(false);
   const [inningsCompleteModal, setInningsCompleteModal] = useState(false);
   const [showUndoDialog, setShowUndoDialog] = useState(false);
+  const [showAbandonDialog, setShowAbandonDialog] = useState(false);
   const [retireModal, setRetireModal] = useState(false);
   const [retireBatsmanId, setRetireBatsmanId] = useState<string | null>(null);
   const [retireType, setRetireType] = useState<'retired_hurt' | 'retired_out'>('retired_hurt');
@@ -366,6 +367,12 @@ export default function ScoringScreen() {
     setDlsModal(false);
     setDlsNewOvers('');
     setDlsGullyRPO('');
+  };
+
+  const confirmAbandon = async () => {
+    setShowAbandonDialog(false);
+    await abandonMatch();
+    router.replace('/(tabs)/matches');
   };
 
   const handleNextInnings = async () => {
@@ -737,6 +744,15 @@ export default function ScoringScreen() {
             </Button>
             <Button
               mode="text"
+              icon="flag-off"
+              onPress={() => setShowAbandonDialog(true)}
+              compact
+              textColor={theme.colors.error}
+            >
+              Abandon
+            </Button>
+            <Button
+              mode="text"
               onPress={() => router.replace('/(tabs)/matches')}
               compact
             >
@@ -1032,6 +1048,24 @@ export default function ScoringScreen() {
           <Dialog.Actions>
             <Button onPress={() => setShowUndoDialog(false)}>Cancel</Button>
             <Button onPress={confirmUndo}>Undo</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* Abandon Match Dialog */}
+      <Portal>
+        <Dialog visible={showAbandonDialog} onDismiss={() => setShowAbandonDialog(false)}>
+          <Dialog.Icon icon="flag-off" />
+          <Dialog.Title>Abandon Match?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              This will mark the match as abandoned. The current score will be saved but no result will be declared.
+              This cannot be undone.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowAbandonDialog(false)}>Cancel</Button>
+            <Button textColor={theme.colors.error} onPress={confirmAbandon}>Abandon</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
