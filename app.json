@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.gullycricket.scorer",
-      "versionCode": 6,
+      "versionCode": 7,
       "adaptiveIcon": {
         "backgroundColor": "#00695C",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -56,7 +56,13 @@
           "backgroundColor": "#00695C"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": false
+        }
+      ]
     ],
     "extra": {
       "router": {},
