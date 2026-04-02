@@ -215,3 +215,19 @@ export async function linkFixtureToMatch(fixtureId: string, matchId: string): Pr
     matchId, Date.now(), fixtureId,
   );
 }
+
+export async function findFixtureByMatchId(matchId: string): Promise<LeagueFixture | null> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<FixtureRow>(
+    'SELECT * FROM league_fixtures WHERE match_id = ? LIMIT 1', matchId,
+  );
+  return row ? rowToFixture(row) : null;
+}
+
+export async function updateFixtureNRRData(id: string, nrrData: FixtureNRRData): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'UPDATE league_fixtures SET nrr_data_json = ?, updated_at = ? WHERE id = ?',
+    JSON.stringify(nrrData), Date.now(), id,
+  );
+}

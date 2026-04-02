@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { League, LeagueFixture, LeagueStandingRow, FixtureNRRData, LeagueFormat } from '../engine/types';
+import type { League, LeagueFixture, LeagueStandingRow, FixtureNRRData, LeagueFormat, Match } from '../engine/types';
 import * as leagueRepo from '../db/repositories/league-repo';
 import * as cloudLeagueRepo from '../db/repositories/cloud-league-repo';
 import { useUserAuth } from '../hooks/useUserAuth';
@@ -7,6 +7,33 @@ import { usePrefsStore } from './prefs-store';
 
 function ownerPhone(): string | null {
   return useUserAuth.getState().profile?.phone ?? null;
+}
+
+/** Extract FixtureNRRData from a completed match, mapped to fixture's team1/team2 order. */
+function extractNRRData(match: Match, fixture: LeagueFixture): FixtureNRRData | null {
+  if (match.status !== 'completed') return null;
+  if (!match.config.oversPerInnings) return null; // Tests — no NRR
+  const inn1 = match.innings[0];
+  const inn2 = match.innings[1];
+  if (!inn1 || !inn2 || inn1.status === 'not_started' || inn2.status === 'not_started') return null;
+
+  // Map to fixture's team1Id / team2Id (batting order may differ from fixture order)
+  const t1Inn = inn1.battingTeamId === fixture.team1Id ? inn1 : inn2;
+  const t2Inn = inn1.battingTeamId === fixture.team2Id ? inn1 : inn2;
+
+  // Cricket overs notation: 18 overs 3 balls → stored as 18.3
+  const oversRaw = (overs: number, balls: number) => overs + balls / 10;
+  const allOut = (wickets: number) => wickets >= match.config.playersPerSide - 1;
+
+  return {
+    team1Runs: t1Inn.totalRuns,
+    team1OversRaw: oversRaw(t1Inn.totalOvers, t1Inn.totalBalls),
+    team1AllOut: allOut(t1Inn.totalWickets),
+    team2Runs: t2Inn.totalRuns,
+    team2OversRaw: oversRaw(t2Inn.totalOvers, t2Inn.totalBalls),
+    team2AllOut: allOut(t2Inn.totalWickets),
+    maxOvers: match.config.oversPerInnings,
+  };
 }
 
 interface LeagueStore {
@@ -27,6 +54,7 @@ interface LeagueStore {
   generateRoundRobin: (leagueId: string, startDate: number, daysApart: number, venue: string) => Promise<void>;
   computeStandings: (leagueId: string) => LeagueStandingRow[];
   verifyFixture: (fixtureId: string, leagueId: string, verifiedByPhone: string, verifiedByName: string) => Promise<void>;
+  autoPopulateFixtureNRR: (matchId: string, match: Match) => Promise<void>;
 }
 
 export const useLeagueStore = create<LeagueStore>((set, get) => ({
@@ -288,6 +316,37 @@ export const useLeagueStore = create<LeagueStore>((set, get) => ({
     });
     cloudLeagueRepo.verifyCloudFixture(fixtureId, verifiedByPhone, verifiedByName).catch(
       (e: unknown) => console.error('[league-store] verifyCloudFixture failed:', (e as Error).message),
+    );
+  },
+
+  autoPopulateFixtureNRR: async (matchId, match) => {
+    // Query the DB directly — fixtures may not be loaded in memory yet
+    const fixture = await leagueRepo.findFixtureByMatchId(matchId);
+    if (!fixture) return;
+    if (fixture.nrrData) return; // Don't overwrite a manually entered value
+
+    const nrrData = extractNRRData(match, fixture);
+    if (!nrrData) return;
+
+    await leagueRepo.updateFixtureNRRData(fixture.id, nrrData);
+
+    // Update in-memory state if this league's fixtures are already loaded
+    const current = get().fixtures[fixture.leagueId];
+    if (current) {
+      set({
+        fixtures: {
+          ...get().fixtures,
+          [fixture.leagueId]: current.map(f =>
+            f.id === fixture.id ? { ...f, nrrData, updatedAt: Date.now() } : f
+          ),
+        },
+      });
+    }
+
+    // Cloud sync — fire and forget
+    const updated = { ...fixture, nrrData, updatedAt: Date.now() };
+    cloudLeagueRepo.pushFixture(updated).catch(
+      (e: unknown) => console.error('[league-store] autoPopulateFixtureNRR cloud push failed:', (e as Error).message),
     );
   },
 

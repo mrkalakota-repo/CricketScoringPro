@@ -121,3 +121,13 @@ export async function linkFixtureToMatch(fixtureId: string, matchId: string): Pr
     f.id === fixtureId ? { ...f, matchId, updatedAt: Date.now() } : f
   ));
 }
+
+export async function findFixtureByMatchId(matchId: string): Promise<LeagueFixture | null> {
+  return getFixtures().find(f => f.matchId === matchId) ?? null;
+}
+
+export async function updateFixtureNRRData(id: string, nrrData: FixtureNRRData): Promise<void> {
+  setFixtures(getFixtures().map(f =>
+    f.id === id ? { ...f, nrrData, updatedAt: Date.now() } : f
+  ));
+}

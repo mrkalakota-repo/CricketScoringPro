@@ -6,6 +6,7 @@ import type { MatchRow } from '../db/repositories/match-repo';
 import * as teamRepo from '../db/repositories/team-repo';
 import * as cloudMatchRepo from '../db/repositories/cloud-match-repo';
 import { useUserAuth } from '../hooks/useUserAuth';
+import { useLeagueStore } from './league-store';
 
 interface MatchStore {
   // Active match state
@@ -266,6 +267,12 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     // Re-publish final state to cloud so completed matches are visible on other devices.
     cloudMatchRepo.publishLiveMatch(m);
     cloudMatchRepo.publishMatchState(m, useUserAuth.getState().profile?.phone ?? undefined);
+    // Auto-populate NRR on the linked league fixture (limited-overs completed matches only).
+    if (m.status === 'completed' && m.config.oversPerInnings) {
+      useLeagueStore.getState().autoPopulateFixtureNRR(matchId, m).catch((err: unknown) => {
+        console.error('[match-store] autoPopulateFixtureNRR failed:', (err as Error).message);
+      });
+    }
   },
 
   deleteMatch: async (id) => {
