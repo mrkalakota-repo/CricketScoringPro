@@ -1,7 +1,8 @@
 import { getDatabase } from '../database';
 import type { Team, Player, BowlingStyle } from '../../engine/types';
+import * as Crypto from 'expo-crypto';
 
-const uuidv4 = (): string => globalThis.crypto.randomUUID();
+const uuidv4 = (): string => Crypto.randomUUID();
 
 type TeamRow = {
   id: string; name: string; short_name: string; admin_pin_hash: string | null;
