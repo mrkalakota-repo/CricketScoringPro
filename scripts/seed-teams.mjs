@@ -157,7 +157,7 @@ async function seedTeam(teamDef, teamOwner) {
 }
 
 async function main() {
-  console.log('Gully Cricket Scorer — Team Seeder');
+  console.log('Inningsly — Team Seeder');
   console.log('====================================');
   console.log(`Team 1 owner: ${owner1Phone}`);
   console.log(`Team 2 owner: ${owner2Phone}`);

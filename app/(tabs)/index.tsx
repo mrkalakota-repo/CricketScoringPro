@@ -203,7 +203,7 @@ export default function HomeScreen() {
           <MaterialCommunityIcons name="account-circle" size={28} color="rgba(255,255,255,0.9)" />
         </TouchableOpacity>
         <MaterialCommunityIcons name="cricket" size={52} color="rgba(255,255,255,0.9)" />
-        <Text variant="headlineMedium" style={styles.heroTitle}>Gully Cricket Scorer</Text>
+        <Text variant="headlineMedium" style={styles.heroTitle}>Inningsly</Text>
         <Text variant="bodyMedium" style={styles.heroSubtitle}>Score matches like a pro</Text>
         {profile && (
           <View style={styles.roleBadge}>

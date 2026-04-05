@@ -198,7 +198,7 @@ export default function PlayerProfileScreen() {
             <Button
               compact mode="text"
               onPress={() => Share.share({
-                message: `${player!.name} — ${team!.name}\nPlayer Code: ${playerCode}\nOpen in Gully Cricket Scorer to view stats`,
+                message: `${player!.name} — ${team!.name}\nPlayer Code: ${playerCode}\nOpen in Inningsly to view stats`,
               })}
               textColor="rgba(255,255,255,0.9)"
               icon="share-variant"

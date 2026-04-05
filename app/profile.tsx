@@ -3,7 +3,7 @@
  * profile screen. Admins share this code with each player (visible on the player
  * card when the roster is open).
  *
- * Since Gully Cricket Scorer is a local-first app, profiles live on the device
+ * Since Inningsly is a local-first app, profiles live on the device
  * that manages the team. Players can view and update their batting/bowling
  * preferences by entering their code on that same device (or any device where
  * the team has been set up).

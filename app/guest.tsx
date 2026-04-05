@@ -142,7 +142,7 @@ export default function GuestScreen({ onSignIn }: GuestScreenProps) {
         {/* Branding */}
         <Surface style={[styles.hero, { backgroundColor: theme.colors.primary }]} elevation={3}>
           <MaterialCommunityIcons name="cricket" size={52} color="rgba(255,255,255,0.9)" />
-          <Text variant="headlineMedium" style={styles.heroTitle}>Gully Cricket Scorer</Text>
+          <Text variant="headlineMedium" style={styles.heroTitle}>Inningsly</Text>
           <Text variant="bodyMedium" style={styles.heroSubtitle}>Live scores & results near you</Text>
           <Button
             mode="contained"

@@ -2,10 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-# Gully Cricket Scorer — CLAUDE.md
+# Inningsly — CLAUDE.md
 
 ## Project Overview
-Cross-platform cricket scoring app (Android + iOS + mobile web) — React Native + Expo SDK 54.
+**Inningsly** — Cross-platform cricket scoring app (Android + iOS + mobile web) — React Native + Expo SDK 54.
 Supports T20/ODI/Test/custom formats, team/player management, ball-by-ball scoring with undo,
 proximity-based team discovery, leagues, real-time player chat, and delegate team access.
 
@@ -350,7 +350,7 @@ eas build --profile preview --platform android    # Build APK
 eas build --profile production --platform android # Build AAB
 ```
 
-Android package: `com.gullycricket.scorer` · versionCode: bump in `app.json` before each store upload.
+Android package: `com.gullycricket.scorer` (retained for Play Store continuity) · versionCode: bump in `app.json` before each store upload.
 
 ---
 

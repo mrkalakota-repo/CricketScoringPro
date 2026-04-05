@@ -251,7 +251,7 @@ export default function LoginScreen() {
             <MaterialCommunityIcons name="cricket" size={40} color={theme.colors.primary} />
           </View>
           <Text variant="headlineMedium" style={[styles.appName, { color: theme.colors.primary }]}>
-            Gully Cricket
+            Inningsly
           </Text>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
             {subtitle}

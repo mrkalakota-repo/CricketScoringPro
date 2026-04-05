@@ -1,4 +1,4 @@
--- Gully Cricket Scorer — Supabase Cloud Setup
+-- Inningsly — Supabase Cloud Setup
 -- Run this entire script in the Supabase SQL Editor
 -- Dashboard → SQL Editor → New query → paste → Run
 -- Safe to re-run: uses IF NOT EXISTS / exception-swallowing DO blocks on all objects.

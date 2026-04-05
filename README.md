@@ -1,4 +1,4 @@
-# Gully Cricket Scorer
+# Inningsly
 
 > Cross-platform cricket scoring app for Android, iOS, and mobile web.
 > Built with React Native + Expo SDK 54.
@@ -81,7 +81,7 @@ npm test -- --coverage                            # Coverage report
 
 ```
 ┌─────────────────────────────────────────┐
-│           Gully Cricket Scorer          │  ← Primary header (green)
+│           Inningsly          │  ← Primary header (green)
 ├─────────────────────────────────────────┤
 │                                         │
 │              [screen content]           │
@@ -101,10 +101,10 @@ The dashboard shown on launch.
 
 ```
 ┌─────────────────────────────────────────┐
-│         Gully Cricket Scorer            │
+│         Inningsly            │
 ├─────────────────────────────────────────┤
 │  ┌─────────────────────────────────┐   │
-│  │  🏏  Gully Cricket Scorer       │   │
+│  │  🏏  Inningsly       │   │
 │  │       Score. Track. Win.        │   │
 │  │       [  + New Match  ]         │   │
 │  └─────────────────────────────────┘   │

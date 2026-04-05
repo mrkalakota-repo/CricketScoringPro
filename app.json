@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "Gully Cricket Scorer",
-    "slug": "gully-cricket-scorer",
+    "name": "Inningsly",
+    "slug": "inningsly",
     "version": "1.0.9",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "gullycricket",
+    "scheme": "inningsly",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",

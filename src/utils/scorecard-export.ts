@@ -115,7 +115,7 @@ export function buildScorecardText(match: Match): string {
   const dateStr = new Date(match.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
   lines.push(line('═', 46));
-  lines.push('🏏  GULLY CRICKET SCORER');
+  lines.push('🏏  INNINGSLY');
   lines.push(line('═', 46));
   lines.push(`${match.team1.name} vs ${match.team2.name}`);
   lines.push(`${match.config.format.toUpperCase()}${match.config.oversPerInnings ? ` · ${match.config.oversPerInnings} overs` : ''} · ${dateStr}`);
@@ -146,7 +146,7 @@ export function buildScorecardText(match: Match): string {
   }
 
   lines.push('');
-  lines.push('Shared via Gully Cricket Scorer 🏏');
+  lines.push('Shared via Inningsly 🏏');
 
   return lines.join('\n');
 }

@@ -1,7 +1,7 @@
 """
-Build Gully Cricket Scorer — Executive Presentation
+Build Inningsly — Executive Presentation
 Run: python3 scripts/build_presentation.py
-Output: docs/GullyCricketScorer_Executive.pptx
+Output: docs/Inningsly_Executive.pptx
 """
 
 from pptx import Presentation
@@ -181,7 +181,7 @@ ball2.line.fill.background()
 # App name (left panel)
 add_text(sl, "🏏", Inches(0.55), Inches(1.0), Inches(4.5), Inches(0.9),
          size=48, color=WHITE, align=PP_ALIGN.LEFT)
-add_text(sl, "Gully Cricket\nScorer",
+add_text(sl, "Inningsly",
          Inches(0.55), Inches(1.85), Inches(4.5), Inches(1.9),
          size=34, bold=True, color=WHITE, align=PP_ALIGN.LEFT)
 add_text(sl, "Executive Overview",
@@ -259,13 +259,13 @@ add_rect(sl, 0, 0, W, Inches(1.65), fill=GREEN)
 add_text(sl, "Our Solution",
          Inches(0.6), Inches(0.35), Inches(11), Inches(1.0),
          size=30, bold=True, color=WHITE)
-add_text(sl, "Gully Cricket Scorer — one app, every format, everywhere",
+add_text(sl, "Inningsly — one app, every format, everywhere",
          Inches(0.6), Inches(1.0), Inches(11), Inches(0.5),
          size=13, color=RGBColor(0xA8, 0xDB, 0xAB))
 
 # Left column — description
 add_text(sl,
-         "Gully Cricket Scorer is a professional-grade, "
+         "Inningsly is a professional-grade, "
          "offline-first scoring platform built for street and community cricket. "
          "It handles every format from T20 to Test, stores complete match history, "
          "and broadcasts live scores to spectators within 50 miles — "
@@ -960,7 +960,7 @@ add_rect(sl, Inches(5.3), 0, Inches(0.4), H, fill=GREEN_MID)
 # Left — key messages
 add_text(sl, "🏏", Inches(0.5), Inches(0.8), Inches(4.5), Inches(0.9),
          size=42, color=WHITE)
-add_text(sl, "Gully Cricket\nScorer",
+add_text(sl, "Inningsly",
          Inches(0.5), Inches(1.6), Inches(4.5), Inches(1.6),
          size=30, bold=True, color=WHITE)
 
@@ -1010,6 +1010,6 @@ add_text(sl, "docs/ARCHITECTURE.md — full design diagrams",
 
 
 # ── Save ──────────────────────────────────────────────────────────────────────
-out_path = os.path.join(os.path.dirname(__file__), '..', 'docs', 'GullyCricketScorer_Executive.pptx')
+out_path = os.path.join(os.path.dirname(__file__), '..', 'docs', 'Inningsly_Executive.pptx')
 prs.save(out_path)
 print(f"✅  Saved → {os.path.abspath(out_path)}")

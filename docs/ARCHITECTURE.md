@@ -1,4 +1,4 @@
-# Gully Cricket Scorer — Architecture & Design
+# Inningsly — Architecture & Design
 
 > Technical design reference. For feature requirements see `REQUIREMENTS.md`. For developer setup see `CLAUDE.md`.
 
