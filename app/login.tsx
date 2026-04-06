@@ -1,30 +1,49 @@
-import { useState, useRef } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { useState, useRef, useCallback } from 'react';
+import {
+  View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView,
+  TouchableOpacity, TextInput as RNTextInput,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, TextInput, Button, useTheme, HelperText, Divider, Portal, Dialog } from 'react-native-paper';
+import {
+  Text, TextInput, Button, useTheme, HelperText, Divider,
+  Portal, Dialog, ActivityIndicator,
+} from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getLocales } from 'expo-localization';
 import { useUserAuth } from '../src/hooks/useUserAuth';
 import type { UserRole } from '../src/engine/types';
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
 type Mode = 'register' | 'login' | 'restore';
 
+/** Steps within the registration wizard. */
+type RegStep = 'phone' | 'otp' | 'name' | 'role' | 'pin' | 'confirm';
+
+/**
+ * Restore has two paths:
+ * - 'pin'  → existing phone + PIN flow (unchanged)
+ * - 'otp'  → phone → OTP → set new PIN (forgot PIN)
+ */
+type RestoreTab = 'pin' | 'otp';
+type RestoreOtpStep = 'phone' | 'otp' | 'pin' | 'confirm';
+
+// ── Country data ──────────────────────────────────────────────────────────────
+
 const COUNTRY_CODES = [
-  { code: '+91', flag: '🇮🇳', name: 'India',             digits: 10 },
-  { code: '+1',  flag: '🇺🇸', name: 'USA / Canada',      digits: 10 },
-  { code: '+92', flag: '🇵🇰', name: 'Pakistan',          digits: 10 },
-  { code: '+94', flag: '🇱🇰', name: 'Sri Lanka',         digits: 9  },
-  { code: '+44', flag: '🇬🇧', name: 'United Kingdom',    digits: 10 },
-  { code: '+61', flag: '🇦🇺', name: 'Australia',         digits: 9  },
-  { code: '+27', flag: '🇿🇦', name: 'South Africa',      digits: 9  },
-  { code: '+64', flag: '🇳🇿', name: 'New Zealand',       digits: 9  },
-  { code: '+880', flag: '🇧🇩', name: 'Bangladesh',       digits: 10 },
-  { code: '+263', flag: '🇿🇼', name: 'Zimbabwe',         digits: 9  },
+  { code: '+91',  flag: '🇮🇳', name: 'India',          digits: 10 },
+  { code: '+1',   flag: '🇺🇸', name: 'USA / Canada',   digits: 10 },
+  { code: '+92',  flag: '🇵🇰', name: 'Pakistan',       digits: 10 },
+  { code: '+94',  flag: '🇱🇰', name: 'Sri Lanka',      digits: 9  },
+  { code: '+44',  flag: '🇬🇧', name: 'United Kingdom', digits: 10 },
+  { code: '+61',  flag: '🇦🇺', name: 'Australia',      digits: 9  },
+  { code: '+27',  flag: '🇿🇦', name: 'South Africa',   digits: 9  },
+  { code: '+64',  flag: '🇳🇿', name: 'New Zealand',    digits: 9  },
+  { code: '+880', flag: '🇧🇩', name: 'Bangladesh',     digits: 10 },
+  { code: '+263', flag: '🇿🇼', name: 'Zimbabwe',       digits: 9  },
 ];
 type CountryEntry = typeof COUNTRY_CODES[number];
 
-// Map ISO 3166-1 alpha-2 region codes → dial code so the picker auto-selects
-// the user's country from their device locale (e.g. "IN" → +91, "US" → +1).
 const REGION_TO_DIAL: Record<string, string> = {
   IN: '+91', US: '+1', CA: '+1', PK: '+92', LK: '+94',
   GB: '+44', AU: '+61', ZA: '+27', NZ: '+64', BD: '+880', ZW: '+263',
@@ -40,20 +59,145 @@ function detectDefaultCountry(): CountryEntry {
         if (match) return match;
       }
     }
-  } catch { /* ignore — fall through to default */ }
-  return COUNTRY_CODES[0]; // fallback: India
+  } catch { /* fall through */ }
+  return COUNTRY_CODES[0];
 }
 
-// Dot-based PIN progress indicator
+// ── Small shared components ───────────────────────────────────────────────────
+
 function PinDots({ count, max, color, dimColor }: { count: number; max: number; color: string; dimColor: string }) {
   return (
     <View style={styles.pinDots}>
       {Array.from({ length: max }).map((_, i) => (
+        <View key={i} style={[styles.pinDot, { backgroundColor: i < count ? color : dimColor }]} />
+      ))}
+    </View>
+  );
+}
+
+/** 6-box OTP input. Calls onComplete when all 6 digits are entered. */
+function OtpInput({
+  value, onChange, onComplete, disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onComplete: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const theme = useTheme();
+  const inputRef = useRef<RNTextInput>(null);
+
+  const handleChange = useCallback((text: string) => {
+    const digits = text.replace(/\D/g, '').slice(0, 6);
+    onChange(digits);
+    if (digits.length === 6) onComplete(digits);
+  }, [onChange, onComplete]);
+
+  return (
+    <TouchableOpacity activeOpacity={1} onPress={() => inputRef.current?.focus()} style={styles.otpWrap}>
+      {/* Hidden real input */}
+      <RNTextInput
+        ref={inputRef}
+        value={value}
+        onChangeText={handleChange}
+        keyboardType="number-pad"
+        maxLength={6}
+        style={styles.otpHidden}
+        autoFocus
+        editable={!disabled}
+      />
+      {/* Visual boxes */}
+      {Array.from({ length: 6 }).map((_, i) => {
+        const filled = i < value.length;
+        const active = i === value.length;
+        return (
+          <View
+            key={i}
+            style={[
+              styles.otpBox,
+              {
+                borderColor: active
+                  ? theme.colors.primary
+                  : filled
+                  ? theme.colors.outline
+                  : theme.colors.outlineVariant,
+                backgroundColor: filled ? theme.colors.primaryContainer : theme.colors.surface,
+              },
+            ]}
+          >
+            <Text style={{ fontSize: 22, fontWeight: '700', color: theme.colors.onSurface }}>
+              {value[i] ?? ''}
+            </Text>
+          </View>
+        );
+      })}
+    </TouchableOpacity>
+  );
+}
+
+/** Country picker row + dialog. */
+function CountryPicker({
+  value, onChange,
+}: {
+  value: CountryEntry;
+  onChange: (c: CountryEntry) => void;
+}) {
+  const theme = useTheme();
+  const [visible, setVisible] = useState(false);
+  return (
+    <>
+      <TouchableOpacity
+        onPress={() => setVisible(true)}
+        style={[styles.countryRow, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}
+        activeOpacity={0.7}
+      >
+        <Text style={{ fontSize: 20 }}>{value.flag}</Text>
+        <Text style={{ fontWeight: '700', color: theme.colors.onSurface, flex: 1, marginLeft: 8 }}>
+          {value.code}  {value.name}
+        </Text>
+        <MaterialCommunityIcons name="chevron-down" size={18} color={theme.colors.onSurfaceVariant} />
+      </TouchableOpacity>
+      <Portal>
+        <Dialog visible={visible} onDismiss={() => setVisible(false)}>
+          <Dialog.Title>Select Country</Dialog.Title>
+          <Dialog.ScrollArea style={{ maxHeight: 320 }}>
+            <ScrollView>
+              {COUNTRY_CODES.map(c => (
+                <TouchableOpacity
+                  key={c.code}
+                  onPress={() => { onChange(c); setVisible(false); }}
+                  style={[styles.countryOption, c.code === value.code && { backgroundColor: theme.colors.primaryContainer }]}
+                >
+                  <Text style={{ fontSize: 20 }}>{c.flag}</Text>
+                  <Text style={{ flex: 1, marginLeft: 12, color: theme.colors.onSurface }}>{c.name}</Text>
+                  <Text style={{ color: theme.colors.onSurfaceVariant, fontWeight: '700' }}>{c.code}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Dialog.ScrollArea>
+        </Dialog>
+      </Portal>
+    </>
+  );
+}
+
+// ── Step progress bar ─────────────────────────────────────────────────────────
+
+const REG_STEPS: RegStep[] = ['phone', 'otp', 'name', 'role', 'pin', 'confirm'];
+
+function StepProgress({ current, total }: { current: number; total: number }) {
+  const theme = useTheme();
+  return (
+    <View style={styles.progressWrap}>
+      {Array.from({ length: total }).map((_, i) => (
         <View
           key={i}
           style={[
-            styles.pinDot,
-            { backgroundColor: i < count ? color : dimColor },
+            styles.progressDot,
+            {
+              backgroundColor: i <= current ? theme.colors.primary : theme.colors.outlineVariant,
+              width: i === current ? 20 : 8,
+            },
           ]}
         />
       ))}
@@ -61,144 +205,265 @@ function PinDots({ count, max, color, dimColor }: { count: number; max: number; 
   );
 }
 
+// ── Main screen ───────────────────────────────────────────────────────────────
+
 export default function LoginScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { profile, sessionExpired, register, login, restoreFromCloud, restoreStatus, resetRestoreStatus } = useUserAuth();
+  const {
+    profile, sessionExpired,
+    register, login, restoreFromCloud,
+    restoreStatus, resetRestoreStatus,
+    sendOtp, verifyOtp, otpSending, otpVerifying, otpError, clearOtpError,
+  } = useUserAuth();
 
   const defaultMode: Mode = profile ? 'login' : sessionExpired ? 'restore' : 'register';
   const [mode, setMode] = useState<Mode>(defaultMode);
 
-  // Shared
-  const [pin, setPin] = useState('');
-  const [showPin, setShowPin] = useState(false);
-  const [busy, setBusy] = useState(false);
+  // ── Register wizard state ─────────────────────────────────────────────────
+  const [regStep, setRegStep] = useState<RegStep>('phone');
+  const [regCountry, setRegCountry] = useState<CountryEntry>(detectDefaultCountry);
+  const [regPhone, setRegPhone] = useState('');
+  const [regOtp, setRegOtp] = useState('');
+  const [regName, setRegName] = useState('');
+  const [regRole, setRegRole] = useState<UserRole>('scorer');
+  const [regPin, setRegPin] = useState('');
+  const [regConfirmPin, setRegConfirmPin] = useState('');
+  const [showRegPin, setShowRegPin] = useState(false);
+  const [showRegConfirmPin, setShowRegConfirmPin] = useState(false);
+  const [regError, setRegError] = useState('');
+  const [regBusy, setRegBusy] = useState(false);
+  // Countdown for OTP resend
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const resendTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Field-level errors
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // ── Login state ───────────────────────────────────────────────────────────
+  const [loginPin, setLoginPin] = useState('');
+  const [showLoginPin, setShowLoginPin] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [loginBusy, setLoginBusy] = useState(false);
 
-  // Register only
-  const [phone, setPhone] = useState('');
-  const [name, setName] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
-  const [showConfirmPin, setShowConfirmPin] = useState(false);
-  const [role, setRole] = useState<UserRole>('scorer');
-  const [country, setCountry] = useState<CountryEntry>(detectDefaultCountry);
-  const [showCountryPicker, setShowCountryPicker] = useState(false);
-
-  // Restore only
-  const [restorePhone, setRestorePhone] = useState('');
+  // ── Restore state ─────────────────────────────────────────────────────────
+  const [restoreTab, setRestoreTab] = useState<RestoreTab>('pin');
+  // PIN restore (existing)
   const [restoreCountry, setRestoreCountry] = useState<CountryEntry>(detectDefaultCountry);
-  const [showRestoreCountryPicker, setShowRestoreCountryPicker] = useState(false);
+  const [restorePhone, setRestorePhone] = useState('');
+  const [restorePin, setRestorePin] = useState('');
+  const [showRestorePin, setShowRestorePin] = useState(false);
+  const [restorePinError, setRestorePinError] = useState('');
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  // OTP restore (forgot PIN)
+  const [restoreOtpStep, setRestoreOtpStep] = useState<RestoreOtpStep>('phone');
+  const [restoreOtpCountry, setRestoreOtpCountry] = useState<CountryEntry>(detectDefaultCountry);
+  const [restoreOtpPhone, setRestoreOtpPhone] = useState('');
+  const [restoreOtpCode, setRestoreOtpCode] = useState('');
+  const [restoreNewPin, setRestoreNewPin] = useState('');
+  const [restoreConfirmPin, setRestoreConfirmPin] = useState('');
+  const [showRestoreNewPin, setShowRestoreNewPin] = useState(false);
+  const [showRestoreConfirmPin, setShowRestoreConfirmPin] = useState(false);
+  const [restoreOtpError, setRestoreOtpError] = useState('');
+  // After OTP verify, store the profile name+role so we can re-register with the new PIN
+  const [verifiedName, setVerifiedName] = useState('');
+  const [verifiedRole, setVerifiedRole] = useState<UserRole>('scorer');
 
-  // Dialogs
+  // ── Register warning dialog ───────────────────────────────────────────────
   const [registerWarningVisible, setRegisterWarningVisible] = useState(false);
 
-  // Sequential focus refs
-  const nameRef = useRef<any>(null);
-  const pinRef = useRef<any>(null);
-  const confirmPinRef = useRef<any>(null);
-  const restorePinRef = useRef<any>(null);
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
-  const pinMismatch = mode === 'register' && confirmPin.length > 0 && pin !== confirmPin;
-
-  function clearFieldError(field: string) {
-    setFieldErrors(prev => {
-      if (!prev[field]) return prev;
-      const next = { ...prev };
-      delete next[field];
-      return next;
-    });
+  function startResendCooldown() {
+    setResendCooldown(60);
+    resendTimer.current && clearInterval(resendTimer.current);
+    resendTimer.current = setInterval(() => {
+      setResendCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(resendTimer.current!);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   }
 
-  const switchMode = (next: Mode) => {
+  function switchMode(next: Mode) {
     setMode(next);
-    setPin('');
-    setConfirmPin('');
-    setShowPin(false);
-    setShowConfirmPin(false);
-    setFieldErrors({});
+    setRegStep('phone');
+    setRegPhone(''); setRegOtp(''); setRegName('');
+    setRegRole('scorer'); setRegPin(''); setRegConfirmPin('');
+    setRegError('');
+    setLoginPin(''); setLoginError('');
+    setRestorePhone(''); setRestorePin(''); setRestorePinError('');
+    setRestoreOtpStep('phone'); setRestoreOtpPhone(''); setRestoreOtpCode('');
+    setRestoreNewPin(''); setRestoreConfirmPin(''); setRestoreOtpError('');
+    setResendCooldown(0);
+    clearOtpError();
     resetRestoreStatus();
-  };
+  }
 
-  // ── Register ──────────────────────────────────────────────────────────────
-  const handleRegister = async () => {
-    const errors: Record<string, string> = {};
-    const digits = phone.replace(/\D/g, '');
-    if (!digits) errors.phone = 'Phone number is required';
-    else if (digits.length !== country.digits) errors.phone = `Enter a valid ${country.digits}-digit number for ${country.name}`;
-    if (!name.trim()) errors.name = 'Your name is required';
-    if (pin.length < 4) errors.pin = 'PIN must be at least 4 digits';
-    else if (pin !== confirmPin) errors.confirmPin = 'PINs do not match';
-    if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
+  // ── Register handlers ─────────────────────────────────────────────────────
 
-    // Store phone as countryCodeDigits + localDigits (e.g. "919876543210")
-    const fullPhone = `${country.code.replace('+', '')}${digits}`;
-    setBusy(true);
-    try {
-      await register(fullPhone, name.trim(), pin, role);
-    } finally {
-      setBusy(false);
+  async function handleSendOtp() {
+    const digits = regPhone.replace(/\D/g, '');
+    if (digits.length !== regCountry.digits) {
+      setRegError(`Enter a valid ${regCountry.digits}-digit number for ${regCountry.name}`);
+      return;
     }
-  };
+    setRegError('');
+    const fullPhone = `${regCountry.code.replace('+', '')}${digits}`;
+    const ok = await sendOtp(fullPhone);
+    if (ok) {
+      setRegPhone(digits); // store clean digits only
+      setRegStep('otp');
+      startResendCooldown();
+    } else {
+      setRegError(otpError || 'Failed to send OTP. Try again.');
+    }
+  }
 
-  // ── Restore ───────────────────────────────────────────────────────────────
-  const handleRestore = async () => {
-    const errors: Record<string, string> = {};
-    const cleaned = restorePhone.replace(/\D/g, '');
-    if (cleaned.length !== restoreCountry.digits) errors.restorePhone = `Enter a valid ${restoreCountry.digits}-digit number for ${restoreCountry.name}`;
-    if (pin.length < 4) errors.pin = 'Enter your PIN';
-    if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
+  async function handleVerifyRegOtp(code: string) {
+    const fullPhone = `${regCountry.code.replace('+', '')}${regPhone}`;
+    const result = await verifyOtp(fullPhone, code);
+    if (!result.valid) {
+      setRegOtp('');
+      setRegError(otpError || 'Incorrect code. Try again.');
+    } else {
+      setRegError('');
+      setRegStep('name');
+    }
+  }
 
-    const fullPhone = `${restoreCountry.code.replace('+', '')}${cleaned}`;
-    setBusy(true);
-    setFieldErrors({});
+  async function handleResendOtp() {
+    if (resendCooldown > 0) return;
+    const fullPhone = `${regCountry.code.replace('+', '')}${regPhone}`;
+    const ok = await sendOtp(fullPhone);
+    if (ok) {
+      setRegOtp('');
+      startResendCooldown();
+    }
+  }
+
+  async function handleFinishRegister() {
+    if (regPin.length < 4) { setRegError('PIN must be at least 4 digits'); return; }
+    if (regPin !== regConfirmPin) { setRegError('PINs do not match'); return; }
+    setRegError('');
+    setRegBusy(true);
+    const fullPhone = `${regCountry.code.replace('+', '')}${regPhone}`;
     try {
-      let ok = await restoreFromCloud(fullPhone, pin);
+      await register(fullPhone, regName.trim(), regPin, regRole);
+    } finally {
+      setRegBusy(false);
+    }
+  }
+
+  // ── Login handler ─────────────────────────────────────────────────────────
+
+  async function handleLogin() {
+    if (loginPin.length < 4) { setLoginError('Enter your PIN'); return; }
+    setLoginBusy(true);
+    try {
+      const ok = await login(loginPin);
+      if (!ok) setLoginError('Incorrect PIN. Try again.');
+    } finally {
+      setLoginBusy(false);
+    }
+  }
+
+  // ── Restore — PIN path handler ────────────────────────────────────────────
+
+  async function handlePinRestore() {
+    const cleaned = restorePhone.replace(/\D/g, '');
+    if (cleaned.length !== restoreCountry.digits) {
+      setRestorePinError(`Enter a valid ${restoreCountry.digits}-digit number`);
+      return;
+    }
+    if (restorePin.length < 4) { setRestorePinError('Enter your PIN'); return; }
+    setRestorePinError('');
+    setRestoreBusy(true);
+    try {
+      const fullPhone = `${restoreCountry.code.replace('+', '')}${cleaned}`;
+      let ok = await restoreFromCloud(fullPhone, restorePin);
       if (!ok) {
-        const { restoreStatus: status, restoreErrorMessage: msg } = useUserAuth.getState();
-        // Fallback: accounts registered before international phone support stored bare
-        // local digits with no country code prefix (e.g. "2025550101" not "12025550101").
-        // Retry with the bare digits so existing users aren't locked out after upgrade.
-        if (status === 'not_found') {
-          ok = await restoreFromCloud(cleaned, pin);
-        }
+        const { restoreStatus: s, restoreErrorMessage: msg } = useUserAuth.getState();
+        if (s === 'not_found') ok = await restoreFromCloud(cleaned, restorePin);
         if (!ok) {
-          const { restoreStatus: status2, restoreErrorMessage: msg2 } = useUserAuth.getState();
-          if (status2 === 'not_found') setFieldErrors({ restorePhone: 'No account found for this phone number.' });
-          else if (status2 === 'wrong_pin') setFieldErrors({ pin: 'Incorrect PIN. Try again.' });
-          else setFieldErrors({ pin: msg2 || msg || 'Could not restore account. Try again.' });
+          const { restoreStatus: s2, restoreErrorMessage: msg2 } = useUserAuth.getState();
+          if (s2 === 'not_found') setRestorePinError('No account found for this number.');
+          else if (s2 === 'wrong_pin') setRestorePinError('Incorrect PIN. Try again.');
+          else setRestorePinError(msg2 || msg || 'Could not restore. Try again.');
         }
       }
     } finally {
-      setBusy(false);
+      setRestoreBusy(false);
     }
-  };
+  }
 
-  // ── Login ─────────────────────────────────────────────────────────────────
-  const handleLogin = async () => {
-    if (pin.length < 4) { setFieldErrors({ pin: 'Enter your PIN' }); return; }
-    setBusy(true);
+  // ── Restore — OTP path handlers ───────────────────────────────────────────
+
+  async function handleRestoreOtpSend() {
+    const digits = restoreOtpPhone.replace(/\D/g, '');
+    if (digits.length !== restoreOtpCountry.digits) {
+      setRestoreOtpError(`Enter a valid ${restoreOtpCountry.digits}-digit number`);
+      return;
+    }
+    setRestoreOtpError('');
+    const fullPhone = `${restoreOtpCountry.code.replace('+', '')}${digits}`;
+    const ok = await sendOtp(fullPhone);
+    if (ok) {
+      setRestoreOtpPhone(digits);
+      setRestoreOtpStep('otp');
+      startResendCooldown();
+    } else {
+      setRestoreOtpError(otpError || 'Failed to send OTP. Try again.');
+    }
+  }
+
+  async function handleRestoreOtpVerify(code: string) {
+    const fullPhone = `${restoreOtpCountry.code.replace('+', '')}${restoreOtpPhone}`;
+    const result = await verifyOtp(fullPhone, code);
+    if (!result.valid) {
+      setRestoreOtpCode('');
+      setRestoreOtpError(otpError || 'Incorrect code. Try again.');
+    } else {
+      if (!result.name) {
+        setRestoreOtpError('No account found for this number. Register instead.');
+        return;
+      }
+      setVerifiedName(result.name);
+      setVerifiedRole((result.role as UserRole) ?? 'scorer');
+      setRestoreOtpError('');
+      setRestoreOtpStep('pin');
+    }
+  }
+
+  async function handleRestoreOtpSetPin() {
+    if (restoreNewPin.length < 4) { setRestoreOtpError('PIN must be at least 4 digits'); return; }
+    if (restoreNewPin !== restoreConfirmPin) { setRestoreOtpError('PINs do not match'); return; }
+    const fullPhone = `${restoreOtpCountry.code.replace('+', '')}${restoreOtpPhone}`;
+    setRestoreBusy(true);
     try {
-      const ok = await login(pin);
-      if (!ok) setFieldErrors({ pin: 'Incorrect PIN. Try again.' });
+      await register(fullPhone, verifiedName, restoreNewPin, verifiedRole);
     } finally {
-      setBusy(false);
+      setRestoreBusy(false);
     }
-  };
+  }
 
-  // ── Subtitle per mode ─────────────────────────────────────────────────────
+  // ── Derived ───────────────────────────────────────────────────────────────
+
+  const regStepIndex = REG_STEPS.indexOf(regStep);
+
   const subtitle =
-    mode === 'register' ? 'Create your player profile to get started' :
     mode === 'login'    ? `Welcome back, ${profile!.name}!` :
-                          'Use this if you switched devices or forgot your PIN';
+    mode === 'restore'  ? 'Recover access to your account' :
+                          'Create your player profile';
 
   // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: theme.colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/* Replace-account warning */}
       <Portal>
         <Dialog visible={registerWarningVisible} onDismiss={() => setRegisterWarningVisible(false)}>
           <Dialog.Icon icon="alert-circle-outline" />
@@ -222,51 +487,10 @@ export default function LoginScreen() {
         </Dialog>
       </Portal>
 
-      {/* Country code picker — register */}
-      <Portal>
-        <Dialog visible={showCountryPicker} onDismiss={() => setShowCountryPicker(false)}>
-          <Dialog.Title>Select Country</Dialog.Title>
-          <Dialog.ScrollArea style={{ maxHeight: 320 }}>
-            <ScrollView>
-              {COUNTRY_CODES.map(c => (
-                <TouchableOpacity
-                  key={c.code}
-                  onPress={() => { setCountry(c); setPhone(''); setShowCountryPicker(false); }}
-                  style={[styles.countryOption, c.code === country.code && { backgroundColor: theme.colors.primaryContainer }]}
-                >
-                  <Text style={{ fontSize: 20 }}>{c.flag}</Text>
-                  <Text style={{ flex: 1, marginLeft: 12, color: theme.colors.onSurface }}>{c.name}</Text>
-                  <Text style={{ color: theme.colors.onSurfaceVariant, fontWeight: '700' }}>{c.code}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </Dialog.ScrollArea>
-        </Dialog>
-      </Portal>
-
-      {/* Country code picker — restore */}
-      <Portal>
-        <Dialog visible={showRestoreCountryPicker} onDismiss={() => setShowRestoreCountryPicker(false)}>
-          <Dialog.Title>Select Country</Dialog.Title>
-          <Dialog.ScrollArea style={{ maxHeight: 320 }}>
-            <ScrollView>
-              {COUNTRY_CODES.map(c => (
-                <TouchableOpacity
-                  key={c.code}
-                  onPress={() => { setRestoreCountry(c); setRestorePhone(''); setShowRestoreCountryPicker(false); }}
-                  style={[styles.countryOption, c.code === restoreCountry.code && { backgroundColor: theme.colors.primaryContainer }]}
-                >
-                  <Text style={{ fontSize: 20 }}>{c.flag}</Text>
-                  <Text style={{ flex: 1, marginLeft: 12, color: theme.colors.onSurface }}>{c.name}</Text>
-                  <Text style={{ color: theme.colors.onSurfaceVariant, fontWeight: '700' }}>{c.code}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </Dialog.ScrollArea>
-        </Dialog>
-      </Portal>
-
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom, 28) }]} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom, 28) }]}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Header */}
         <View style={styles.header}>
           <View style={[styles.iconWrap, { backgroundColor: theme.colors.primary + '20' }]}>
@@ -280,166 +504,291 @@ export default function LoginScreen() {
           </Text>
         </View>
 
-        {/* ── Register form ── */}
+        {/* ── REGISTER wizard ── */}
         {mode === 'register' && (
           <View style={styles.form}>
-            <TouchableOpacity
-              onPress={() => setShowCountryPicker(true)}
-              style={[styles.countryRow, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}
-              activeOpacity={0.7}
-            >
-              <Text style={{ fontSize: 20 }}>{country.flag}</Text>
-              <Text style={{ fontWeight: '700', color: theme.colors.onSurface, flex: 1, marginLeft: 8 }}>
-                {country.code}  {country.name}
-              </Text>
-              <MaterialCommunityIcons name="chevron-down" size={18} color={theme.colors.onSurfaceVariant} />
-            </TouchableOpacity>
-            <TextInput
-              label="Phone Number"
-              value={phone}
-              onChangeText={t => { setPhone(t.replace(/[^0-9]/g, '')); clearFieldError('phone'); }}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="number-pad"
-              maxLength={country.digits}
-              placeholder={`${country.digits}-digit number`}
-              left={<TextInput.Icon icon="phone" />}
-              error={!!fieldErrors.phone}
-              autoFocus
-              returnKeyType="next"
-              onSubmitEditing={() => nameRef.current?.focus()}
-            />
-            <HelperText type={fieldErrors.phone ? 'error' : 'info'} visible={!!fieldErrors.phone || true} style={styles.helper}>
-              {fieldErrors.phone ?? `${country.digits}-digit number, no dashes or spaces`}
-            </HelperText>
+            <StepProgress current={regStepIndex} total={REG_STEPS.length} />
 
-            <TextInput
-              ref={nameRef}
-              label="Your Name"
-              value={name}
-              onChangeText={t => { setName(t); clearFieldError('name'); }}
-              mode="outlined"
-              style={styles.input}
-              placeholder="e.g., Rohit Sharma"
-              left={<TextInput.Icon icon="account" />}
-              error={!!fieldErrors.name}
-              returnKeyType="next"
-              onSubmitEditing={() => pinRef.current?.focus()}
-            />
-            {fieldErrors.name ? <HelperText type="error" style={styles.helper}>{fieldErrors.name}</HelperText> : null}
+            {/* Step: phone */}
+            {regStep === 'phone' && (
+              <View style={styles.stepBlock}>
+                <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
+                  What's your phone number?
+                </Text>
+                <CountryPicker value={regCountry} onChange={c => { setRegCountry(c); setRegPhone(''); }} />
+                <TextInput
+                  label="Phone Number"
+                  value={regPhone}
+                  onChangeText={t => { setRegPhone(t.replace(/\D/g, '')); setRegError(''); }}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="number-pad"
+                  maxLength={regCountry.digits}
+                  placeholder={`${regCountry.digits}-digit number`}
+                  left={<TextInput.Icon icon="phone" />}
+                  error={!!regError}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleSendOtp}
+                />
+                {regError ? <HelperText type="error" style={styles.helper}>{regError}</HelperText> : null}
+                <Button
+                  mode="contained"
+                  onPress={handleSendOtp}
+                  loading={otpSending}
+                  disabled={otpSending}
+                  style={[styles.button, { borderRadius: 12 }]}
+                  icon="message-text"
+                >
+                  Send OTP
+                </Button>
+                <Divider style={styles.divider} />
+                <Button mode="text" icon="login" onPress={() => switchMode(profile ? 'login' : 'restore')} style={styles.linkBtn}>
+                  Already have an account? Sign in
+                </Button>
+              </View>
+            )}
 
-            <Text variant="labelLarge" style={[styles.roleLabel, { color: theme.colors.onSurface }]}>
-              I am a…
-            </Text>
-            <View style={styles.roleGrid}>
-              {(
-                [
-                  { value: 'scorer'       as UserRole, label: 'Scorer',       icon: 'scoreboard-outline', desc: 'Score live matches' },
-                  { value: 'team_admin'   as UserRole, label: 'Team Admin',   icon: 'shield-account',     desc: 'Manage teams & players' },
-                  { value: 'league_admin' as UserRole, label: 'League Admin', icon: 'shield-crown',       desc: 'Run tournaments' },
-                  { value: 'viewer'       as UserRole, label: 'Viewer',       icon: 'eye-outline',        desc: 'Follow matches & live scores' },
-                ] as { value: UserRole; label: string; icon: string; desc: string }[]
-              ).map(r => {
-                const selected = role === r.value;
-                return (
-                  <TouchableOpacity
-                    key={r.value}
-                    onPress={() => setRole(r.value)}
-                    style={[
-                      styles.roleCard,
-                      {
-                        borderColor: selected ? theme.colors.primary : theme.colors.outlineVariant,
-                        backgroundColor: selected ? theme.colors.primaryContainer : theme.colors.surface,
-                      },
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialCommunityIcons
-                      name={r.icon as any}
-                      size={22}
-                      color={selected ? theme.colors.primary : theme.colors.onSurfaceVariant}
-                    />
-                    <Text
-                      variant="labelMedium"
-                      style={{ color: selected ? theme.colors.primary : theme.colors.onSurface, fontWeight: '700', textAlign: 'center' }}
-                    >
-                      {r.label}
-                    </Text>
-                    <Text
-                      variant="bodySmall"
-                      style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', fontSize: 10 }}
-                      numberOfLines={2}
-                    >
-                      {r.desc}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            {/* Step: OTP */}
+            {regStep === 'otp' && (
+              <View style={styles.stepBlock}>
+                <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
+                  Enter the 6-digit code
+                </Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 20 }}>
+                  Sent to {regCountry.code} {regPhone}
+                </Text>
+                {(otpVerifying) ? (
+                  <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginVertical: 24 }} />
+                ) : (
+                  <OtpInput
+                    value={regOtp}
+                    onChange={v => { setRegOtp(v); setRegError(''); }}
+                    onComplete={handleVerifyRegOtp}
+                    disabled={otpVerifying}
+                  />
+                )}
+                {regError ? (
+                  <HelperText type="error" style={[styles.helper, { textAlign: 'center' }]}>{regError}</HelperText>
+                ) : null}
+                <Button
+                  mode="text"
+                  icon="refresh"
+                  onPress={handleResendOtp}
+                  disabled={resendCooldown > 0 || otpSending}
+                  loading={otpSending}
+                  style={styles.linkBtn}
+                >
+                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
+                </Button>
+                <Button mode="text" icon="arrow-left" onPress={() => { setRegStep('phone'); setRegOtp(''); setRegError(''); clearOtpError(); }} style={styles.linkBtn}>
+                  Change number
+                </Button>
+              </View>
+            )}
 
-            <TextInput
-              ref={pinRef}
-              label="Create PIN (4–6 digits)"
-              value={pin}
-              onChangeText={t => { setPin(t.replace(/[^0-9]/g, '')); clearFieldError('pin'); }}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="numeric"
-              secureTextEntry={!showPin}
-              maxLength={6}
-              error={!!fieldErrors.pin}
-              left={<TextInput.Icon icon="lock" />}
-              right={<TextInput.Icon icon={showPin ? 'eye-off' : 'eye'} onPress={() => setShowPin(v => !v)} />}
-              returnKeyType="next"
-              onSubmitEditing={() => confirmPinRef.current?.focus()}
-            />
-            <PinDots count={pin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
-            {fieldErrors.pin ? <HelperText type="error" style={styles.helper}>{fieldErrors.pin}</HelperText> : null}
+            {/* Step: name */}
+            {regStep === 'name' && (
+              <View style={styles.stepBlock}>
+                <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
+                  What's your name?
+                </Text>
+                <TextInput
+                  label="Your Name"
+                  value={regName}
+                  onChangeText={t => { setRegName(t); setRegError(''); }}
+                  mode="outlined"
+                  style={styles.input}
+                  placeholder="e.g., Rohit Sharma"
+                  left={<TextInput.Icon icon="account" />}
+                  error={!!regError}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    if (regName.trim()) { setRegStep('role'); setRegError(''); }
+                    else setRegError('Name is required');
+                  }}
+                />
+                {regError ? <HelperText type="error" style={styles.helper}>{regError}</HelperText> : null}
+                <Button
+                  mode="contained"
+                  onPress={() => {
+                    if (!regName.trim()) { setRegError('Name is required'); return; }
+                    setRegError('');
+                    setRegStep('role');
+                  }}
+                  style={[styles.button, { borderRadius: 12 }]}
+                  icon="arrow-right"
+                >
+                  Continue
+                </Button>
+                <Button mode="text" icon="arrow-left" onPress={() => { setRegStep('otp'); setRegError(''); }} style={[styles.linkBtn, { marginTop: 8 }]}>
+                  Back
+                </Button>
+              </View>
+            )}
 
-            <TextInput
-              ref={confirmPinRef}
-              label="Confirm PIN"
-              value={confirmPin}
-              onChangeText={t => { setConfirmPin(t.replace(/[^0-9]/g, '')); clearFieldError('confirmPin'); }}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="numeric"
-              secureTextEntry={!showConfirmPin}
-              maxLength={6}
-              error={pinMismatch || !!fieldErrors.confirmPin}
-              left={<TextInput.Icon icon="lock-check" />}
-              right={<TextInput.Icon icon={showConfirmPin ? 'eye-off' : 'eye'} onPress={() => setShowConfirmPin(v => !v)} />}
-              onSubmitEditing={handleRegister}
-              returnKeyType="done"
-            />
-            <PinDots count={confirmPin.length} max={6} color={pinMismatch ? theme.colors.error : theme.colors.primary} dimColor={theme.colors.outlineVariant} />
-            {(pinMismatch || fieldErrors.confirmPin) ? (
-              <HelperText type="error" style={styles.helper}>{fieldErrors.confirmPin ?? 'PINs do not match'}</HelperText>
-            ) : null}
+            {/* Step: role */}
+            {regStep === 'role' && (
+              <View style={styles.stepBlock}>
+                <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
+                  How will you use Inningsly?
+                </Text>
+                <View style={styles.roleGrid}>
+                  {(
+                    [
+                      { value: 'scorer'       as UserRole, label: 'Scorer',       icon: 'scoreboard-outline', desc: 'Score live matches' },
+                      { value: 'team_admin'   as UserRole, label: 'Team Admin',   icon: 'shield-account',     desc: 'Manage teams & players' },
+                      { value: 'league_admin' as UserRole, label: 'League Admin', icon: 'shield-crown',       desc: 'Run tournaments' },
+                      { value: 'viewer'       as UserRole, label: 'Viewer',       icon: 'eye-outline',        desc: 'Follow matches & live scores' },
+                    ] as { value: UserRole; label: string; icon: string; desc: string }[]
+                  ).map(r => {
+                    const selected = regRole === r.value;
+                    return (
+                      <TouchableOpacity
+                        key={r.value}
+                        onPress={() => setRegRole(r.value)}
+                        style={[
+                          styles.roleCard,
+                          {
+                            borderColor: selected ? theme.colors.primary : theme.colors.outlineVariant,
+                            backgroundColor: selected ? theme.colors.primaryContainer : theme.colors.surface,
+                          },
+                        ]}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialCommunityIcons
+                          name={r.icon as any}
+                          size={26}
+                          color={selected ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                        />
+                        <Text
+                          variant="labelMedium"
+                          style={{ color: selected ? theme.colors.primary : theme.colors.onSurface, fontWeight: '700', textAlign: 'center' }}
+                        >
+                          {r.label}
+                        </Text>
+                        <Text
+                          variant="bodySmall"
+                          style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', fontSize: 10 }}
+                          numberOfLines={2}
+                        >
+                          {r.desc}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Button
+                  mode="contained"
+                  onPress={() => setRegStep('pin')}
+                  style={[styles.button, { borderRadius: 12 }]}
+                  icon="arrow-right"
+                >
+                  Continue
+                </Button>
+                <Button mode="text" icon="arrow-left" onPress={() => setRegStep('name')} style={[styles.linkBtn, { marginTop: 8 }]}>
+                  Back
+                </Button>
+              </View>
+            )}
 
-            <Button
-              mode="contained"
-              onPress={handleRegister}
-              loading={busy}
-              disabled={busy}
-              style={[styles.button, { borderRadius: 12 }]}
-              icon="account-plus"
-            >
-              Create Account
-            </Button>
-            <Divider style={styles.divider} />
-            <Button
-              mode="text"
-              icon="login"
-              onPress={() => switchMode(profile ? 'login' : 'restore')}
-              style={styles.linkBtn}
-            >
-              Already have an account? Sign in
-            </Button>
+            {/* Step: pin */}
+            {regStep === 'pin' && (
+              <View style={styles.stepBlock}>
+                <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
+                  Create a PIN
+                </Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 12 }}>
+                  Used to unlock the app on this device
+                </Text>
+                <TextInput
+                  label="Create PIN (4–6 digits)"
+                  value={regPin}
+                  onChangeText={t => { setRegPin(t.replace(/\D/g, '')); setRegError(''); }}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="numeric"
+                  secureTextEntry={!showRegPin}
+                  maxLength={6}
+                  error={!!regError}
+                  left={<TextInput.Icon icon="lock" />}
+                  right={<TextInput.Icon icon={showRegPin ? 'eye-off' : 'eye'} onPress={() => setShowRegPin(v => !v)} />}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    if (regPin.length >= 4) { setRegStep('confirm'); setRegError(''); }
+                    else setRegError('PIN must be at least 4 digits');
+                  }}
+                />
+                <PinDots count={regPin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
+                {regError ? <HelperText type="error" style={styles.helper}>{regError}</HelperText> : null}
+                <Button
+                  mode="contained"
+                  onPress={() => {
+                    if (regPin.length < 4) { setRegError('PIN must be at least 4 digits'); return; }
+                    setRegError('');
+                    setRegStep('confirm');
+                  }}
+                  style={[styles.button, { borderRadius: 12 }]}
+                  icon="arrow-right"
+                >
+                  Continue
+                </Button>
+                <Button mode="text" icon="arrow-left" onPress={() => setRegStep('role')} style={[styles.linkBtn, { marginTop: 8 }]}>
+                  Back
+                </Button>
+              </View>
+            )}
+
+            {/* Step: confirm PIN */}
+            {regStep === 'confirm' && (
+              <View style={styles.stepBlock}>
+                <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
+                  Confirm your PIN
+                </Text>
+                <TextInput
+                  label="Confirm PIN"
+                  value={regConfirmPin}
+                  onChangeText={t => { setRegConfirmPin(t.replace(/\D/g, '')); setRegError(''); }}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="numeric"
+                  secureTextEntry={!showRegConfirmPin}
+                  maxLength={6}
+                  error={!!regError}
+                  left={<TextInput.Icon icon="lock-check" />}
+                  right={<TextInput.Icon icon={showRegConfirmPin ? 'eye-off' : 'eye'} onPress={() => setShowRegConfirmPin(v => !v)} />}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleFinishRegister}
+                />
+                <PinDots
+                  count={regConfirmPin.length}
+                  max={6}
+                  color={regConfirmPin.length > 0 && regPin !== regConfirmPin ? theme.colors.error : theme.colors.primary}
+                  dimColor={theme.colors.outlineVariant}
+                />
+                {regError ? <HelperText type="error" style={styles.helper}>{regError}</HelperText> : null}
+                <Button
+                  mode="contained"
+                  onPress={handleFinishRegister}
+                  loading={regBusy}
+                  disabled={regBusy}
+                  style={[styles.button, { borderRadius: 12 }]}
+                  icon="account-plus"
+                >
+                  Create Account
+                </Button>
+                <Button mode="text" icon="arrow-left" onPress={() => { setRegStep('pin'); setRegConfirmPin(''); setRegError(''); }} style={[styles.linkBtn, { marginTop: 8 }]}>
+                  Back
+                </Button>
+              </View>
+            )}
           </View>
         )}
 
-        {/* ── Login form ── */}
+        {/* ── LOGIN ── */}
         {mode === 'login' && (
           <View style={styles.form}>
             <View style={[styles.profileChip, { backgroundColor: theme.colors.primaryContainer }]}>
@@ -456,49 +805,39 @@ export default function LoginScreen() {
 
             <TextInput
               label="Enter PIN"
-              value={pin}
-              onChangeText={t => { setPin(t.replace(/[^0-9]/g, '')); clearFieldError('pin'); }}
+              value={loginPin}
+              onChangeText={t => { setLoginPin(t.replace(/\D/g, '')); setLoginError(''); }}
               mode="outlined"
               style={styles.input}
               keyboardType="numeric"
-              secureTextEntry={!showPin}
+              secureTextEntry={!showLoginPin}
               maxLength={6}
-              error={!!fieldErrors.pin}
+              error={!!loginError}
               left={<TextInput.Icon icon="lock" />}
-              right={<TextInput.Icon icon={showPin ? 'eye-off' : 'eye'} onPress={() => setShowPin(v => !v)} />}
+              right={<TextInput.Icon icon={showLoginPin ? 'eye-off' : 'eye'} onPress={() => setShowLoginPin(v => !v)} />}
               onSubmitEditing={handleLogin}
               returnKeyType="done"
               autoFocus
             />
-            <PinDots count={pin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
-            {fieldErrors.pin ? <HelperText type="error" style={styles.helper}>{fieldErrors.pin}</HelperText> : null}
+            <PinDots count={loginPin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
+            {loginError ? <HelperText type="error" style={styles.helper}>{loginError}</HelperText> : null}
 
             <Button
               mode="contained"
               onPress={handleLogin}
-              loading={busy}
-              disabled={busy}
+              loading={loginBusy}
+              disabled={loginBusy}
               style={[styles.button, { borderRadius: 12 }]}
               icon="login"
             >
               Unlock
             </Button>
             <Divider style={styles.divider} />
-            <Button
-              mode="contained-tonal"
-              icon="account-switch"
-              onPress={() => { setRestorePhone(''); switchMode('restore'); }}
-              style={{ borderRadius: 10, marginBottom: 4 }}
-            >
+            <Button mode="contained-tonal" icon="account-switch" onPress={() => { setRestorePhone(''); switchMode('restore'); }} style={{ borderRadius: 10, marginBottom: 4 }}>
               Login as different user
             </Button>
-            <Button
-              mode="text"
-              icon="lock-reset"
-              onPress={() => switchMode('restore')}
-              style={styles.linkBtn}
-            >
-              Forgot PIN? Restore from cloud
+            <Button mode="text" icon="lock-reset" onPress={() => switchMode('restore')} style={styles.linkBtn}>
+              Forgot PIN?
             </Button>
             <Button
               mode="text"
@@ -512,86 +851,255 @@ export default function LoginScreen() {
           </View>
         )}
 
-        {/* ── Restore form ── */}
+        {/* ── RESTORE ── */}
         {mode === 'restore' && (
           <View style={styles.form}>
-            <TouchableOpacity
-              onPress={() => setShowRestoreCountryPicker(true)}
-              style={[styles.countryRow, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}
-              activeOpacity={0.7}
-            >
-              <Text style={{ fontSize: 20 }}>{restoreCountry.flag}</Text>
-              <Text style={{ fontWeight: '700', color: theme.colors.onSurface, flex: 1, marginLeft: 8 }}>
-                {restoreCountry.code}  {restoreCountry.name}
-              </Text>
-              <MaterialCommunityIcons name="chevron-down" size={18} color={theme.colors.onSurfaceVariant} />
-            </TouchableOpacity>
-            <TextInput
-              label="Phone Number"
-              value={restorePhone}
-              onChangeText={t => { setRestorePhone(t.replace(/[^0-9]/g, '')); clearFieldError('restorePhone'); }}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="number-pad"
-              maxLength={restoreCountry.digits}
-              placeholder={`${restoreCountry.digits}-digit number`}
-              left={<TextInput.Icon icon="phone" />}
-              error={!!fieldErrors.restorePhone}
-              autoFocus
-              returnKeyType="next"
-              onSubmitEditing={() => restorePinRef.current?.focus()}
-            />
-            {fieldErrors.restorePhone ? (
-              <HelperText type="error" style={styles.helper}>{fieldErrors.restorePhone}</HelperText>
-            ) : null}
+            {/* Tab toggle */}
+            <View style={[styles.restoreTabs, { borderColor: theme.colors.outlineVariant }]}>
+              {(['pin', 'otp'] as RestoreTab[]).map(tab => (
+                <TouchableOpacity
+                  key={tab}
+                  onPress={() => { setRestoreTab(tab); setRestoreOtpStep('phone'); setRestoreOtpError(''); clearOtpError(); }}
+                  style={[
+                    styles.restoreTab,
+                    tab === restoreTab && { backgroundColor: theme.colors.primaryContainer },
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <MaterialCommunityIcons
+                    name={tab === 'pin' ? 'lock-outline' : 'message-text-outline'}
+                    size={16}
+                    color={tab === restoreTab ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                  />
+                  <Text
+                    variant="labelMedium"
+                    style={{ color: tab === restoreTab ? theme.colors.primary : theme.colors.onSurfaceVariant, marginLeft: 6 }}
+                  >
+                    {tab === 'pin' ? 'I know my PIN' : 'Forgot PIN? Use OTP'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-            <TextInput
-              ref={restorePinRef}
-              label="Enter PIN"
-              value={pin}
-              onChangeText={t => { setPin(t.replace(/[^0-9]/g, '')); clearFieldError('pin'); }}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="numeric"
-              secureTextEntry={!showPin}
-              maxLength={6}
-              error={!!fieldErrors.pin}
-              left={<TextInput.Icon icon="lock" />}
-              right={<TextInput.Icon icon={showPin ? 'eye-off' : 'eye'} onPress={() => setShowPin(v => !v)} />}
-              onSubmitEditing={handleRestore}
-              returnKeyType="done"
-            />
-            <PinDots count={pin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
-            {fieldErrors.pin ? <HelperText type="error" style={styles.helper}>{fieldErrors.pin}</HelperText> : null}
-
-            {restoreStatus === 'fetching' && (
-              <HelperText type="info" style={[styles.helper, { color: theme.colors.primary }]}>
-                Connecting to server…
-              </HelperText>
+            {/* Restore — PIN sub-form */}
+            {restoreTab === 'pin' && (
+              <View style={styles.stepBlock}>
+                <CountryPicker value={restoreCountry} onChange={c => { setRestoreCountry(c); setRestorePhone(''); }} />
+                <TextInput
+                  label="Phone Number"
+                  value={restorePhone}
+                  onChangeText={t => { setRestorePhone(t.replace(/\D/g, '')); setRestorePinError(''); }}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="number-pad"
+                  maxLength={restoreCountry.digits}
+                  placeholder={`${restoreCountry.digits}-digit number`}
+                  left={<TextInput.Icon icon="phone" />}
+                  error={!!restorePinError}
+                  autoFocus
+                  returnKeyType="next"
+                />
+                <TextInput
+                  label="Enter PIN"
+                  value={restorePin}
+                  onChangeText={t => { setRestorePin(t.replace(/\D/g, '')); setRestorePinError(''); }}
+                  mode="outlined"
+                  style={[styles.input, { marginTop: 8 }]}
+                  keyboardType="numeric"
+                  secureTextEntry={!showRestorePin}
+                  maxLength={6}
+                  error={!!restorePinError}
+                  left={<TextInput.Icon icon="lock" />}
+                  right={<TextInput.Icon icon={showRestorePin ? 'eye-off' : 'eye'} onPress={() => setShowRestorePin(v => !v)} />}
+                  onSubmitEditing={handlePinRestore}
+                  returnKeyType="done"
+                />
+                <PinDots count={restorePin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
+                {restorePinError ? <HelperText type="error" style={styles.helper}>{restorePinError}</HelperText> : null}
+                {restoreStatus === 'fetching' && (
+                  <HelperText type="info" style={[styles.helper, { color: theme.colors.primary }]}>Connecting to server…</HelperText>
+                )}
+                <Button
+                  mode="contained"
+                  onPress={handlePinRestore}
+                  loading={restoreBusy}
+                  disabled={restoreBusy}
+                  style={[styles.button, { borderRadius: 12 }]}
+                  icon="cloud-download"
+                >
+                  Restore Account
+                </Button>
+              </View>
             )}
-            {restoreStatus === 'success' && (
-              <HelperText type="info" style={[styles.helper, { color: theme.colors.primary }]}>
-                Account restored successfully!
-              </HelperText>
+
+            {/* Restore — OTP sub-flow */}
+            {restoreTab === 'otp' && (
+              <View style={styles.stepBlock}>
+                {restoreOtpStep === 'phone' && (
+                  <>
+                    <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
+                      Verify your number
+                    </Text>
+                    <CountryPicker value={restoreOtpCountry} onChange={c => { setRestoreOtpCountry(c); setRestoreOtpPhone(''); }} />
+                    <TextInput
+                      label="Phone Number"
+                      value={restoreOtpPhone}
+                      onChangeText={t => { setRestoreOtpPhone(t.replace(/\D/g, '')); setRestoreOtpError(''); }}
+                      mode="outlined"
+                      style={styles.input}
+                      keyboardType="number-pad"
+                      maxLength={restoreOtpCountry.digits}
+                      placeholder={`${restoreOtpCountry.digits}-digit number`}
+                      left={<TextInput.Icon icon="phone" />}
+                      error={!!restoreOtpError}
+                      autoFocus
+                      returnKeyType="done"
+                      onSubmitEditing={handleRestoreOtpSend}
+                    />
+                    {restoreOtpError ? <HelperText type="error" style={styles.helper}>{restoreOtpError}</HelperText> : null}
+                    <Button
+                      mode="contained"
+                      onPress={handleRestoreOtpSend}
+                      loading={otpSending}
+                      disabled={otpSending}
+                      style={[styles.button, { borderRadius: 12 }]}
+                      icon="message-text"
+                    >
+                      Send OTP
+                    </Button>
+                  </>
+                )}
+
+                {restoreOtpStep === 'otp' && (
+                  <>
+                    <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
+                      Enter the 6-digit code
+                    </Text>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 20 }}>
+                      Sent to {restoreOtpCountry.code} {restoreOtpPhone}
+                    </Text>
+                    {otpVerifying ? (
+                      <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginVertical: 24 }} />
+                    ) : (
+                      <OtpInput
+                        value={restoreOtpCode}
+                        onChange={v => { setRestoreOtpCode(v); setRestoreOtpError(''); }}
+                        onComplete={handleRestoreOtpVerify}
+                        disabled={otpVerifying}
+                      />
+                    )}
+                    {restoreOtpError ? (
+                      <HelperText type="error" style={[styles.helper, { textAlign: 'center' }]}>{restoreOtpError}</HelperText>
+                    ) : null}
+                    <Button
+                      mode="text"
+                      icon="refresh"
+                      onPress={async () => {
+                        if (resendCooldown > 0) return;
+                        const fullPhone = `${restoreOtpCountry.code.replace('+', '')}${restoreOtpPhone}`;
+                        const ok = await sendOtp(fullPhone);
+                        if (ok) { setRestoreOtpCode(''); startResendCooldown(); }
+                      }}
+                      disabled={resendCooldown > 0 || otpSending}
+                      loading={otpSending}
+                      style={styles.linkBtn}
+                    >
+                      {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
+                    </Button>
+                    <Button mode="text" icon="arrow-left" onPress={() => { setRestoreOtpStep('phone'); setRestoreOtpCode(''); setRestoreOtpError(''); clearOtpError(); }} style={styles.linkBtn}>
+                      Change number
+                    </Button>
+                  </>
+                )}
+
+                {(restoreOtpStep === 'pin' || restoreOtpStep === 'confirm') && (
+                  <>
+                    <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
+                      {restoreOtpStep === 'pin' ? `Set a new PIN, ${verifiedName}` : 'Confirm your new PIN'}
+                    </Text>
+                    {restoreOtpStep === 'pin' ? (
+                      <>
+                        <TextInput
+                          label="New PIN (4–6 digits)"
+                          value={restoreNewPin}
+                          onChangeText={t => { setRestoreNewPin(t.replace(/\D/g, '')); setRestoreOtpError(''); }}
+                          mode="outlined"
+                          style={styles.input}
+                          keyboardType="numeric"
+                          secureTextEntry={!showRestoreNewPin}
+                          maxLength={6}
+                          error={!!restoreOtpError}
+                          left={<TextInput.Icon icon="lock" />}
+                          right={<TextInput.Icon icon={showRestoreNewPin ? 'eye-off' : 'eye'} onPress={() => setShowRestoreNewPin(v => !v)} />}
+                          autoFocus
+                          returnKeyType="done"
+                          onSubmitEditing={() => {
+                            if (restoreNewPin.length >= 4) { setRestoreOtpStep('confirm'); setRestoreOtpError(''); }
+                            else setRestoreOtpError('PIN must be at least 4 digits');
+                          }}
+                        />
+                        <PinDots count={restoreNewPin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
+                        {restoreOtpError ? <HelperText type="error" style={styles.helper}>{restoreOtpError}</HelperText> : null}
+                        <Button
+                          mode="contained"
+                          onPress={() => {
+                            if (restoreNewPin.length < 4) { setRestoreOtpError('PIN must be at least 4 digits'); return; }
+                            setRestoreOtpError('');
+                            setRestoreOtpStep('confirm');
+                          }}
+                          style={[styles.button, { borderRadius: 12 }]}
+                          icon="arrow-right"
+                        >
+                          Continue
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <TextInput
+                          label="Confirm PIN"
+                          value={restoreConfirmPin}
+                          onChangeText={t => { setRestoreConfirmPin(t.replace(/\D/g, '')); setRestoreOtpError(''); }}
+                          mode="outlined"
+                          style={styles.input}
+                          keyboardType="numeric"
+                          secureTextEntry={!showRestoreConfirmPin}
+                          maxLength={6}
+                          error={!!restoreOtpError}
+                          left={<TextInput.Icon icon="lock-check" />}
+                          right={<TextInput.Icon icon={showRestoreConfirmPin ? 'eye-off' : 'eye'} onPress={() => setShowRestoreConfirmPin(v => !v)} />}
+                          autoFocus
+                          returnKeyType="done"
+                          onSubmitEditing={handleRestoreOtpSetPin}
+                        />
+                        <PinDots
+                          count={restoreConfirmPin.length}
+                          max={6}
+                          color={restoreConfirmPin.length > 0 && restoreNewPin !== restoreConfirmPin ? theme.colors.error : theme.colors.primary}
+                          dimColor={theme.colors.outlineVariant}
+                        />
+                        {restoreOtpError ? <HelperText type="error" style={styles.helper}>{restoreOtpError}</HelperText> : null}
+                        <Button
+                          mode="contained"
+                          onPress={handleRestoreOtpSetPin}
+                          loading={restoreBusy}
+                          disabled={restoreBusy}
+                          style={[styles.button, { borderRadius: 12 }]}
+                          icon="lock-reset"
+                        >
+                          Reset PIN & Sign In
+                        </Button>
+                        <Button mode="text" icon="arrow-left" onPress={() => { setRestoreOtpStep('pin'); setRestoreConfirmPin(''); setRestoreOtpError(''); }} style={[styles.linkBtn, { marginTop: 8 }]}>
+                          Back
+                        </Button>
+                      </>
+                    )}
+                  </>
+                )}
+              </View>
             )}
 
-            <Button
-              mode="contained"
-              onPress={handleRestore}
-              loading={busy}
-              disabled={busy}
-              style={[styles.button, { borderRadius: 12 }]}
-              icon="cloud-download"
-            >
-              Restore Account
-            </Button>
             <Divider style={styles.divider} />
-            <Button
-              mode="text"
-              icon="arrow-left"
-              onPress={() => switchMode(profile ? 'login' : 'register')}
-              style={styles.linkBtn}
-            >
+            <Button mode="text" icon="arrow-left" onPress={() => switchMode(profile ? 'login' : 'register')} style={styles.linkBtn}>
               Back
             </Button>
           </View>
@@ -601,24 +1109,34 @@ export default function LoginScreen() {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 28 }, // paddingBottom overridden inline with insets
-  header: { alignItems: 'center', marginBottom: 36 },
-  iconWrap: { width: 80, height: 80, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  appName: { fontWeight: '900', marginBottom: 8 },
-  form: { gap: 0 },
-  input: { marginBottom: 0 },
-  helper: { marginBottom: 6, marginTop: -4 },
-  profileChip: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, marginBottom: 16 },
-  button: { marginTop: 16 },
-  divider: { marginVertical: 20 },
-  linkBtn: { alignSelf: 'center' },
-  roleLabel: { marginTop: 12, marginBottom: 8, fontWeight: '700' },
-  roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-  roleCard: { flex: 1, minWidth: '44%', maxWidth: '48%', borderWidth: 2, borderRadius: 12, padding: 10, alignItems: 'center', gap: 4 },
-  pinDots: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 6, marginBottom: 10 },
-  pinDot: { width: 10, height: 10, borderRadius: 5 },
-  countryRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 8 },
+  root:          { flex: 1 },
+  scroll:        { flexGrow: 1, justifyContent: 'center', padding: 28 },
+  header:        { alignItems: 'center', marginBottom: 32 },
+  iconWrap:      { width: 80, height: 80, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  appName:       { fontWeight: '900', marginBottom: 8 },
+  form:          { gap: 0 },
+  stepBlock:     { gap: 0 },
+  stepTitle:     { fontWeight: '700', textAlign: 'center', marginBottom: 20 },
+  input:         { marginBottom: 0 },
+  helper:        { marginBottom: 6, marginTop: -4 },
+  button:        { marginTop: 16 },
+  divider:       { marginVertical: 20 },
+  linkBtn:       { alignSelf: 'center' },
+  profileChip:   { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, marginBottom: 16 },
+  roleGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  roleCard:      { flex: 1, minWidth: '44%', maxWidth: '48%', borderWidth: 2, borderRadius: 12, padding: 12, alignItems: 'center', gap: 6 },
+  pinDots:       { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 6, marginBottom: 10 },
+  pinDot:        { width: 10, height: 10, borderRadius: 5 },
+  countryRow:    { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 8 },
   countryOption: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8 },
+  progressWrap:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 28 },
+  progressDot:   { height: 8, borderRadius: 4 },
+  restoreTabs:   { flexDirection: 'row', borderWidth: 1, borderRadius: 12, overflow: 'hidden', marginBottom: 20 },
+  restoreTab:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 8 },
+  otpWrap:       { flexDirection: 'row', gap: 8, justifyContent: 'center', marginBottom: 8 },
+  otpHidden:     { position: 'absolute', width: 1, height: 1, opacity: 0 },
+  otpBox:        { width: 44, height: 54, borderWidth: 2, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
 });

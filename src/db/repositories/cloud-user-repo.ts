@@ -105,3 +105,61 @@ export async function verifyUserProfile(
 
   return { status: 'error', message: 'Server is waking up — please try again.' };
 }
+
+// ── OTP via Twilio Verify edge functions ──────────────────────────────────────
+
+export type OtpSendResult =
+  | { success: true }
+  | { success: false; error: string };
+
+export type OtpVerifyResult =
+  | { valid: true; name?: string; role?: string }
+  | { valid: false; error?: string };
+
+/**
+ * Trigger a Twilio Verify SMS OTP for the given phone number.
+ * Phone should be in stored format (e.g. "919876543210") — the edge function
+ * prepends "+" to produce E.164 before calling Twilio.
+ */
+export async function sendOtp(phone: string): Promise<OtpSendResult> {
+  if (!isCloudEnabled || !supabase) {
+    return { success: false, error: 'Cloud not enabled' };
+  }
+  try {
+    const { data, error } = await supabase.functions.invoke('send-otp', {
+      body: { phone },
+    });
+    if (error) throw error;
+    const res = data as { success: boolean; error?: string };
+    if (!res.success) return { success: false, error: res.error ?? 'Failed to send OTP' };
+    return { success: true };
+  } catch (err) {
+    const message = (err as { message?: string })?.message ?? String(err);
+    console.error('[cloud-user-repo] sendOtp failed:', message);
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Verify a Twilio OTP code for the given phone number.
+ * On success, also returns the existing profile name+role if the phone is
+ * already registered (used for the forgot-PIN restore flow).
+ */
+export async function verifyOtp(phone: string, code: string): Promise<OtpVerifyResult> {
+  if (!isCloudEnabled || !supabase) {
+    return { valid: false, error: 'Cloud not enabled' };
+  }
+  try {
+    const { data, error } = await supabase.functions.invoke('verify-otp', {
+      body: { phone, code },
+    });
+    if (error) throw error;
+    const res = data as { valid: boolean; name?: string; role?: string; error?: string };
+    if (!res.valid) return { valid: false, error: res.error };
+    return { valid: true, name: res.name, role: res.role };
+  } catch (err) {
+    const message = (err as { message?: string })?.message ?? String(err);
+    console.error('[cloud-user-repo] verifyOtp failed:', message);
+    return { valid: false, error: message };
+  }
+}

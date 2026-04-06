@@ -16,7 +16,7 @@ import * as Crypto from 'expo-crypto';
 import * as prefsRepo from '../db/repositories/prefs-repo';
 import * as cloudUserRepo from '../db/repositories/cloud-user-repo';
 import type { UserProfile, UserRole } from '../engine/types';
-import type { VerifyResult } from '../db/repositories/cloud-user-repo';
+import type { VerifyResult, OtpVerifyResult } from '../db/repositories/cloud-user-repo';
 
 export type RestoreStatus = 'idle' | 'fetching' | 'not_found' | 'wrong_pin' | 'error' | 'success';
 export type RestoreStatusWithMessage = { status: RestoreStatus; errorMessage?: string };
@@ -49,6 +49,13 @@ interface UserAuthStore {
    */
   loginLockedUntil: number;
 
+  /** True while an OTP SMS is being dispatched via the edge function. */
+  otpSending: boolean;
+  /** True while an OTP code is being verified via the edge function. */
+  otpVerifying: boolean;
+  /** Error message from the last OTP send or verify call. Empty string when idle. */
+  otpError: string;
+
   /** Load stored profile from local DB — call once on app startup. */
   loadProfile: () => Promise<void>;
 
@@ -77,6 +84,23 @@ interface UserAuthStore {
 
   /** Sign out — clear in-memory session (profile stays in local DB + cloud). */
   logout: () => void;
+
+  /**
+   * Send a Twilio Verify OTP SMS to the given phone.
+   * Phone should be in stored format e.g. "919876543210".
+   * Returns true on success; sets otpError on failure.
+   */
+  sendOtp: (phone: string) => Promise<boolean>;
+
+  /**
+   * Verify the 6-digit OTP code against Twilio Verify.
+   * Returns OtpVerifyResult — callers get { valid, name?, role? }.
+   * Sets otpError on failure.
+   */
+  verifyOtp: (phone: string, code: string) => Promise<OtpVerifyResult>;
+
+  /** Clear any OTP error (e.g. when navigating back a step). */
+  clearOtpError: () => void;
 }
 
 async function hashPin(pin: string): Promise<string> {
@@ -92,6 +116,9 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
   restoreErrorMessage: '',
   loginAttempts: 0,
   loginLockedUntil: 0,
+  otpSending: false,
+  otpVerifying: false,
+  otpError: '',
 
   loadProfile: async () => {
     try {
@@ -206,4 +233,40 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
   logout: () => {
     set({ isAuthenticated: false });
   },
+
+  sendOtp: async (phone) => {
+    set({ otpSending: true, otpError: '' });
+    try {
+      const result = await cloudUserRepo.sendOtp(phone);
+      if (!result.success) {
+        set({ otpError: result.error });
+        return false;
+      }
+      return true;
+    } catch (err) {
+      set({ otpError: (err as { message?: string })?.message ?? 'Failed to send OTP' });
+      return false;
+    } finally {
+      set({ otpSending: false });
+    }
+  },
+
+  verifyOtp: async (phone, code) => {
+    set({ otpVerifying: true, otpError: '' });
+    try {
+      const result = await cloudUserRepo.verifyOtp(phone, code);
+      if (!result.valid) {
+        set({ otpError: result.error ?? 'Incorrect code. Try again.' });
+      }
+      return result;
+    } catch (err) {
+      const message = (err as { message?: string })?.message ?? 'Verification failed';
+      set({ otpError: message });
+      return { valid: false, error: message };
+    } finally {
+      set({ otpVerifying: false });
+    }
+  },
+
+  clearOtpError: () => set({ otpError: '' }),
 }));
