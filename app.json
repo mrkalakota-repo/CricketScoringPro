@@ -62,7 +62,8 @@
         {
           "cameraPermission": false
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "extra": {
       "router": {},

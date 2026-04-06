@@ -3,6 +3,7 @@ import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Touchable
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, TextInput, Button, useTheme, HelperText, Divider, Portal, Dialog } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { getLocales } from 'expo-localization';
 import { useUserAuth } from '../src/hooks/useUserAuth';
 import type { UserRole } from '../src/engine/types';
 
@@ -21,6 +22,27 @@ const COUNTRY_CODES = [
   { code: '+263', flag: '🇿🇼', name: 'Zimbabwe',         digits: 9  },
 ];
 type CountryEntry = typeof COUNTRY_CODES[number];
+
+// Map ISO 3166-1 alpha-2 region codes → dial code so the picker auto-selects
+// the user's country from their device locale (e.g. "IN" → +91, "US" → +1).
+const REGION_TO_DIAL: Record<string, string> = {
+  IN: '+91', US: '+1', CA: '+1', PK: '+92', LK: '+94',
+  GB: '+44', AU: '+61', ZA: '+27', NZ: '+64', BD: '+880', ZW: '+263',
+};
+
+function detectDefaultCountry(): CountryEntry {
+  try {
+    const locales = getLocales();
+    for (const locale of locales) {
+      const region = locale.regionCode;
+      if (region && REGION_TO_DIAL[region]) {
+        const match = COUNTRY_CODES.find(c => c.code === REGION_TO_DIAL[region]);
+        if (match) return match;
+      }
+    }
+  } catch { /* ignore — fall through to default */ }
+  return COUNTRY_CODES[0]; // fallback: India
+}
 
 // Dot-based PIN progress indicator
 function PinDots({ count, max, color, dimColor }: { count: number; max: number; color: string; dimColor: string }) {
@@ -61,12 +83,12 @@ export default function LoginScreen() {
   const [confirmPin, setConfirmPin] = useState('');
   const [showConfirmPin, setShowConfirmPin] = useState(false);
   const [role, setRole] = useState<UserRole>('scorer');
-  const [country, setCountry] = useState<CountryEntry>(COUNTRY_CODES[0]); // default +91
+  const [country, setCountry] = useState<CountryEntry>(detectDefaultCountry);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
 
   // Restore only
   const [restorePhone, setRestorePhone] = useState('');
-  const [restoreCountry, setRestoreCountry] = useState<CountryEntry>(COUNTRY_CODES[0]);
+  const [restoreCountry, setRestoreCountry] = useState<CountryEntry>(detectDefaultCountry);
   const [showRestoreCountryPicker, setShowRestoreCountryPicker] = useState(false);
 
   // Dialogs

@@ -17,6 +17,8 @@ const uuidv4 = () => Crypto.randomUUID();
 
 type Step = 'format' | 'teams' | 'playing_xi' | 'venue' | 'confirm';
 
+const MIN_PLAYERS = 6;
+
 export default function CreateMatchScreen() {
   const router = useRouter();
   const theme = useTheme();
@@ -108,11 +110,13 @@ export default function CreateMatchScreen() {
     router.replace(`/match/${matchId}/toss`);
   };
 
-  const canProceedTeams = team1Id && team2Id && team1Id !== team2Id;
-  // Standard formats require exactly 11 players per side; custom format is flexible
+  const team1HasEnough = (team1?.players.length ?? 0) >= MIN_PLAYERS;
+  const team2HasEnough = (team2?.players.length ?? 0) >= MIN_PLAYERS;
+  const canProceedTeams = team1Id && team2Id && team1Id !== team2Id && team1HasEnough && team2HasEnough;
+  // Standard formats require exactly 11 players per side; custom format requires at least MIN_PLAYERS
   const requiredXI = format === 'custom' ? null : 11;
   const canProceedXI = requiredXI === null
-    ? (team1XI.size >= 1 && team2XI.size >= 1)
+    ? (team1XI.size >= MIN_PLAYERS && team2XI.size >= MIN_PLAYERS)
     : (team1XI.size === requiredXI && team2XI.size === requiredXI);
 
   const STEP_ORDER: Step[] = ['format', 'teams', 'playing_xi', 'venue', 'confirm'];
@@ -210,49 +214,77 @@ export default function CreateMatchScreen() {
             ) : (
               <>
                 <Text variant="titleSmall" style={{ marginBottom: 8 }}>Team 1</Text>
-                {teams.map(t => (
-                  <Card
-                    key={`t1-${t.id}`}
-                    style={[styles.optionCard, team1Id === t.id && { borderColor: theme.colors.primary, borderWidth: 2 }]}
-                    onPress={() => { setTeam1Id(t.id); if (t.id === team2Id) setTeam2Id(null); }}
-                  >
-                    <Card.Content style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <RadioButton
-                        value={t.id}
-                        status={team1Id === t.id ? 'checked' : 'unchecked'}
-                        onPress={() => { setTeam1Id(t.id); if (t.id === team2Id) setTeam2Id(null); }}
-                      />
-                      <View>
-                        <Text variant="titleSmall">{t.name} ({t.shortName})</Text>
-                        <Text variant="bodySmall" style={{ color: '#666' }}>{t.players.length} players</Text>
-                      </View>
-                    </Card.Content>
-                  </Card>
-                ))}
+                {teams.map(t => {
+                  const tooFew = t.players.length < MIN_PLAYERS;
+                  return (
+                    <Card
+                      key={`t1-${t.id}`}
+                      style={[
+                        styles.optionCard,
+                        team1Id === t.id && { borderColor: tooFew ? theme.colors.error : theme.colors.primary, borderWidth: 2 },
+                      ]}
+                      onPress={() => { setTeam1Id(t.id); if (t.id === team2Id) setTeam2Id(null); }}
+                    >
+                      <Card.Content style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <RadioButton
+                          value={t.id}
+                          status={team1Id === t.id ? 'checked' : 'unchecked'}
+                          onPress={() => { setTeam1Id(t.id); if (t.id === team2Id) setTeam2Id(null); }}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text variant="titleSmall">{t.name} ({t.shortName})</Text>
+                          <Text variant="bodySmall" style={{ color: tooFew ? theme.colors.error : theme.colors.onSurfaceVariant }}>
+                            {t.players.length} players{tooFew ? ` — needs at least ${MIN_PLAYERS}` : ''}
+                          </Text>
+                        </View>
+                        {tooFew && <MaterialCommunityIcons name="alert-circle-outline" size={18} color={theme.colors.error} />}
+                      </Card.Content>
+                    </Card>
+                  );
+                })}
 
                 <Divider style={{ marginVertical: 16 }} />
 
                 <Text variant="titleSmall" style={{ marginBottom: 8 }}>Team 2</Text>
-                {teams.filter(t => t.id !== team1Id).map(t => (
-                  <Card
-                    key={`t2-${t.id}`}
-                    style={[styles.optionCard, team2Id === t.id && { borderColor: theme.colors.primary, borderWidth: 2 }]}
-                    onPress={() => setTeam2Id(t.id)}
-                  >
-                    <Card.Content style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <RadioButton
-                        value={t.id}
-                        status={team2Id === t.id ? 'checked' : 'unchecked'}
-                        onPress={() => setTeam2Id(t.id)}
-                      />
-                      <View>
-                        <Text variant="titleSmall">{t.name} ({t.shortName})</Text>
-                        <Text variant="bodySmall" style={{ color: '#666' }}>{t.players.length} players</Text>
-                      </View>
-                    </Card.Content>
-                  </Card>
-                ))}
+                {teams.filter(t => t.id !== team1Id).map(t => {
+                  const tooFew = t.players.length < MIN_PLAYERS;
+                  return (
+                    <Card
+                      key={`t2-${t.id}`}
+                      style={[
+                        styles.optionCard,
+                        team2Id === t.id && { borderColor: tooFew ? theme.colors.error : theme.colors.primary, borderWidth: 2 },
+                      ]}
+                      onPress={() => setTeam2Id(t.id)}
+                    >
+                      <Card.Content style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <RadioButton
+                          value={t.id}
+                          status={team2Id === t.id ? 'checked' : 'unchecked'}
+                          onPress={() => setTeam2Id(t.id)}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text variant="titleSmall">{t.name} ({t.shortName})</Text>
+                          <Text variant="bodySmall" style={{ color: tooFew ? theme.colors.error : theme.colors.onSurfaceVariant }}>
+                            {t.players.length} players{tooFew ? ` — needs at least ${MIN_PLAYERS}` : ''}
+                          </Text>
+                        </View>
+                        {tooFew && <MaterialCommunityIcons name="alert-circle-outline" size={18} color={theme.colors.error} />}
+                      </Card.Content>
+                    </Card>
+                  );
+                })}
 
+                {team1Id && team2Id && (!team1HasEnough || !team2HasEnough) && (
+                  <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4, marginBottom: 8 }}>
+                    {!team1HasEnough && !team2HasEnough
+                      ? `Both teams need at least ${MIN_PLAYERS} players to play.`
+                      : !team1HasEnough
+                      ? `${team1?.name} needs at least ${MIN_PLAYERS} players to play.`
+                      : `${team2?.name} needs at least ${MIN_PLAYERS} players to play.`}
+                    {' '}Add players from the Teams tab first.
+                  </Text>
+                )}
                 <View style={styles.navButtons}>
                   <Button mode="text" onPress={() => setStep('format')}>Back</Button>
                   <Button mode="contained" onPress={() => {
@@ -278,8 +310,8 @@ export default function CreateMatchScreen() {
 
             <Text variant="titleSmall" style={{ marginBottom: 8 }}>
               {team1.name}{' '}
-              <Text style={{ color: requiredXI !== null && team1XI.size !== requiredXI ? '#B00020' : '#1B6B28' }}>
-                ({team1XI.size}{requiredXI !== null ? `/${requiredXI}` : `/${team1.players.length}`} selected)
+              <Text style={{ color: requiredXI !== null ? (team1XI.size !== requiredXI ? theme.colors.error : theme.colors.primary) : (team1XI.size < MIN_PLAYERS ? theme.colors.error : theme.colors.primary) }}>
+                ({team1XI.size}{requiredXI !== null ? `/${requiredXI}` : ` — min ${MIN_PLAYERS}`} selected)
               </Text>
             </Text>
             {team1.players.map(p => (
@@ -299,8 +331,8 @@ export default function CreateMatchScreen() {
 
             <Text variant="titleSmall" style={{ marginBottom: 8 }}>
               {team2.name}{' '}
-              <Text style={{ color: requiredXI !== null && team2XI.size !== requiredXI ? '#B00020' : '#1B6B28' }}>
-                ({team2XI.size}{requiredXI !== null ? `/${requiredXI}` : `/${team2.players.length}`} selected)
+              <Text style={{ color: requiredXI !== null ? (team2XI.size !== requiredXI ? theme.colors.error : theme.colors.primary) : (team2XI.size < MIN_PLAYERS ? theme.colors.error : theme.colors.primary) }}>
+                ({team2XI.size}{requiredXI !== null ? `/${requiredXI}` : ` — min ${MIN_PLAYERS}`} selected)
               </Text>
             </Text>
             {team2.players.map(p => (
