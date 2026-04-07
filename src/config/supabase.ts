@@ -14,6 +14,7 @@ const isValidKey =
   (SUPABASE_ANON_KEY.length > 100 || SUPABASE_ANON_KEY.startsWith('sb_publishable_'));
 
 export const isCloudEnabled = isValidUrl && isValidKey;
+export const SUPABASE_ANON_KEY_VALUE = SUPABASE_ANON_KEY;
 
 if (!isCloudEnabled && (SUPABASE_URL || SUPABASE_ANON_KEY)) {
   console.warn('[supabase] Cloud sync disabled — fill in real credentials in .env');
