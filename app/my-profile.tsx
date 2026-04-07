@@ -306,6 +306,19 @@ export default function MyProfileScreen() {
 
         <Divider style={styles.divider} />
 
+        {/* Privacy Policy */}
+        <Button
+          mode="text"
+          icon="shield-account-outline"
+          textColor={theme.colors.onSurfaceVariant}
+          style={styles.button}
+          onPress={() => router.push('/privacy')}
+        >
+          Privacy Policy
+        </Button>
+
+        <Divider style={styles.divider} />
+
         {/* Logout */}
         <Button
           mode="outlined"
