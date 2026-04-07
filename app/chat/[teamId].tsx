@@ -5,6 +5,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTeamStore } from '../../src/store/team-store';
+import { usePrefsStore } from '../../src/store/prefs-store';
 import { useChatStore } from '../../src/store/chat-store';
 import { useUserAuth } from '../../src/hooks/useUserAuth';
 import { isCloudEnabled } from '../../src/config/supabase';
@@ -35,6 +36,14 @@ export default function ChatScreen() {
   const { messages, identity, loading, loadMessages, loadIdentity, setIdentity, sendMessage, appendMessage } = useChatStore();
 
   const team = teams.find(t => t.id === teamId);
+  const myTeamIds = usePrefsStore(s => s.myTeamIds);
+  const playerTeamIds = usePrefsStore(s => s.playerTeamIds);
+  const delegateTeamIds = usePrefsStore(s => s.delegateTeamIds);
+  const isMember = !!teamId && (
+    myTeamIds.includes(teamId) ||
+    playerTeamIds.includes(teamId) ||
+    delegateTeamIds.includes(teamId)
+  );
   const teamMessages = messages[teamId ?? ''] ?? [];
   const myIdentity = identity[teamId ?? ''];
   const { profile: userProfile } = useUserAuth();
@@ -117,6 +126,21 @@ export default function ChatScreen() {
       <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
         <Stack.Screen options={{ title: 'Team Chat' }} />
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>Team not found</Text>
+      </View>
+    );
+  }
+
+  if (!isMember) {
+    return (
+      <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
+        <Stack.Screen options={{ title: 'Team Chat' }} />
+        <MaterialCommunityIcons name="chat-remove-outline" size={56} color={theme.colors.outlineVariant} />
+        <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, textAlign: 'center' }}>
+          Members only
+        </Text>
+        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>
+          You must be a member of {team.name} to access team chat.
+        </Text>
       </View>
     );
   }

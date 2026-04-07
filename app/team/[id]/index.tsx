@@ -29,6 +29,7 @@ export default function TeamDetailScreen() {
   const team = teams.find(t => t.id === teamId);
 
   const myTeamIds = usePrefsStore(s => s.myTeamIds);
+  const playerTeamIds = usePrefsStore(s => s.playerTeamIds);
   const delegateTeamIds = usePrefsStore(s => s.delegateTeamIds);
   const addDelegateTeam = usePrefsStore(s => s.addDelegateTeam);
   const isAdmin = useAdminAuth(s => s.isAdmin);
@@ -72,8 +73,10 @@ export default function TeamDetailScreen() {
   }
 
   const isMyTeam = myTeamIds.includes(team.id);
+  const isPlayerTeam = playerTeamIds.includes(team.id);
   const isDelegate = !isMyTeam && delegateTeamIds.includes(team.id);
   const hasEditAccess = isMyTeam || isDelegate;
+  const isMember = isMyTeam || isPlayerTeam || isDelegate;
   const adminUnlocked = isMyTeam && isAdmin(team.id, team.adminPinHash);
 
   const requireAdmin = (action: PendingAction, callback: () => void) => {
@@ -299,7 +302,7 @@ export default function TeamDetailScreen() {
               Edit Team
             </Button>
           )}
-          {isCloudEnabled && (
+          {isCloudEnabled && isMember && (
             <Button
               mode="outlined"
               icon="chat"
