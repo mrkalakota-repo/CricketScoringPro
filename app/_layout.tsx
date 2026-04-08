@@ -12,7 +12,7 @@ import { useUserAuth } from '../src/hooks/useUserAuth';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { stopDrainTimer } from '../src/db/repositories/cloud-match-repo';
 import { configurePurchases, getCurrentPlan, loginPurchasesUser, logoutPurchasesUser } from '../src/services/purchases';
-import LoginScreen from './login';
+
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -112,7 +112,12 @@ export default function RootLayout() {
   }
 
   if (!isAuthenticated) {
-    const loginContent = <LoginScreen />;
+    const unauthNav = (
+      <Stack screenOptions={screenOptions}>
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="privacy" options={{ title: 'Privacy Policy' }} />
+      </Stack>
+    );
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
@@ -120,10 +125,10 @@ export default function RootLayout() {
             {Platform.OS === 'web' ? (
               <View style={{ flex: 1, alignItems: 'center', backgroundColor: colorScheme === 'dark' ? theme.colors.background : '#C8E8CA' }}>
                 <View style={{ flex: 1, width: '100%', maxWidth: 480, backgroundColor: theme.colors.background }}>
-                  {loginContent}
+                  {unauthNav}
                 </View>
               </View>
-            ) : loginContent}
+            ) : unauthNav}
           </PaperProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>

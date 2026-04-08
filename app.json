@@ -2,7 +2,7 @@
   "expo": {
     "name": "Inningsly",
     "slug": "gully-cricket-scorer",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -17,12 +17,13 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.gullycricket.scorer",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Used to show nearby cricket teams first."
+        "NSLocationWhenInUseUsageDescription": "Used to show nearby cricket teams first.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.gullycricket.scorer",
-      "versionCode": 11,
+      "versionCode": 12,
       "adaptiveIcon": {
         "backgroundColor": "#00695C",
         "foregroundImage": "./assets/android-icon-foreground.png",
