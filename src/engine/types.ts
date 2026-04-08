@@ -75,12 +75,19 @@ export interface Player {
  */
 export type UserRole = 'viewer' | 'scorer' | 'team_admin' | 'league_admin';
 
+/**
+ * Subscription tier hierarchy (least → most privileged):
+ *   free → pro → league
+ */
+export type UserPlan = 'free' | 'pro' | 'league';
+
 /** Logged-in user profile stored locally */
 export interface UserProfile {
   phone: string;
   name: string;
   pinHash: string; // SHA-256 of the user's PIN
   role: UserRole;
+  plan: UserPlan;
 }
 
 export interface Team {

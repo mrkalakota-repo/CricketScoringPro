@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Stack } from 'expo-router';
 import { PaperProvider } from 'react-native-paper';
 import { useColorScheme, Platform, View, ActivityIndicator, AppState } from 'react-native';
@@ -11,6 +11,7 @@ import { usePrefsStore } from '../src/store/prefs-store';
 import { useUserAuth } from '../src/hooks/useUserAuth';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { stopDrainTimer } from '../src/db/repositories/cloud-match-repo';
+import { configurePurchases, getCurrentPlan, loginPurchasesUser, logoutPurchasesUser } from '../src/services/purchases';
 import LoginScreen from './login';
 
 export default function RootLayout() {
@@ -19,7 +20,9 @@ export default function RootLayout() {
   const loadTeams = useTeamStore(s => s.loadTeams);
   const loadMatches = useMatchStore(s => s.loadMatches);
   const loadPrefs = usePrefsStore(s => s.loadPrefs);
-  const { loadProfile, isLoading, isAuthenticated } = useUserAuth();
+  const { loadProfile, isLoading, isAuthenticated, profile, updateProfile } = useUserAuth();
+  // Track previous auth state to detect login/logout transitions
+  const prevAuthRef = useRef<boolean | null>(null);
 
   // Re-load data whenever auth resolves or the user logs in/out, so the
   // home screen stats (teams, matches, live) are always current without
@@ -31,7 +34,9 @@ export default function RootLayout() {
     }
   }, [isLoading, isAuthenticated]);
 
+  // Configure RevenueCat once on mount (no-op if API key not set)
   useEffect(() => {
+    configurePurchases();
     loadProfile();
     loadPrefs();
 
@@ -47,6 +52,28 @@ export default function RootLayout() {
       stopDrainTimer();
     };
   }, []);
+
+  // RC user login/logout + background plan sync whenever auth state changes
+  useEffect(() => {
+    if (isLoading) return;
+    const wasAuthenticated = prevAuthRef.current;
+    prevAuthRef.current = isAuthenticated;
+
+    if (isAuthenticated && profile) {
+      // Associate this device's RC anonymous user with the phone number
+      loginPurchasesUser(profile.phone);
+
+      // Background plan sync: if RC disagrees with stored plan, reconcile
+      getCurrentPlan().then(rcPlan => {
+        if (rcPlan !== profile.plan) {
+          updateProfile(profile.name, undefined, undefined, rcPlan).catch(() => {});
+        }
+      });
+    } else if (wasAuthenticated === true && !isAuthenticated) {
+      // User signed out — switch RC back to anonymous
+      logoutPurchasesUser();
+    }
+  }, [isLoading, isAuthenticated, profile?.phone]);
 
   const screenOptions = {
     headerStyle: { backgroundColor: theme.colors.primary },
@@ -68,6 +95,7 @@ export default function RootLayout() {
       <Stack.Screen name="match/[id]/scoring" options={{ title: 'Scoring', headerShown: false }} />
       <Stack.Screen name="match/[id]/scorecard" options={{ title: 'Scorecard' }} />
       <Stack.Screen name="profile" options={{ title: 'Find My Profile', presentation: 'modal' }} />
+      <Stack.Screen name="upgrade" options={{ title: 'Upgrade Plan', presentation: 'modal' }} />
     </Stack>
   );
 

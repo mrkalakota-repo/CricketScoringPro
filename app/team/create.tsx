@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTeamStore } from '../../src/store/team-store';
 import { useAdminAuth, hashAdminPin } from '../../src/hooks/useAdminAuth';
 import { usePrefsStore } from '../../src/store/prefs-store';
+import { usePlan, PLAN_LIMITS } from '../../src/hooks/usePlan';
+import { UpgradeSheet } from '../../src/components/UpgradeSheet';
 import * as teamRepo from '../../src/db/repositories/team-repo';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -20,6 +22,8 @@ export default function CreateTeamScreen() {
   const authenticate = useAdminAuth(s => s.authenticate);
   const addMyTeam = usePrefsStore(s => s.addMyTeam);
   const myTeamIds = usePrefsStore(s => s.myTeamIds);
+  const { plan, canCreateTeam } = usePlan();
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
@@ -78,27 +82,37 @@ export default function CreateTeamScreen() {
     }
   };
 
-  const ownedTeam = myTeamIds.length > 0 ? teams.find(t => t.id === myTeamIds[0]) : null;
+  if (!canCreateTeam(myTeamIds.length)) {
+    const atLimit = myTeamIds.length >= PLAN_LIMITS[plan].maxOwnedTeams;
+    const requiredPlan = plan === 'free' ? 'pro' : 'league';
+    const firstOwnedTeam = myTeamIds.length > 0 ? teams.find(t => t.id === myTeamIds[0]) : null;
 
-  if (ownedTeam) {
     return (
       <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}>
         <View style={styles.form}>
           <View style={styles.header}>
             <View style={[styles.headerIcon, { backgroundColor: theme.colors.primary + '18' }]}>
-              <MaterialCommunityIcons name="shield-account" size={32} color={theme.colors.primary} />
+              <MaterialCommunityIcons name="crown-outline" size={32} color={theme.colors.primary} />
             </View>
             <Text variant="headlineSmall" style={[styles.title, { color: theme.colors.primary }]}>
-              One Team Per Player
+              Team Limit Reached
             </Text>
             <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-              You already manage <Text style={{ fontWeight: '700' }}>{ownedTeam.name}</Text>.
-              Each player can only create one team.
+              {plan === 'free'
+                ? 'Free accounts can manage 1 team. Upgrade to Pro to create up to 3 teams.'
+                : 'Pro accounts can manage 3 teams. Upgrade to League Pro for unlimited teams.'}
             </Text>
           </View>
-          <Button mode="contained" icon="shield-account" onPress={() => router.replace(`/team/${ownedTeam.id}`)}>
-            Go to My Team
-          </Button>
+          {atLimit && (
+            <Button mode="contained" icon="crown-outline" onPress={() => router.push('/upgrade')} style={styles.button}>
+              Upgrade Plan
+            </Button>
+          )}
+          {firstOwnedTeam && (
+            <Button mode="outlined" icon="shield-account" onPress={() => router.replace(`/team/${firstOwnedTeam.id}`)} style={styles.button}>
+              Go to My Team
+            </Button>
+          )}
           <Button mode="text" onPress={() => router.back()} style={styles.button}>Cancel</Button>
         </View>
       </ScrollView>

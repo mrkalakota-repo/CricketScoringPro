@@ -6,12 +6,13 @@ export interface CloudUserProfile {
   /** Never populated from server responses — verification happens via RPC. */
   pinHash: string;
   role?: string; // UserRole
+  plan?: string; // UserPlan — optional; missing → 'free'
 }
 
 export type VerifyResult =
   | { status: 'not_found' }
   | { status: 'wrong_pin' }
-  | { status: 'ok'; name: string; role: string }
+  | { status: 'ok'; name: string; role: string; plan: string }
   | { status: 'error'; message: string };
 
 /**
@@ -26,6 +27,7 @@ export async function pushUserProfile(profile: CloudUserProfile): Promise<void> 
       name: profile.name,
       pin_hash: profile.pinHash,
       role: profile.role ?? 'scorer',
+      plan: profile.plan ?? 'free',
       updated_at: Date.now(),
     });
     if (error && !isSchemaNotReady(error)) throw error;
@@ -90,7 +92,7 @@ export async function verifyUserProfile(
 
       if (!row.found) return { status: 'not_found' };
       if (!row.pin_correct) return { status: 'wrong_pin' };
-      return { status: 'ok', name: row.name as string, role: (row.role as string) ?? 'scorer' };
+      return { status: 'ok', name: row.name as string, role: (row.role as string) ?? 'scorer', plan: (row.plan as string) ?? 'free' };
     } catch (err) {
       const message = (err as { message?: string })?.message ?? String(err);
       if (isSchemaCacheError(message) && attempt < MAX_RETRIES) {

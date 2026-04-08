@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Team, Player, BowlingStyle } from '../engine/types';
+import type { Team, Player, BowlingStyle, UserPlan } from '../engine/types';
 import * as teamRepo from '../db/repositories/team-repo';
 import * as cloudRepo from '../db/repositories/cloud-team-repo';
 import { useUserAuth } from '../hooks/useUserAuth';
@@ -18,6 +18,8 @@ let _lastCloudSyncPhone = '';
 interface TeamStore {
   teams: Team[];
   loading: boolean;
+  /** teamId → plan from cloud_teams.team_plan. In-memory only; populated on cloud fetch. */
+  teamPlanCache: Record<string, UserPlan>;
   loadTeams: () => Promise<void>;
   createTeam: (name: string, shortName: string, latitude?: number | null, longitude?: number | null) => Promise<Team>;
   updateTeam: (id: string, name: string, shortName: string) => Promise<void>;
@@ -33,6 +35,7 @@ interface TeamStore {
 export const useTeamStore = create<TeamStore>((set, get) => ({
   teams: [],
   loading: false,
+  teamPlanCache: {},
 
   loadTeams: async () => {
     set({ loading: true });
@@ -194,6 +197,13 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
   },
 
   importCloudTeams: async (cloudTeams, myTeamIds) => {
+    // Update in-memory plan cache from incoming cloud rows
+    const newCache: Record<string, UserPlan> = { ...get().teamPlanCache };
+    for (const team of cloudTeams) {
+      if ((team as any)._teamPlan) newCache[team.id] = (team as any)._teamPlan as UserPlan;
+    }
+    set({ teamPlanCache: newCache });
+
     const prefsStore = usePrefsStore.getState();
 
     // Protected IDs — never delete these (owned, player-member, delegate)

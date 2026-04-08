@@ -9,7 +9,7 @@ function safeIds(ids: string[]): string[] {
   return ids.filter(id => UUID_RE.test(id));
 }
 
-export async function publishTeam(team: Team, ownerPhone?: string | null): Promise<{ success: boolean; error?: string }> {
+export async function publishTeam(team: Team, ownerPhone?: string | null, teamPlan?: string): Promise<{ success: boolean; error?: string }> {
   if (!isCloudEnabled || !supabase) return { success: false, error: 'Cloud not enabled' };
   try {
     const { error } = await supabase.from('cloud_teams').upsert({
@@ -19,6 +19,7 @@ export async function publishTeam(team: Team, ownerPhone?: string | null): Promi
       latitude: team.latitude,
       longitude: team.longitude,
       ...(ownerPhone ? { owner_phone: ownerPhone } : {}),
+      ...(teamPlan ? { team_plan: teamPlan } : {}),
       updated_at: Date.now(),
     });
     if (error) throw error;
@@ -249,6 +250,7 @@ async function fetchPlayersAndBuild(teamRows: any[]): Promise<Team[]> {
     adminPinHash: null,
     latitude: row.latitude ?? null,
     longitude: row.longitude ?? null,
+    _teamPlan: row.team_plan ?? 'free', // carried for teamPlanCache; not part of Team type
     players: (playersByTeam[row.id] ?? []).map((p: any) => ({
       id: p.id,
       name: p.name,

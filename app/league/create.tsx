@@ -5,6 +5,9 @@ import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLeagueStore } from '../../src/store/league-store';
+import { usePrefsStore } from '../../src/store/prefs-store';
+import { usePlan } from '../../src/hooks/usePlan';
+import { UpgradeSheet } from '../../src/components/UpgradeSheet';
 import type { LeagueFormat } from '../../src/engine/types';
 
 const MAX_LEN = 50;
@@ -15,6 +18,9 @@ export default function CreateLeagueScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const createLeague = useLeagueStore(s => s.createLeague);
+  const myLeagueIds = usePrefsStore(s => s.myLeagueIds);
+  const { plan, canCreateLeague } = usePlan();
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
@@ -23,6 +29,10 @@ export default function CreateLeagueScreen() {
   const [saving, setSaving] = useState(false);
 
   const handleCreate = async () => {
+    if (!canCreateLeague(myLeagueIds.length)) {
+      setShowUpgrade(true);
+      return;
+    }
     const n = name.trim();
     const s = shortName.trim().toUpperCase();
     if (!n) { setError('League name is required'); return; }
@@ -40,6 +50,12 @@ export default function CreateLeagueScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen options={{ title: 'New League' }} />
+      <UpgradeSheet
+        visible={showUpgrade}
+        feature="leagues"
+        requiredPlan={plan === 'free' ? 'pro' : 'league'}
+        onDismiss={() => setShowUpgrade(false)}
+      />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
         <TextInput
           label="League Name"

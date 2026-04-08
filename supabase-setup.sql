@@ -473,6 +473,72 @@ DO $$ BEGIN
   CREATE POLICY "public_delete_match_invitations" ON public.match_invitations FOR DELETE USING (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- ── Subscription Plan Columns ────────────────────────────────────────────────
+-- plan: 'free' | 'pro' | 'league' — tracks the owner's active subscription tier.
+-- team_plan mirrors the owning user's plan so scorers/members can inherit features
+-- without a cross-table join (denormalized by design; updated on purchase).
+
+DO $$ BEGIN
+  ALTER TABLE public.user_profiles ADD COLUMN plan TEXT NOT NULL DEFAULT 'free';
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.cloud_teams ADD COLUMN team_plan TEXT NOT NULL DEFAULT 'free';
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- ── Updated verify_user_profile RPC (returns plan) ────────────────────────────
+-- Drop first because the return type changed (added plan column).
+-- GRANT statements below re-apply permissions after recreation.
+DROP FUNCTION IF EXISTS public.verify_user_profile(TEXT, TEXT);
+
+CREATE OR REPLACE FUNCTION public.verify_user_profile(
+  p_phone    TEXT,
+  p_pin_hash TEXT
+)
+RETURNS TABLE (
+  name        TEXT,
+  role        TEXT,
+  plan        TEXT,
+  found       BOOLEAN,
+  pin_correct BOOLEAN
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_row   public.user_profiles%ROWTYPE;
+  v_match BOOLEAN := FALSE;
+BEGIN
+  SELECT * INTO v_row FROM public.user_profiles WHERE phone = p_phone;
+
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT NULL::TEXT, NULL::TEXT, NULL::TEXT, FALSE, FALSE;
+    RETURN;
+  END IF;
+
+  IF v_row.pin_hash LIKE '$2%' THEN
+    v_match := (crypt(p_pin_hash, v_row.pin_hash) = v_row.pin_hash);
+  ELSE
+    v_match := (v_row.pin_hash = p_pin_hash);
+  END IF;
+
+  IF v_match THEN
+    IF v_row.pin_hash NOT LIKE '$2%' THEN
+      UPDATE public.user_profiles
+        SET pin_hash = crypt(p_pin_hash, gen_salt('bf', 10))
+        WHERE phone = p_phone;
+    END IF;
+    RETURN QUERY SELECT v_row.name, v_row.role, COALESCE(v_row.plan, 'free'), TRUE, TRUE;
+  ELSE
+    RETURN QUERY SELECT NULL::TEXT, NULL::TEXT, NULL::TEXT, TRUE, FALSE;
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.verify_user_profile(TEXT, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION public.verify_user_profile(TEXT, TEXT) TO authenticated;
+
 -- ── Realtime Publication ───────────────────────────────────────────────────────
 -- Tables that use Supabase Realtime subscriptions must be added to the
 -- supabase_realtime publication. REPLICA IDENTITY FULL is required for filtered

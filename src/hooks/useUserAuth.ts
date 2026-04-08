@@ -15,7 +15,7 @@ import { create } from 'zustand';
 import * as Crypto from 'expo-crypto';
 import * as prefsRepo from '../db/repositories/prefs-repo';
 import * as cloudUserRepo from '../db/repositories/cloud-user-repo';
-import type { UserProfile, UserRole } from '../engine/types';
+import type { UserProfile, UserRole, UserPlan } from '../engine/types';
 import type { VerifyResult, OtpVerifyResult } from '../db/repositories/cloud-user-repo';
 
 export type RestoreStatus = 'idle' | 'fetching' | 'not_found' | 'wrong_pin' | 'error' | 'success';
@@ -79,8 +79,8 @@ interface UserAuthStore {
   /** Reset restoreStatus back to idle (e.g. when user closes the restore form). */
   resetRestoreStatus: () => void;
 
-  /** Update display name, optionally change PIN, and/or change role. Saves locally + syncs to cloud. */
-  updateProfile: (name: string, newPin?: string, newRole?: UserRole) => Promise<void>;
+  /** Update display name, optionally change PIN, role, and/or plan. Saves locally + syncs to cloud. */
+  updateProfile: (name: string, newPin?: string, newRole?: UserRole, newPlan?: UserPlan) => Promise<void>;
 
   /** Sign out — clear in-memory session (profile stays in local DB + cloud). */
   logout: () => void;
@@ -125,12 +125,13 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
       const stored = await prefsRepo.getUserProfile();
       if (stored) {
         const role: UserRole = (stored.role as UserRole) ?? 'scorer';
+        const plan: UserPlan = (stored.plan as UserPlan) ?? 'free';
         // On web, sessionStorage is cleared when the tab is closed. If pinHash is empty
         // the user's metadata is present but local auth is impossible — they must restore
         // from cloud. Flag this so the UI can skip straight to the restore form.
         const sessionExpired = stored.pinHash === '';
         set({
-          profile: { phone: stored.phone, name: stored.name, pinHash: stored.pinHash, role },
+          profile: { phone: stored.phone, name: stored.name, pinHash: stored.pinHash, role, plan },
           sessionExpired,
           isLoading: false,
         });
@@ -144,12 +145,13 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
 
   register: async (phone, name, pin, role = 'scorer') => {
     const pinHash = await hashPin(pin);
-    const profile: UserProfile = { phone, name, pinHash, role };
+    const plan: UserPlan = 'free';
+    const profile: UserProfile = { phone, name, pinHash, role, plan };
     // Save locally first so auth works even if cloud push fails
-    await prefsRepo.setUserProfile({ phone, name, pinHash, role });
+    await prefsRepo.setUserProfile({ phone, name, pinHash, role, plan });
     set({ profile, isAuthenticated: true });
     // Push to cloud in background — failure is non-fatal
-    cloudUserRepo.pushUserProfile({ phone, name, pinHash, role }).catch(() => {});
+    cloudUserRepo.pushUserProfile({ phone, name, pinHash, role, plan }).catch(() => {});
   },
 
   login: async (pin) => {
@@ -165,7 +167,7 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
     if (hash === profile.pinHash) {
       set({ isAuthenticated: true, loginAttempts: 0, loginLockedUntil: 0 });
       // Re-push to cloud in case the initial registration push failed (e.g. table didn't exist yet).
-      cloudUserRepo.pushUserProfile({ phone: profile.phone, name: profile.name, pinHash: profile.pinHash, role: profile.role }).catch(() => {});
+      cloudUserRepo.pushUserProfile({ phone: profile.phone, name: profile.name, pinHash: profile.pinHash, role: profile.role, plan: profile.plan }).catch(() => {});
       return true;
     }
 
@@ -198,14 +200,16 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
 
       // PIN correct — save locally (storing our locally-computed hash) and authenticate
       const role: UserRole = (result.role as UserRole) ?? 'scorer';
+      const plan: UserPlan = (result.plan as UserPlan) ?? 'free';
       await prefsRepo.setUserProfile({
         phone: phone.trim(),
         name: result.name,
         pinHash,  // local hash — never received from server
         role,
+        plan,
       });
       set({
-        profile: { phone: phone.trim(), name: result.name, pinHash, role },
+        profile: { phone: phone.trim(), name: result.name, pinHash, role, plan },
         isAuthenticated: true,
         restoreStatus: 'success',
       });
@@ -219,15 +223,16 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
 
   resetRestoreStatus: () => set({ restoreStatus: 'idle', restoreErrorMessage: '' }),
 
-  updateProfile: async (name, newPin, newRole) => {
+  updateProfile: async (name, newPin, newRole, newPlan) => {
     const { profile } = get();
     if (!profile) return;
     const pinHash = newPin ? await hashPin(newPin) : profile.pinHash;
     const role: UserRole = newRole ?? profile.role;
-    const updated: UserProfile = { ...profile, name: name.trim(), pinHash, role };
-    await prefsRepo.setUserProfile({ phone: updated.phone, name: updated.name, pinHash: updated.pinHash, role: updated.role });
+    const plan: UserPlan = newPlan ?? profile.plan;
+    const updated: UserProfile = { ...profile, name: name.trim(), pinHash, role, plan };
+    await prefsRepo.setUserProfile({ phone: updated.phone, name: updated.name, pinHash: updated.pinHash, role: updated.role, plan: updated.plan });
     set({ profile: updated });
-    cloudUserRepo.pushUserProfile({ phone: updated.phone, name: updated.name, pinHash: updated.pinHash, role: updated.role }).catch(() => {});
+    cloudUserRepo.pushUserProfile({ phone: updated.phone, name: updated.name, pinHash: updated.pinHash, role: updated.role, plan: updated.plan }).catch(() => {});
   },
 
   logout: () => {

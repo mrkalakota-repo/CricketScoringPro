@@ -10,6 +10,8 @@ import { AdminPinModal } from '../../../src/components/AdminPinModal';
 import { SetAdminPinModal } from '../../../src/components/SetAdminPinModal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { isCloudEnabled } from '../../../src/config/supabase';
+import { usePlan } from '../../../src/hooks/usePlan';
+import { UpgradeSheet } from '../../../src/components/UpgradeSheet';
 import * as delegateRepo from '../../../src/db/repositories/cloud-delegate-repo';
 import { generateDelegateCode, DELEGATE_CODE_TTL_MS } from '../../../src/utils/delegate-code';
 import type { BowlingStyle } from '../../../src/engine/types';
@@ -77,6 +79,8 @@ export default function TeamDetailScreen() {
   const isDelegate = !isMyTeam && delegateTeamIds.includes(team.id);
   const hasEditAccess = isMyTeam || isDelegate;
   const isMember = isMyTeam || isPlayerTeam || isDelegate;
+  const { canUseDelegateCodes } = usePlan();
+  const [showDelegateUpgrade, setShowDelegateUpgrade] = useState(false);
   const adminUnlocked = isMyTeam && isAdmin(team.id, team.adminPinHash);
 
   const requireAdmin = (action: PendingAction, callback: () => void) => {
@@ -214,6 +218,13 @@ export default function TeamDetailScreen() {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+
+      <UpgradeSheet
+        visible={showDelegateUpgrade}
+        feature="delegate_codes"
+        requiredPlan="pro"
+        onDismiss={() => setShowDelegateUpgrade(false)}
+      />
 
       {/* Delete confirm dialog */}
       <Portal>
@@ -435,7 +446,10 @@ export default function TeamDetailScreen() {
               <Button
                 mode="text"
                 icon="account-key"
-                onPress={() => requireAdmin('delegate', () => handleGenerateCode())}
+                onPress={() => {
+                  if (!canUseDelegateCodes) { setShowDelegateUpgrade(true); return; }
+                  requireAdmin('delegate', () => handleGenerateCode());
+                }}
                 disabled={!isCloudEnabled}
               >
                 Delegate Code

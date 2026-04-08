@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserAuth } from '../src/hooks/useUserAuth';
 import { useRole } from '../src/hooks/useRole';
+import { usePlan, PLAN_LABELS } from '../src/hooks/usePlan';
 import type { UserRole } from '../src/engine/types';
 
 const ROLE_OPTIONS: { value: UserRole; label: string; icon: string; color: string; desc: string }[] = [
@@ -28,6 +29,7 @@ export default function MyProfileScreen() {
   const router = useRouter();
   const { profile, updateProfile, logout } = useUserAuth();
   const { roleLabel, roleIcon, roleColor } = useRole();
+  const { plan, isFree } = usePlan();
 
   const [name, setName] = useState(profile?.name ?? '');
   const [nameError, setNameError] = useState('');
@@ -315,6 +317,18 @@ export default function MyProfileScreen() {
           onPress={() => router.push('/privacy')}
         >
           Privacy Policy
+        </Button>
+
+        <Divider style={styles.divider} />
+
+        {/* Upgrade / Manage Plan */}
+        <Button
+          mode={isFree ? 'contained' : 'outlined'}
+          icon="crown-outline"
+          style={styles.button}
+          onPress={() => router.push('/upgrade')}
+        >
+          {isFree ? 'Upgrade Plan' : `${PLAN_LABELS[plan]} — Manage Plan`}
         </Button>
 
         <Divider style={styles.divider} />

@@ -120,6 +120,7 @@ export interface StoredUserProfile {
   name: string;
   pinHash: string;
   role?: string; // UserRole — optional for backwards compat with existing stored profiles
+  plan?: string; // UserPlan — optional for backwards compat; missing → 'free'
 }
 
 export async function getUserProfile(): Promise<StoredUserProfile | null> {
