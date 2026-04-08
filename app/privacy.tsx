@@ -1,5 +1,5 @@
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, useTheme, Divider } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Linking } from 'react-native';
+import { Text, useTheme, Divider, Button } from 'react-native-paper';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -103,7 +103,7 @@ export default function PrivacyScreen() {
 
       <Section title="5. Data Retention">
         <Body>
-          Your profile and team data are retained for as long as your account is active. You may delete your account data at any time by signing out and uninstalling the app. Cloud data (profile, teams, chat messages) can be removed by contacting us at the address below.
+          Your profile and team data are retained for as long as your account is active. Local data is removed when you uninstall the app. To request deletion of all cloud data (profile, teams, chat messages), see Section 10 below.
         </Body>
       </Section>
 
@@ -148,6 +148,27 @@ export default function PrivacyScreen() {
           support@inningsly.app
         </Text>
       </Section>
+
+      <Divider style={styles.divider} />
+
+      <Section title="10. Account & Data Deletion">
+        <Body>
+          You have the right to request deletion of your Inningsly account and all associated data, including your profile, teams, rosters, match history, and chat messages stored on our servers.
+        </Body>
+        <Body>
+          To submit a deletion request, email us at the address below with the subject line "Account Deletion Request" and include the phone number associated with your account. We will process your request within 30 days and confirm once your data has been removed.
+        </Body>
+        <Button
+          mode="contained"
+          icon="email-outline"
+          style={styles.deleteButton}
+          onPress={() => Linking.openURL(
+            'mailto:support@inningsly.app?subject=Account%20Deletion%20Request&body=Please%20delete%20my%20account%20and%20all%20associated%20data.%0A%0APhone%20number%3A%20'
+          )}
+        >
+          Request Account Deletion
+        </Button>
+      </Section>
     </ScrollView>
   );
 }
@@ -163,4 +184,5 @@ const styles = StyleSheet.create({
   bulletText: { flex: 1, lineHeight: 22 },
   divider: { marginVertical: 20 },
   contactEmail: { fontWeight: '700' },
+  deleteButton: { marginTop: 8, borderRadius: 20 },
 });
