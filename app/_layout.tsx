@@ -12,7 +12,7 @@ import { useUserAuth } from '../src/hooks/useUserAuth';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { stopDrainTimer } from '../src/db/repositories/cloud-match-repo';
 import { configurePurchases, getCurrentPlan, loginPurchasesUser, logoutPurchasesUser } from '../src/services/purchases';
-
+import LoginScreen from './login';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -96,6 +96,7 @@ export default function RootLayout() {
       <Stack.Screen name="match/[id]/scorecard" options={{ title: 'Scorecard' }} />
       <Stack.Screen name="profile" options={{ title: 'Find My Profile', presentation: 'modal' }} />
       <Stack.Screen name="upgrade" options={{ title: 'Upgrade Plan', presentation: 'modal' }} />
+      <Stack.Screen name="privacy" options={{ title: 'Privacy Policy' }} />
     </Stack>
   );
 
@@ -112,12 +113,7 @@ export default function RootLayout() {
   }
 
   if (!isAuthenticated) {
-    const unauthNav = (
-      <Stack screenOptions={screenOptions}>
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="privacy" options={{ title: 'Privacy Policy' }} />
-      </Stack>
-    );
+    const loginContent = <LoginScreen />;
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
@@ -125,10 +121,10 @@ export default function RootLayout() {
             {Platform.OS === 'web' ? (
               <View style={{ flex: 1, alignItems: 'center', backgroundColor: colorScheme === 'dark' ? theme.colors.background : '#C8E8CA' }}>
                 <View style={{ flex: 1, width: '100%', maxWidth: 480, backgroundColor: theme.colors.background }}>
-                  {unauthNav}
+                  {loginContent}
                 </View>
               </View>
-            ) : unauthNav}
+            ) : loginContent}
           </PaperProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
