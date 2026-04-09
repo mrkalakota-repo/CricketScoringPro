@@ -65,14 +65,14 @@ export const PLAN_LIMITS = {
 // ── Pricing constants ─────────────────────────────────────────────────────────
 
 export const PLAN_PRICING = {
-  pro:    { monthly: 6,  annual: 50,  annualMonthlyEquiv: 4.17 },
-  league: { monthly: 29, annual: 250, annualMonthlyEquiv: 20.83 },
+  pro:    { monthly: 5.99,  annual: 49.99,  annualMonthlyEquiv: 4.17 },
+  league: { monthly: 29.99, annual: 249.99, annualMonthlyEquiv: 20.83 },
 } as const;
 
 export const PLAN_LABELS: Record<UserPlan, string> = {
-  free:   'Free',
+  free:   'Starter',
   pro:    'Pro Team',
-  league: 'League Pro',
+  league: 'Pro League',
 };
 
 // ── Plan rank helper ──────────────────────────────────────────────────────────

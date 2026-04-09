@@ -4,7 +4,7 @@ import { Text, Button, useTheme, Divider, ActivityIndicator } from 'react-native
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { usePlan, PLAN_LIMITS, PLAN_PRICING, PLAN_LABELS } from '../src/hooks/usePlan';
+import { usePlan, PLAN_PRICING, PLAN_LABELS } from '../src/hooks/usePlan';
 import { useUserAuth } from '../src/hooks/useUserAuth';
 import { usePrefsStore } from '../src/store/prefs-store';
 import { supabase } from '../src/config/supabase';
@@ -28,7 +28,7 @@ const FREE_FEATURES = [
 ];
 
 const PRO_FEATURES = [
-  'Everything in Free',
+  'Everything in Starter',
   'Up to 3 teams',
   'Cloud sync & cross-device restore',
   'Real-time team chat',
@@ -74,14 +74,18 @@ function TierCard({ tierPlan, currentPlan, annual, features, onUpgrade, loading 
   const priceLabel = isFree
     ? 'Free forever'
     : annual
-      ? `$${price.toFixed(2)}/mo · billed annually`
-      : `$${price}/mo`;
+      ? `$${PLAN_PRICING[tierPlan as 'pro' | 'league'].annualMonthlyEquiv.toFixed(2)}/mo · billed annually`
+      : `$${(price as number).toFixed(2)}/mo`;
+
+  const isLeague = tierPlan === 'league';
 
   const headerBg = isFree
     ? theme.colors.surfaceVariant
     : isHighlighted
       ? theme.colors.primary
-      : theme.colors.onSurface;
+      : isLeague
+        ? '#1A237E'
+        : theme.colors.onSurface;
 
   const headerText = isFree ? theme.colors.onSurfaceVariant : '#FFFFFF';
   const borderColor = isHighlighted ? theme.colors.primary : theme.colors.outlineVariant;
@@ -97,8 +101,8 @@ function TierCard({ tierPlan, currentPlan, annual, features, onUpgrade, loading 
         )}
         <Text style={[styles.tierName, { color: headerText }]}>{PLAN_LABELS[tierPlan]}</Text>
         <Text style={[styles.tierPrice, { color: headerText }]}>
-          {isFree ? '$0' : `$${isFree ? 0 : annual ? Math.floor(PLAN_PRICING[tierPlan as 'pro' | 'league'].annual) : PLAN_PRICING[tierPlan as 'pro' | 'league'].monthly}`}
-          {!isFree && <Text style={[styles.tierPriceSub, { color: headerText + 'CC' }]}>/mo</Text>}
+          {isFree ? '$0' : `$${annual ? PLAN_PRICING[tierPlan as 'pro' | 'league'].annual : PLAN_PRICING[tierPlan as 'pro' | 'league'].monthly}`}
+          {!isFree && <Text style={[styles.tierPriceSub, { color: headerText + 'CC' }]}>{annual ? '/yr' : '/mo'}</Text>}
         </Text>
         <Text style={[styles.tierPriceLabel, { color: headerText + '99' }]}>{priceLabel}</Text>
       </View>
