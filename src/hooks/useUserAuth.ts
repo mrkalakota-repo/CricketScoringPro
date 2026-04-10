@@ -90,7 +90,7 @@ interface UserAuthStore {
    * Phone should be in stored format e.g. "919876543210".
    * Returns true on success; sets otpError on failure.
    */
-  sendOtp: (phone: string) => Promise<boolean>;
+  sendOtp: (phone: string, turnstileToken?: string) => Promise<boolean>;
 
   /**
    * Verify the 6-digit OTP code against Twilio Verify.
@@ -239,10 +239,10 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
     set({ isAuthenticated: false });
   },
 
-  sendOtp: async (phone) => {
+  sendOtp: async (phone, turnstileToken) => {
     set({ otpSending: true, otpError: '' });
     try {
-      const result = await cloudUserRepo.sendOtp(phone);
+      const result = await cloudUserRepo.sendOtp(phone, turnstileToken);
       if (!result.success) {
         set({ otpError: result.error });
         return false;

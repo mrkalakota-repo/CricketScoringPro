@@ -12,6 +12,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getLocales } from 'expo-localization';
 import { useUserAuth } from '../src/hooks/useUserAuth';
 import type { UserRole } from '../src/engine/types';
+import { TurnstileWidget } from '../src/components/TurnstileWidget';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -266,6 +267,10 @@ export default function LoginScreen() {
   const [verifiedName, setVerifiedName] = useState('');
   const [verifiedRole, setVerifiedRole] = useState<UserRole>('scorer');
 
+  // ── Turnstile (web bot protection) ───────────────────────────────────────
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const isWeb = Platform.OS === 'web';
+
   // ── Register warning dialog ───────────────────────────────────────────────
   const [registerWarningVisible, setRegisterWarningVisible] = useState(false);
 
@@ -296,6 +301,7 @@ export default function LoginScreen() {
     setRestoreOtpStep('phone'); setRestoreOtpPhone(''); setRestoreOtpCode('');
     setRestoreNewPin(''); setRestoreConfirmPin(''); setRestoreOtpError('');
     setResendCooldown(0);
+    setTurnstileToken('');
     clearOtpError();
     resetRestoreStatus();
   }
@@ -310,13 +316,15 @@ export default function LoginScreen() {
     }
     setRegError('');
     const fullPhone = `${regCountry.code.replace('+', '')}${digits}`;
-    const ok = await sendOtp(fullPhone);
+    const ok = await sendOtp(fullPhone, isWeb ? turnstileToken : undefined);
     if (ok) {
       setRegPhone(digits); // store clean digits only
       setRegStep('otp');
+      setTurnstileToken('');
       startResendCooldown();
     } else {
       setRegError(otpError || 'Failed to send OTP. Try again.');
+      setTurnstileToken(''); // force re-challenge on failure
     }
   }
 
@@ -407,13 +415,15 @@ export default function LoginScreen() {
     }
     setRestoreOtpError('');
     const fullPhone = `${restoreOtpCountry.code.replace('+', '')}${digits}`;
-    const ok = await sendOtp(fullPhone);
+    const ok = await sendOtp(fullPhone, isWeb ? turnstileToken : undefined);
     if (ok) {
       setRestoreOtpPhone(digits);
       setRestoreOtpStep('otp');
+      setTurnstileToken('');
       startResendCooldown();
     } else {
       setRestoreOtpError(otpError || 'Failed to send OTP. Try again.');
+      setTurnstileToken(''); // force re-challenge on failure
     }
   }
 
@@ -532,11 +542,17 @@ export default function LoginScreen() {
                   onSubmitEditing={handleSendOtp}
                 />
                 {regError ? <HelperText type="error" style={styles.helper}>{regError}</HelperText> : null}
+                {isWeb && (
+                  <TurnstileWidget
+                    onToken={setTurnstileToken}
+                    onExpire={() => setTurnstileToken('')}
+                  />
+                )}
                 <Button
                   mode="contained"
                   onPress={handleSendOtp}
                   loading={otpSending}
-                  disabled={otpSending}
+                  disabled={otpSending || (isWeb && !turnstileToken)}
                   style={[styles.button, { borderRadius: 12 }]}
                   icon="message-text"
                 >
@@ -957,11 +973,17 @@ export default function LoginScreen() {
                       onSubmitEditing={handleRestoreOtpSend}
                     />
                     {restoreOtpError ? <HelperText type="error" style={styles.helper}>{restoreOtpError}</HelperText> : null}
+                    {isWeb && (
+                      <TurnstileWidget
+                        onToken={setTurnstileToken}
+                        onExpire={() => setTurnstileToken('')}
+                      />
+                    )}
                     <Button
                       mode="contained"
                       onPress={handleRestoreOtpSend}
                       loading={otpSending}
-                      disabled={otpSending}
+                      disabled={otpSending || (isWeb && !turnstileToken)}
                       style={[styles.button, { borderRadius: 12 }]}
                       icon="message-text"
                     >

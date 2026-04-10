@@ -122,13 +122,13 @@ export type OtpVerifyResult =
  * Phone should be in stored format (e.g. "919876543210") — the edge function
  * prepends "+" to produce E.164 before calling Twilio.
  */
-export async function sendOtp(phone: string): Promise<OtpSendResult> {
+export async function sendOtp(phone: string, turnstileToken?: string): Promise<OtpSendResult> {
   if (!isCloudEnabled || !supabase) {
     return { success: false, error: 'Cloud not enabled' };
   }
   try {
     const { data, error } = await supabase.functions.invoke('send-otp', {
-      body: { phone },
+      body: { phone, ...(turnstileToken ? { turnstileToken } : {}) },
       headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY_VALUE}` },
     });
     if (error) throw error;

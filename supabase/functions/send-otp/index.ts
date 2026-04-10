@@ -6,6 +6,25 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ── Cloudflare Turnstile verification ─────────────────────────────────────────
+
+async function verifyTurnstileToken(token: string, ip: string): Promise<boolean> {
+  const secret = Deno.env.get('TURNSTILE_SECRET_KEY');
+  if (!secret) return true; // not configured — fail open
+
+  try {
+    const body = new URLSearchParams({ secret, response: token, remoteip: ip });
+    const resp = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      body,
+    });
+    const data = await resp.json() as { success: boolean };
+    return data.success;
+  } catch {
+    return true; // network error — fail open to avoid blocking legitimate users
+  }
+}
+
 // ── In-memory rate limit store ────────────────────────────────────────────────
 // Maps key → array of timestamps (ms). Cleared on cold-start but sufficient
 // to block burst bot traffic within a single function invocation lifecycle.
@@ -80,13 +99,25 @@ serve(async (req) => {
   }
 
   try {
-    const { phone } = await req.json() as { phone: string };
+    const { phone, turnstileToken } = await req.json() as { phone: string; turnstileToken?: string };
 
     if (!phone) {
       return new Response(JSON.stringify({ success: false, error: 'Phone is required' }), {
         status: 400,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       });
+    }
+
+    // ── Turnstile verification (web clients only — token absent on native) ──
+    if (turnstileToken) {
+      const valid = await verifyTurnstileToken(turnstileToken, ip);
+      if (!valid) {
+        console.warn('[send-otp] Turnstile verification failed for IP:', ip);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Bot check failed. Please try again.' }),
+          { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
+        );
+      }
     }
 
     // ── Phone format validation ──
