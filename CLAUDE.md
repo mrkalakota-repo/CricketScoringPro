@@ -24,7 +24,33 @@ npm test -- --testPathPattern=functional          # Run a single test file by na
 npm test -- --testNamePattern="strike rotation"   # Run tests matching a name pattern
 npm test -- --coverage                            # Coverage report
 npx expo install <pkg> # Add Expo package (add --legacy-peer-deps if it fails)
+supabase functions deploy send-otp   # Deploy a single Edge Function
+supabase functions deploy verify-otp
 ```
+
+---
+
+## Deployment
+
+**Web** — AWS Amplify (`amplify.yml`). Build command: `npx expo export --platform web` → artifacts served from `dist/`. Amplify auto-deploys on push to `main`.
+
+**Android / iOS** — EAS Build (`eas.json`). Two profiles:
+- `preview` → APK for direct install/testing
+- `production` → AAB for Play Store
+
+```bash
+eas build --profile preview --platform android
+eas build --profile production --platform android
+```
+
+**`docs/` directory** — standalone static HTML pages (`index.html`, `privacy.html`, `support.html`). These are **not** part of the Expo web build and not served by Amplify. They exist as a separate marketing site. Do not import from `docs/` in app code.
+
+**Edge Functions** — two Supabase Edge Functions in `supabase/functions/`:
+- `send-otp` — rate-limits + Cloudflare Turnstile verification + Twilio Verify SMS
+- `verify-otp` — Twilio code check + returns existing profile name/role for restore flow
+
+Required secrets (set in Supabase dashboard → Edge Functions → Secrets):
+`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, `TURNSTILE_SECRET_KEY`
 
 ---
 
@@ -82,6 +108,14 @@ All mutations go through Zustand stores, never directly through repos.
 - `useLiveScoresStore` — nearby live match scores (Supabase real-time, 50-mile radius)
 - `useAdminAuth` — in-memory PIN auth (resets on restart by design)
 - `useUserAuth` — global user auth (phone + PIN); session in-memory, profile persisted locally + Supabase
+
+### Web Entry Point
+`app/_layout.tsx` renders a three-layer gate for unauthenticated users on web:
+1. **Loading** — spinner while `loadProfile()` resolves
+2. **Marketing landing** (`src/components/MarketingLandingScreen.tsx`) — shown when `Platform.OS === 'web' && !isAuthenticated && !showAuth`. Every CTA calls `setShowAuth(true)`.
+3. **Login form** (`app/login.tsx`) — shown after user taps any CTA, or immediately on native.
+
+Native apps skip the marketing layer entirely and go straight to the login form.
 
 ### User Auth & RBAC
 `src/hooks/useUserAuth.ts` — Zustand store for global auth (phone-number registration + PIN). Profile is saved locally (`user_prefs`) and pushed to Supabase `user_profiles` for cross-device restore.
@@ -309,6 +343,8 @@ Supported key formats: legacy JWT (`length > 100`) **or** new publishable format
 - `src/utils/constants.ts` — `BALLS_PER_OVER = 6` and other shared constants. Import from here; do not redefine inline.
 - `src/utils/player-stats.ts` — `aggregatePlayerStats(matches, playerId)` — computes career batting/bowling stats across all stored matches. Used by player profile screens.
 - `src/utils/scorecard-export.ts` — generates a plain-text scorecard string from a `MatchEngine` instance (for sharing/copying).
+- `src/components/TurnstileWidget.web.tsx` / `TurnstileWidget.tsx` — Cloudflare Turnstile bot-protection widget. The `.web.tsx` file injects the Cloudflare script and renders the challenge; the `.tsx` stub is a no-op for native. Shown on the phone-entry step of register and restore-OTP flows. "Send OTP" is disabled until a token is received. Token is passed to `sendOtp()` → `cloud-user-repo` → `send-otp` Edge Function for server-side verification. Site key is hardcoded in the `.web.tsx` file; secret key is in Supabase secrets.
+- `src/services/purchases.ts` — RevenueCat in-app purchase integration. `configurePurchases()` is called once on startup (no-op when API keys are absent, e.g. web). `getCurrentPlan()` returns `'free' | 'pro' | 'league'`. `loginPurchasesUser(phone)` / `logoutPurchasesUser()` tie the RC anonymous user to the phone number on auth state change. Env vars: `EXPO_PUBLIC_RC_API_KEY_IOS`, `EXPO_PUBLIC_RC_API_KEY_ANDROID`.
 - `src/components/AdminPinModal.tsx` — modal for entering an existing team admin PIN; used on team detail screens. `src/components/SetAdminPinModal.tsx` — modal for creating/changing a PIN.
 - `src/hooks/useResponsive.ts` — breakpoint hook returning `{ isSmallPhone, isTablet, contentPadding, modalMaxWidth }`. Use this for all responsive layout decisions; do not scatter `useWindowDimensions` calls.
 
@@ -373,3 +409,6 @@ Android package: `com.gullycricket.scorer` (retained for Play Store continuity) 
 - **Do not** use `Date.now()` for `updated_at` in `matchToCloudRow` — use `match.updatedAt` (the engine's logical timestamp) so concurrent writes are ordered by match state, not network arrival
 - **Do not** re-introduce the sequential New Batter → Bowler modal chain after a wicket on the last ball of an over — use the combined `batterAndBowlerModal` instead
 - **Do not** store phone numbers with a `+` prefix or separator — stored format is `{countryCodeDigits}{localDigits}` (e.g. `919876543210`)
+- **Do not** import from `docs/` in app code — those files are standalone static HTML, not part of the Expo build
+- **Do not** require a Turnstile token on native — the token is optional in `sendOtp(phone, token?)`; the Edge Function skips Turnstile verification when the token is absent (native apps have no widget)
+- **Do not** call `configurePurchases()` or other RevenueCat methods on web — `src/services/purchases.ts` guards every call with an API-key check and returns safe defaults when keys are absent
