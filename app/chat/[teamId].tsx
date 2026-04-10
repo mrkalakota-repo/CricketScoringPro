@@ -106,6 +106,21 @@ export default function ChatScreen() {
     }
   };
 
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
+        <Stack.Screen options={{ title: 'Team Chat' }} />
+        <MaterialCommunityIcons name="cellphone" size={56} color={theme.colors.outlineVariant} />
+        <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, textAlign: 'center' }}>
+          App only feature
+        </Text>
+        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>
+          Team Chat is available on the iOS and Android apps.
+        </Text>
+      </View>
+    );
+  }
+
   if (!isCloudEnabled) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>

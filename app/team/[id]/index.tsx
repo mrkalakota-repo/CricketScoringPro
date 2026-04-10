@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList, Image } from 'react-native';
+import { View, StyleSheet, FlatList, Image, Platform } from 'react-native';
 import { Text, Card, Button, Avatar, useTheme, Divider, Chip, Portal, Dialog, TextInput, ActivityIndicator } from 'react-native-paper';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -313,7 +313,7 @@ export default function TeamDetailScreen() {
               Edit Team
             </Button>
           )}
-          {isCloudEnabled && isMember && (
+          {isCloudEnabled && isMember && Platform.OS !== 'web' && (
             <Button
               mode="outlined"
               icon="chat"
