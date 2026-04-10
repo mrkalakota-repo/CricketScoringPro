@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inningsly — Privacy Policy</title>
+  <style>
+    :root {
+      --green:       #1B6B28;
+      --green-light: #EAF7EB;
+      --orange:      #E65100;
+      --text:        #1A1A1A;
+      --muted:       #555;
+      --border:      #D8EDD9;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--green-light);
+      color: var(--text);
+      line-height: 1.7;
+    }
+    header {
+      background: var(--green);
+      color: #fff;
+      padding: 24px 20px;
+      text-align: center;
+    }
+    header h1 { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.5px; }
+    header p  { font-size: 0.9rem; opacity: 0.85; margin-top: 4px; }
+    main {
+      max-width: 760px;
+      margin: 32px auto;
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      padding: 40px 36px;
+    }
+    h2 { font-size: 1.6rem; font-weight: 900; color: var(--green); margin-bottom: 6px; }
+    .updated { font-size: 0.85rem; color: var(--muted); margin-bottom: 28px; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+    h3 { font-size: 1rem; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+    p  { font-size: 0.95rem; color: var(--muted); margin-bottom: 10px; }
+    ul { padding-left: 20px; margin-bottom: 10px; }
+    li { font-size: 0.95rem; color: var(--muted); margin-bottom: 6px; }
+    .delete-box {
+      background: #FFF3E0;
+      border: 1px solid #FFCC80;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-top: 12px;
+    }
+    .delete-box p { margin-bottom: 12px; }
+    .email-btn {
+      display: inline-block;
+      background: var(--green);
+      color: #fff;
+      text-decoration: none;
+      padding: 12px 24px;
+      border-radius: 24px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .email-btn:hover { background: #145220; }
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    @media (max-width: 600px) {
+      main { margin: 16px; padding: 24px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏏 Inningsly</h1>
+  <p>Cricket Scoring &amp; Team Management</p>
+</header>
+
+<main>
+  <h2>Privacy Policy</h2>
+  <p class="updated">Last updated: April 9, 2026</p>
+
+  <p>Inningsly ("we", "our", or "us") is committed to protecting your privacy. This policy explains what information we collect, how we use it, and your rights regarding your data.</p>
+
+  <hr />
+
+  <h3>1. Information We Collect</h3>
+  <p>We collect only what is necessary to provide the app's features:</p>
+  <ul>
+    <li><strong>Phone number</strong> — used as your account identifier for registration and cross-device restore.</li>
+    <li><strong>Display name</strong> — shown in team chats and match scoring screens.</li>
+    <li><strong>Role</strong> — your selected role (Viewer, Scorer, Team Admin, League Admin).</li>
+    <li><strong>Team and match data</strong> — teams you create, player rosters, and match scores you record.</li>
+    <li><strong>Approximate location</strong> — used only on the Teams tab to discover nearby teams within 50 miles. Never stored on our servers.</li>
+    <li><strong>Chat messages</strong> — messages sent in team chats are stored to enable real-time communication within your team.</li>
+  </ul>
+
+  <hr />
+
+  <h3>2. How We Use Your Information</h3>
+  <ul>
+    <li>To create and restore your account across devices.</li>
+    <li>To enable team discovery for users in your area.</li>
+    <li>To power real-time team chat between team members.</li>
+    <li>To sync your teams, rosters, and match data when cloud sync is enabled.</li>
+  </ul>
+  <p>We do not use your data for advertising or sell it to third parties.</p>
+
+  <hr />
+
+  <h3>3. Data Storage &amp; Security</h3>
+  <p>Your data is stored locally on your device (SQLite) and, when cloud sync is enabled, on Supabase — a secure, SOC 2 compliant cloud platform. PINs are never stored in plain text; they are hashed using SHA-256 before being saved locally or verified server-side.</p>
+
+  <hr />
+
+  <h3>4. Third-Party Services</h3>
+  <p>We use the following third-party services:</p>
+  <ul>
+    <li><strong>Supabase</strong> — cloud database and real-time sync (supabase.com).</li>
+    <li><strong>Twilio Verify</strong> — SMS one-time passwords for account verification (twilio.com).</li>
+  </ul>
+  <p>These services process only the minimum data required. Please review their respective privacy policies for details.</p>
+
+  <hr />
+
+  <h3>5. Data Retention</h3>
+  <p>Your profile and team data are retained for as long as your account is active. Local data is removed when you uninstall the app. To request deletion of all cloud data, see Section 10 below.</p>
+
+  <hr />
+
+  <h3>6. Children's Privacy</h3>
+  <p>Inningsly is not directed at children under 13. We do not knowingly collect personal information from children. If you believe a child has provided us with personal data, please contact us and we will delete it promptly.</p>
+
+  <hr />
+
+  <h3>7. Your Rights</h3>
+  <p>You have the right to:</p>
+  <ul>
+    <li>Access the personal data we hold about you.</li>
+    <li>Request correction of inaccurate data.</li>
+    <li>Request deletion of your data.</li>
+  </ul>
+  <p>To exercise any of these rights, contact us at the address below. We will respond within 30 days.</p>
+
+  <hr />
+
+  <h3>8. Changes to This Policy</h3>
+  <p>We may update this Privacy Policy from time to time. We will notify you of significant changes by updating the date at the top of this page. Continued use of the app after changes constitutes acceptance of the updated policy.</p>
+
+  <hr />
+
+  <h3>9. Contact Us</h3>
+  <p>If you have questions or requests regarding this policy, please contact us at:</p>
+  <p><a href="mailto:mrksportsfeedback@gmail.com" style="color: var(--green); font-weight: 700;">mrksportsfeedback@gmail.com</a></p>
+
+  <hr />
+
+  <h3>10. Account &amp; Data Deletion</h3>
+  <p>You have the right to request deletion of your Inningsly account and all associated data, including your profile, teams, rosters, match history, and chat messages stored on our servers.</p>
+  <div class="delete-box">
+    <p>To submit a deletion request, email us with the subject line <strong>"Account Deletion Request"</strong> and include the phone number associated with your account. We will process your request within 30 days and confirm once your data has been removed.</p>
+    <a class="email-btn" href="mailto:mrksportsfeedback@gmail.com?subject=Account%20Deletion%20Request&body=Please%20delete%20my%20account%20and%20all%20associated%20data.%0A%0APhone%20number%3A%20">
+      Request Account Deletion
+    </a>
+  </div>
+</main>
+
+<footer>
+  &copy; 2026 Inningsly. All rights reserved.
+</footer>
+
+</body>
+</html>

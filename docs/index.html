@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inningsly — Cricket Scoring App</title>
+  <style>
+    :root {
+      --green:       #1B6B28;
+      --green-light: #EAF7EB;
+      --border:      #D8EDD9;
+      --muted:       #555;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--green-light);
+      color: #1A1A1A;
+      line-height: 1.7;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 20px;
+      text-align: center;
+    }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      padding: 48px 40px;
+      max-width: 480px;
+      width: 100%;
+    }
+    .icon { font-size: 3rem; margin-bottom: 12px; }
+    h1 { font-size: 2rem; font-weight: 900; color: var(--green); margin-bottom: 8px; }
+    p  { font-size: 1rem; color: var(--muted); margin-bottom: 32px; }
+    .links { display: flex; flex-direction: column; gap: 12px; }
+    a.btn {
+      display: block;
+      background: var(--green);
+      color: #fff;
+      text-decoration: none;
+      padding: 14px 24px;
+      border-radius: 24px;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    a.btn:hover { background: #145220; }
+    a.btn.outline {
+      background: transparent;
+      color: var(--green);
+      border: 2px solid var(--green);
+    }
+    a.btn.outline:hover { background: var(--green-light); }
+    footer { margin-top: 24px; font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🏏</div>
+    <h1>Inningsly</h1>
+    <p>Cricket scoring, team management, and leagues — all in one app.</p>
+    <div class="links">
+      <a class="btn" href="support.html">Support</a>
+      <a class="btn outline" href="privacy.html">Privacy Policy</a>
+    </div>
+  </div>
+  <footer>&copy; 2026 Inningsly. All rights reserved.</footer>
+</body>
+</html>
