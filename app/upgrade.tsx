@@ -186,8 +186,8 @@ export default function UpgradeScreen() {
   const findPackage = (targetPlan: Exclude<UserPlan, 'free'>): PurchasesPackage | null => {
     if (!offering) return null;
     const suffix = annual ? 'annual' : 'monthly';
-    const productId = `inningsly_${targetPlan}_${suffix}`;
-    return offering.availablePackages.find(p => p.product.identifier === productId) ?? null;
+    const prefix = `inningsly_${targetPlan}_${suffix}`;
+    return offering.availablePackages.find(p => p.product.identifier.startsWith(prefix)) ?? null;
   };
 
   const handleUpgrade = async (targetPlan: UserPlan) => {
