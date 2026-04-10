@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Text, Button, useTheme, Divider, ActivityIndicator } from 'react-native-paper';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -126,7 +126,14 @@ function TierCard({ tierPlan, currentPlan, annual, features, onUpgrade, loading 
             <MaterialCommunityIcons name="check" size={14} color={theme.colors.onSurfaceVariant} />
             <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>Current plan</Text>
           </View>
-        ) : isDowngrade ? null : (
+        ) : isDowngrade ? null : Platform.OS === 'web' ? (
+          <View style={[styles.webNotice, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}>
+            <MaterialCommunityIcons name="cellphone" size={16} color={theme.colors.onSurfaceVariant} />
+            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, flex: 1, lineHeight: 18 }}>
+              Download the iOS or Android app to subscribe
+            </Text>
+          </View>
+        ) : (
           <Button
             mode={isHighlighted ? 'contained' : 'outlined'}
             onPress={() => onUpgrade(tierPlan)}
@@ -335,6 +342,11 @@ const styles = StyleSheet.create({
   currentBadge: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     marginTop: 8, paddingVertical: 10,
+    borderWidth: 1, borderRadius: 20,
+  },
+  webNotice: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginTop: 8, paddingVertical: 10, paddingHorizontal: 12,
     borderWidth: 1, borderRadius: 20,
   },
 });
