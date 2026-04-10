@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Stack } from 'expo-router';
 import { PaperProvider } from 'react-native-paper';
 import { useColorScheme, Platform, View, ActivityIndicator, AppState } from 'react-native';
@@ -13,6 +13,7 @@ import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { stopDrainTimer } from '../src/db/repositories/cloud-match-repo';
 import { configurePurchases, getCurrentPlan, loginPurchasesUser, logoutPurchasesUser } from '../src/services/purchases';
 import LoginScreen from './login';
+import { MarketingLandingScreen } from '../src/components/MarketingLandingScreen';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -21,6 +22,7 @@ export default function RootLayout() {
   const loadMatches = useMatchStore(s => s.loadMatches);
   const loadPrefs = usePrefsStore(s => s.loadPrefs);
   const { loadProfile, isLoading, isAuthenticated, profile, updateProfile } = useUserAuth();
+  const [showAuth, setShowAuth] = useState(false);
   // Track previous auth state to detect login/logout transitions
   const prevAuthRef = useRef<boolean | null>(null);
 
@@ -113,6 +115,18 @@ export default function RootLayout() {
   }
 
   if (!isAuthenticated) {
+    if (Platform.OS === 'web' && !showAuth) {
+      return (
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <SafeAreaProvider>
+            <PaperProvider theme={theme}>
+              <MarketingLandingScreen onSignIn={() => setShowAuth(true)} />
+            </PaperProvider>
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      );
+    }
+
     const loginContent = <LoginScreen />;
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
