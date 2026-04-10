@@ -3,70 +3,814 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inningsly — Cricket Scoring App</title>
+  <title>Inningsly — Cricket Scoring & Team Management</title>
+  <meta name="description" content="Score matches ball-by-ball, manage your cricket team, run leagues, and chat with players — all in one app. Free to start." />
+  <meta property="og:title" content="Inningsly — Cricket Scoring App" />
+  <meta property="og:description" content="Ball-by-ball scoring, team management, leagues, and real-time chat for your cricket team." />
+  <meta property="og:type" content="website" />
   <style>
     :root {
-      --green:       #1B6B28;
-      --green-light: #EAF7EB;
-      --border:      #D8EDD9;
-      --muted:       #555;
+      --green:        #1B6B28;
+      --green-dark:   #145220;
+      --green-light:  #EAF7EB;
+      --green-mid:    #C8E8CA;
+      --orange:       #E65100;
+      --surface:      #FFFFFF;
+      --bg:           #F4FBF5;
+      --text:         #1A1A1A;
+      --muted:        #5A6A5B;
+      --border:       #D8EDD9;
+      --radius:       16px;
+      --radius-lg:    24px;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+    }
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      gap: 16px;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+    .nav-logo { font-size: 1.5rem; }
+    .nav-brand-name {
+      font-size: 1.2rem;
+      font-weight: 900;
+      color: var(--green);
+      letter-spacing: -0.3px;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nav-links a {
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 8px 18px;
+      border-radius: 20px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-links a.outline {
+      color: var(--green);
+      border: 1.5px solid var(--green);
+    }
+    .nav-links a.outline:hover { background: var(--green-light); }
+    .nav-links a.filled {
+      background: var(--green);
+      color: #fff;
+    }
+    .nav-links a.filled:hover { background: var(--green-dark); }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(160deg, var(--green) 0%, #236B30 55%, #1E7A34 100%);
+      color: #fff;
+      text-align: center;
+      padding: 80px 24px 96px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .hero-inner { position: relative; max-width: 700px; margin: 0 auto; }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+    }
+    .hero h1 {
+      font-size: clamp(2.2rem, 6vw, 3.6rem);
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: -1px;
+      margin-bottom: 18px;
+    }
+    .hero h1 span { color: #A5D6A7; }
+    .hero p {
+      font-size: 1.15rem;
+      opacity: 0.88;
+      max-width: 520px;
+      margin: 0 auto 36px;
+    }
+    .hero-ctas {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .btn-hero-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      color: var(--green);
+      font-weight: 800;
+      font-size: 1rem;
+      padding: 14px 28px;
+      border-radius: 28px;
+      text-decoration: none;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    }
+    .btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.22); }
+    .btn-hero-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      color: #fff;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 14px 28px;
+      border-radius: 28px;
+      border: 2px solid rgba(255,255,255,0.6);
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .btn-hero-outline:hover { background: rgba(255,255,255,0.12); }
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 32px;
+      margin-top: 52px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(255,255,255,0.2);
+    }
+    .hero-stat { text-align: center; }
+    .hero-stat-num {
+      font-size: 2rem;
+      font-weight: 900;
+      line-height: 1;
+      color: #A5D6A7;
+    }
+    .hero-stat-label { font-size: 0.82rem; opacity: 0.75; margin-top: 4px; }
+
+    /* ── Section ── */
+    section { padding: 72px 24px; }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 10px;
+    }
+    .section-title {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .section-sub {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 540px;
+    }
+    .section-header { margin-bottom: 48px; }
+
+    /* ── Features grid ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .feature-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(27,107,40,0.1); }
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
       background: var(--green-light);
-      color: #1A1A1A;
-      line-height: 1.7;
-      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 16px;
+    }
+    .feature-card h3 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+    .feature-card p {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── How it works ── */
+    .how-bg { background: var(--green-light); }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0;
+      position: relative;
+    }
+    .step {
+      text-align: center;
+      padding: 24px 20px;
+      position: relative;
+    }
+    .step-num {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--green);
+      color: #fff;
+      font-size: 1.25rem;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+    .step h3 { font-size: 1rem; font-weight: 800; margin-bottom: 8px; }
+    .step p { font-size: 0.875rem; color: var(--muted); }
+
+    /* ── Plans ── */
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      align-items: start;
+    }
+    .plan-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .plan-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+    .plan-card.featured {
+      border-color: var(--green);
+      box-shadow: 0 4px 20px rgba(27,107,40,0.18);
+    }
+    .plan-header {
+      padding: 24px 24px 20px;
+      background: var(--green-light);
+      position: relative;
+    }
+    .plan-card.featured .plan-header { background: var(--green); color: #fff; }
+    .plan-badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: #F9A825;
+      color: #4E342E;
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      padding: 3px 9px;
+      border-radius: 10px;
+      text-transform: uppercase;
+    }
+    .plan-name { font-size: 1.1rem; font-weight: 900; }
+    .plan-card.featured .plan-name { color: #fff; }
+    .plan-price {
+      font-size: 2.2rem;
+      font-weight: 900;
+      line-height: 1;
+      margin: 8px 0 2px;
+      color: var(--green);
+    }
+    .plan-card.featured .plan-price { color: #fff; }
+    .plan-price span { font-size: 1rem; font-weight: 500; opacity: 0.7; }
+    .plan-sub { font-size: 0.8rem; color: var(--muted); }
+    .plan-card.featured .plan-sub { color: rgba(255,255,255,0.75); }
+    .plan-body { padding: 20px 24px 24px; }
+    .plan-features { list-style: none; display: flex; flex-direction: column; gap: 9px; margin-bottom: 20px; }
+    .plan-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+    .plan-features li::before {
+      content: '✓';
+      color: var(--green);
+      font-weight: 900;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .plan-cta {
+      display: block;
+      text-align: center;
+      padding: 12px 20px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: background 0.15s, color 0.15s;
+    }
+    .plan-cta.primary { background: var(--green); color: #fff; }
+    .plan-cta.primary:hover { background: var(--green-dark); }
+    .plan-cta.ghost {
+      border: 1.5px solid var(--border);
+      color: var(--muted);
+    }
+    .plan-cta.ghost:hover { background: var(--green-light); color: var(--green); border-color: var(--green); }
+
+    /* ── App download ── */
+    .apps-bg { background: var(--surface); }
+    .apps-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      max-width: 680px;
+    }
+    @media (max-width: 480px) { .apps-grid { grid-template-columns: 1fr; } }
+    .app-card {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 32px 20px;
       text-align: center;
+      gap: 12px;
+      position: relative;
+      background: var(--bg);
     }
-    .card {
-      background: #fff;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      padding: 48px 40px;
-      max-width: 480px;
-      width: 100%;
+    .app-icon-wrap {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #1B6B28, #2E9142);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      box-shadow: 0 4px 14px rgba(27,107,40,0.25);
     }
-    .icon { font-size: 3rem; margin-bottom: 12px; }
-    h1 { font-size: 2rem; font-weight: 900; color: var(--green); margin-bottom: 8px; }
-    p  { font-size: 1rem; color: var(--muted); margin-bottom: 32px; }
-    .links { display: flex; flex-direction: column; gap: 12px; }
-    a.btn {
-      display: block;
-      background: var(--green);
+    .app-platform {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .coming-soon-badge {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      background: var(--orange);
       color: #fff;
+      font-size: 0.65rem;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(230,81,0,0.3);
+    }
+    .store-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #1A1A1A;
+      color: #fff;
+      border-radius: 12px;
+      padding: 10px 16px;
+      width: 100%;
+      font-size: 0.82rem;
+      font-weight: 600;
       text-decoration: none;
-      padding: 14px 24px;
-      border-radius: 24px;
-      font-weight: 700;
-      font-size: 0.95rem;
+      opacity: 0.5;
+      cursor: default;
+      pointer-events: none;
     }
-    a.btn:hover { background: #145220; }
-    a.btn.outline {
-      background: transparent;
+    .store-btn-sub { font-size: 0.68rem; opacity: 0.75; display: block; }
+    .store-btn-main { font-size: 0.88rem; font-weight: 700; }
+    .app-eta {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    /* ── Web CTA section ── */
+    .web-cta-bg { background: var(--green); color: #fff; text-align: center; }
+    .web-cta-bg .section-title { color: #fff; }
+    .web-cta-bg .section-sub { color: rgba(255,255,255,0.8); max-width: 480px; margin: 0 auto 32px; }
+    .cta-buttons {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .btn-white {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
       color: var(--green);
-      border: 2px solid var(--green);
+      font-weight: 800;
+      font-size: 1rem;
+      padding: 14px 28px;
+      border-radius: 28px;
+      text-decoration: none;
+      transition: transform 0.15s;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
     }
-    a.btn.outline:hover { background: var(--green-light); }
-    footer { margin-top: 24px; font-size: 0.8rem; color: var(--muted); }
+    .btn-white:hover { transform: translateY(-2px); }
+    .btn-white-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      color: #fff;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 14px 28px;
+      border-radius: 28px;
+      border: 2px solid rgba(255,255,255,0.6);
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .btn-white-outline:hover { background: rgba(255,255,255,0.12); }
+
+    /* ── Footer ── */
+    footer {
+      background: #0D2B12;
+      color: rgba(255,255,255,0.6);
+      padding: 40px 24px;
+    }
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .footer-brand-name { color: #fff; font-weight: 900; font-size: 1.1rem; }
+    .footer-links { display: flex; flex-wrap: wrap; gap: 20px; }
+    .footer-links a {
+      color: rgba(255,255,255,0.6);
+      text-decoration: none;
+      font-size: 0.875rem;
+      transition: color 0.15s;
+    }
+    .footer-links a:hover { color: #fff; }
+    .footer-copy { font-size: 0.82rem; }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .nav-links a.outline { display: none; }
+      .hero { padding: 60px 20px 72px; }
+      .hero-stats { gap: 20px; }
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="icon">🏏</div>
-    <h1>Inningsly</h1>
-    <p>Cricket scoring, team management, and leagues — all in one app.</p>
-    <div class="links">
-      <a class="btn" href="support.html">Support</a>
-      <a class="btn outline" href="privacy.html">Privacy Policy</a>
+
+  <!-- ── Navigation ── -->
+  <nav>
+    <div class="nav-inner">
+      <a class="nav-brand" href="#">
+        <span class="nav-logo">🏏</span>
+        <span class="nav-brand-name">Inningsly</span>
+      </a>
+      <div class="nav-links">
+        <a class="outline" href="../">Sign In</a>
+        <a class="filled" href="../">Create Account</a>
+      </div>
     </div>
-  </div>
-  <footer>&copy; 2026 Inningsly. All rights reserved.</footer>
+  </nav>
+
+  <!-- ── Hero ── -->
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="hero-badge">🏏 Cricket Scoring App</div>
+      <h1>Score Matches.<br><span>Manage Your Team.</span><br>Run Leagues.</h1>
+      <p>Ball-by-ball scoring with instant undo, real-time team chat, delegate access, and full league management — all free to start.</p>
+      <div class="hero-ctas">
+        <a class="btn-hero-primary" href="../">
+          🚀 Get Started Free
+        </a>
+        <a class="btn-hero-outline" href="../">
+          Sign In
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-num">T20 · ODI · Test</div>
+          <div class="hero-stat-label">All match formats</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">Real-time</div>
+          <div class="hero-stat-label">Live score sync</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">Free</div>
+          <div class="hero-stat-label">To start scoring</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Features ── -->
+  <section>
+    <div class="section-inner">
+      <div class="section-header">
+        <span class="section-label">Features</span>
+        <h2 class="section-title">Everything your team needs</h2>
+        <p class="section-sub">From the first ball to the final over — Inningsly handles scoring, stats, and communication.</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🎯</div>
+          <h3>Ball-by-Ball Scoring</h3>
+          <p>Tap to score every delivery — runs, extras, wickets, and more. Unlimited undo keeps you accurate even mid-over.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">👥</div>
+          <h3>Team &amp; Player Management</h3>
+          <p>Build your squad with player profiles including batting style, bowling style, photos, and jersey numbers.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💬</div>
+          <h3>Real-Time Team Chat</h3>
+          <p>Message your team before and after matches. All players on a Pro team get access — no extra logins needed.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏆</div>
+          <h3>Leagues &amp; Tournaments</h3>
+          <p>Create round-robin leagues or knockout brackets. Track NRR, standings tables, and fixture schedules.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">☁️</div>
+          <h3>Cloud Sync</h3>
+          <p>Your teams, matches, and stats are backed up to the cloud. Switch devices without losing a single ball.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔗</div>
+          <h3>Delegate Access</h3>
+          <p>Share a 6-character code with a scorer. They get temporary editor access to your team — time-limited, single-use.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>Live Scorecard &amp; Stats</h3>
+          <p>Auto-generated scorecards with batting and bowling tables. Export and share after the match with one tap.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📍</div>
+          <h3>Nearby Live Scores</h3>
+          <p>See other teams scoring live near you. Follow the action in real time from the sideline — no account needed.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚙️</div>
+          <h3>Custom Match Formats</h3>
+          <p>T20, ODI, Test, or fully custom — set your own overs, bowling limits, and powerplay rules for any format.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── How it works ── -->
+  <section class="how-bg">
+    <div class="section-inner">
+      <div class="section-header">
+        <span class="section-label">How it works</span>
+        <h2 class="section-title">Up and scoring in minutes</h2>
+        <p class="section-sub">No setup headaches. Create your account and start your first match right away.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Create Your Account</h3>
+          <p>Register with your phone number. Verify with a one-time code — no email or password required.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>Build Your Team</h3>
+          <p>Add players with their details. Invite a scorer via delegate code or let any player join with yours.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>Start the Match</h3>
+          <p>Choose format, complete the toss, set your Playing XI, and tap to start scoring ball by ball.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <h3>Share the Scorecard</h3>
+          <p>When the final wicket falls, share the full scorecard with your team and friends instantly.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Plans ── -->
+  <section>
+    <div class="section-inner">
+      <div class="section-header">
+        <span class="section-label">Plans</span>
+        <h2 class="section-title">Start free, grow with your team</h2>
+        <p class="section-sub">No credit card needed to start. Upgrade when your team needs more.</p>
+      </div>
+      <div class="plans-grid">
+
+        <!-- Starter -->
+        <div class="plan-card">
+          <div class="plan-header">
+            <div class="plan-name">Starter</div>
+            <div class="plan-price">$0 <span>/ month</span></div>
+            <div class="plan-sub">Free forever</div>
+          </div>
+          <div class="plan-body">
+            <ul class="plan-features">
+              <li>1 team (up to 15 players)</li>
+              <li>Unlimited match scoring</li>
+              <li>Ball-by-ball undo &amp; live scorecard</li>
+              <li>Basic player stats</li>
+              <li>Match history stored locally</li>
+            </ul>
+            <a class="plan-cta ghost" href="../">Get started free</a>
+          </div>
+        </div>
+
+        <!-- Pro Team -->
+        <div class="plan-card featured">
+          <div class="plan-header">
+            <div class="plan-badge">Most Popular</div>
+            <div class="plan-name">Pro Team</div>
+            <div class="plan-price">$5.99 <span>/ month</span></div>
+            <div class="plan-sub">or $49.99/yr · save 30%</div>
+          </div>
+          <div class="plan-body">
+            <ul class="plan-features">
+              <li>Everything in Starter</li>
+              <li>Up to 3 teams</li>
+              <li>Cloud sync &amp; cross-device restore</li>
+              <li>Real-time team chat</li>
+              <li>Delegate access codes</li>
+              <li>Scorecard export &amp; sharing</li>
+              <li>Up to 2 leagues</li>
+              <li>Scorers on your team get Pro features</li>
+            </ul>
+            <a class="plan-cta primary" href="../">Upgrade to Pro</a>
+          </div>
+        </div>
+
+        <!-- Pro League -->
+        <div class="plan-card">
+          <div class="plan-header">
+            <div class="plan-name">Pro League</div>
+            <div class="plan-price">$29.99 <span>/ month</span></div>
+            <div class="plan-sub">or $249.99/yr · save 30%</div>
+          </div>
+          <div class="plan-body">
+            <ul class="plan-features">
+              <li>Everything in Pro Team</li>
+              <li>Unlimited teams &amp; players</li>
+              <li>Unlimited leagues &amp; knockout brackets</li>
+              <li>NRR tracking &amp; standings tables</li>
+              <li>Fixture scheduling &amp; match verification</li>
+              <li>Data export (CSV)</li>
+              <li>All team members inherit Pro features</li>
+            </ul>
+            <a class="plan-cta ghost" href="../">Upgrade to League</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── App Store / Coming Soon ── -->
+  <section class="apps-bg">
+    <div class="section-inner">
+      <div class="section-header">
+        <span class="section-label">Mobile Apps</span>
+        <h2 class="section-title">Native apps coming soon</h2>
+        <p class="section-sub">The full Inningsly experience is being polished for the App Store and Google Play. Use the web app today — your data syncs automatically when the apps launch.</p>
+      </div>
+      <div class="apps-grid">
+
+        <!-- iOS -->
+        <div class="app-card">
+          <span class="coming-soon-badge">Coming Soon</span>
+          <div class="app-icon-wrap">🍎</div>
+          <div class="app-platform">iPhone &amp; iPad</div>
+          <p style="font-size:0.82rem;color:var(--muted);">Optimised for iOS with haptic feedback, Siri Shortcuts, and native performance.</p>
+          <div class="store-btn">
+            <span>
+              <span class="store-btn-sub">Download on the</span>
+              <span class="store-btn-main">App Store</span>
+            </span>
+          </div>
+          <span class="app-eta">Available soon on iOS 16+</span>
+        </div>
+
+        <!-- Android -->
+        <div class="app-card">
+          <span class="coming-soon-badge">Coming Soon</span>
+          <div class="app-icon-wrap">🤖</div>
+          <div class="app-platform">Android</div>
+          <p style="font-size:0.82rem;color:var(--muted);">Full-featured Android app with offline scoring, background sync, and widgets.</p>
+          <div class="store-btn">
+            <span>
+              <span class="store-btn-sub">Get it on</span>
+              <span class="store-btn-main">Google Play</span>
+            </span>
+          </div>
+          <span class="app-eta">Available soon on Android 8+</span>
+        </div>
+
+      </div>
+
+      <p style="margin-top:24px;font-size:0.875rem;color:var(--muted);">
+        In the meantime, <a href="../" style="color:var(--green);font-weight:700;text-decoration:none;">use the web app</a> — it works great on any mobile browser.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── Bottom CTA ── -->
+  <section class="web-cta-bg">
+    <div class="section-inner">
+      <h2 class="section-title">Ready to score your next match?</h2>
+      <p class="section-sub">Create your free account and start scoring in under two minutes.</p>
+      <div class="cta-buttons">
+        <a class="btn-white" href="../">🚀 Create Free Account</a>
+        <a class="btn-white-outline" href="../">Sign In</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ── -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span style="font-size:1.4rem;">🏏</span>
+        <span class="footer-brand-name">Inningsly</span>
+      </div>
+      <div class="footer-links">
+        <a href="support.html">Support</a>
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="../">Web App</a>
+      </div>
+      <p class="footer-copy">&copy; 2026 Inningsly. All rights reserved.</p>
+    </div>
+  </footer>
+
 </body>
 </html>
