@@ -565,3 +565,27 @@ EXCEPTION WHEN others THEN NULL; END $$;
 DO $$ BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.match_invitations;
 EXCEPTION WHEN others THEN NULL; END $$;
+
+-- ── OTP Rate Limiting ─────────────────────────────────────────────────────────
+-- Tracks OTP send attempts per phone number to prevent bot abuse.
+-- The send-otp edge function inserts a row per attempt and counts rows
+-- within the last hour; requests beyond the limit are rejected before
+-- hitting Twilio, preventing unwanted charges.
+
+CREATE TABLE IF NOT EXISTS public.otp_rate_limit (
+  id         BIGSERIAL   PRIMARY KEY,
+  phone      TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS otp_rate_limit_phone_created_at_idx
+  ON public.otp_rate_limit (phone, created_at DESC);
+
+-- Auto-purge rows older than 24 hours to keep the table small.
+-- Run manually or via a pg_cron job if available on your Supabase plan.
+-- CREATE EXTENSION IF NOT EXISTS pg_cron;
+-- SELECT cron.schedule('purge-otp-rate-limit', '0 * * * *',
+--   $$DELETE FROM public.otp_rate_limit WHERE created_at < NOW() - INTERVAL '24 hours'$$);
+
+-- RLS: only the service role (edge functions) can insert/select; no client access.
+ALTER TABLE public.otp_rate_limit ENABLE ROW LEVEL SECURITY;
