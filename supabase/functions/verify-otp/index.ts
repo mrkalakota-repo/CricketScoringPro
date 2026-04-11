@@ -21,12 +21,11 @@ serve(async (req) => {
       });
     }
 
-    const accountSid   = Deno.env.get('TWILIO_ACCOUNT_SID');
     const apiKeySid    = Deno.env.get('TWILIO_API_KEY_SID');
     const apiKeySecret = Deno.env.get('TWILIO_API_KEY_SECRET');
     const serviceSid   = Deno.env.get('TWILIO_VERIFY_SERVICE_SID');
 
-    if (!accountSid || !apiKeySid || !apiKeySecret || !serviceSid) {
+    if (!apiKeySid || !apiKeySecret || !serviceSid) {
       console.error('[verify-otp] Missing Twilio env vars');
       return new Response(JSON.stringify({ valid: false, error: 'Server misconfiguration' }), {
         status: 500,
@@ -37,7 +36,6 @@ serve(async (req) => {
     const e164 = phone.startsWith('+') ? phone : `+${phone}`;
 
     // API Key auth: Basic <base64(apiKeySid:apiKeySecret)>
-    // accountSid is used only in the URL — not for authentication.
     const url = `https://verify.twilio.com/v2/Services/${serviceSid}/VerificationCheck`;
     const body = new URLSearchParams({ To: e164, Code: code });
 
