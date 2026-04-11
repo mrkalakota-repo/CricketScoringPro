@@ -11,6 +11,15 @@ serve(async (req) => {
     return new Response('ok', { headers: CORS_HEADERS });
   }
 
+  // ── Shared-secret guard (replaces JWT verification) ───────────────────────
+  const expectedSecret = Deno.env.get('FUNCTION_SECRET');
+  if (expectedSecret && req.headers.get('x-function-secret') !== expectedSecret) {
+    return new Response(
+      JSON.stringify({ valid: false, error: 'Unauthorized' }),
+      { status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
+    );
+  }
+
   try {
     const { phone, code } = await req.json() as { phone: string; code: string };
 

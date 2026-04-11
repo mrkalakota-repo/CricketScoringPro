@@ -101,6 +101,17 @@ serve(async (req) => {
     return new Response('ok', { headers: CORS_HEADERS });
   }
 
+  // ── Shared-secret guard (replaces JWT verification) ───────────────────────
+  // FUNCTION_SECRET must be set in Supabase secrets and EXPO_PUBLIC_FUNCTION_SECRET
+  // in the app's .env. Blocks direct bot calls to the function URL.
+  const expectedSecret = Deno.env.get('FUNCTION_SECRET');
+  if (expectedSecret && req.headers.get('x-function-secret') !== expectedSecret) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Unauthorized' }),
+      { status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
+    );
+  }
+
   // ── IP rate limit ──
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
   if (isRateLimited(`ip:${ip}`, RATE_LIMITS.ip)) {
