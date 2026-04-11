@@ -46,10 +46,23 @@ function isRateLimited(key: string, limit: { max: number; windowMs: number }): b
 
 // ── Phone number validation ────────────────────────────────────────────────────
 // Stored format: countryCodeDigits + localDigits, e.g. "919876543210"
-// Must be 10–15 digits total (E.164 without the +).
+// Allowlist matches exactly the 5 countries in the app's country picker.
+// { prefix, totalLength } — prefix is the dial code digits (no +).
+
+const ALLOWED_PREFIXES: { prefix: string; totalLength: number }[] = [
+  { prefix: '91', totalLength: 12 }, // India      +91 + 10
+  { prefix: '1',  totalLength: 11 }, // USA/Canada +1  + 10
+  { prefix: '44', totalLength: 12 }, // UK         +44 + 10
+  { prefix: '61', totalLength: 11 }, // Australia  +61 + 9
+  { prefix: '64', totalLength: 11 }, // New Zealand+64 + 9
+];
 
 function isValidPhone(phone: string): boolean {
-  return /^\d{10,15}$/.test(phone);
+  if (!/^\d{10,15}$/.test(phone)) return false;
+  return ALLOWED_PREFIXES.some(
+    ({ prefix, totalLength }) =>
+      phone.startsWith(prefix) && phone.length === totalLength,
+  );
 }
 
 // ── Supabase-based rate limit (persistent across cold starts) ─────────────────
