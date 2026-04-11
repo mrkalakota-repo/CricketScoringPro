@@ -34,20 +34,15 @@ type RestoreOtpStep = 'phone' | 'otp' | 'pin' | 'confirm';
 const COUNTRY_CODES = [
   { code: '+91',  flag: '🇮🇳', name: 'India',          digits: 10 },
   { code: '+1',   flag: '🇺🇸', name: 'USA / Canada',   digits: 10 },
-  { code: '+92',  flag: '🇵🇰', name: 'Pakistan',       digits: 10 },
-  { code: '+94',  flag: '🇱🇰', name: 'Sri Lanka',      digits: 9  },
   { code: '+44',  flag: '🇬🇧', name: 'United Kingdom', digits: 10 },
   { code: '+61',  flag: '🇦🇺', name: 'Australia',      digits: 9  },
-  { code: '+27',  flag: '🇿🇦', name: 'South Africa',   digits: 9  },
   { code: '+64',  flag: '🇳🇿', name: 'New Zealand',    digits: 9  },
-  { code: '+880', flag: '🇧🇩', name: 'Bangladesh',     digits: 10 },
-  { code: '+263', flag: '🇿🇼', name: 'Zimbabwe',       digits: 9  },
 ];
 type CountryEntry = typeof COUNTRY_CODES[number];
 
 const REGION_TO_DIAL: Record<string, string> = {
-  IN: '+91', US: '+1', CA: '+1', PK: '+92', LK: '+94',
-  GB: '+44', AU: '+61', ZA: '+27', NZ: '+64', BD: '+880', ZW: '+263',
+  IN: '+91', US: '+1', CA: '+1',
+  GB: '+44', AU: '+61', NZ: '+64',
 };
 
 function detectDefaultCountry(): CountryEntry {
