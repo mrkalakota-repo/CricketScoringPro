@@ -33,7 +33,7 @@ const rateLimitStore = new Map<string, number[]>();
 
 const RATE_LIMITS = {
   ip:    { max: 5,  windowMs: 10 * 60 * 1000 }, // 5 per IP per 10 min
-  phone: { max: 3,  windowMs: 60 * 60 * 1000 }, // 3 per phone per hour
+  phone: { max: 2,  windowMs: 60 * 60 * 1000 }, // 2 per phone per hour
 };
 
 function isRateLimited(key: string, limit: { max: number; windowMs: number }): boolean {
@@ -83,7 +83,7 @@ async function checkPersistentRateLimit(phone: string): Promise<boolean> {
       .eq('phone', phone)
       .gte('created_at', windowStart);
 
-    if ((count ?? 0) >= 3) return true; // blocked
+    if ((count ?? 0) >= 2) return true; // blocked — max 2 OTPs per phone per hour
 
     // Record this attempt
     await supabase.from('otp_rate_limit').insert({ phone });
