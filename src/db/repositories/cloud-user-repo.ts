@@ -1,4 +1,4 @@
-import { supabase, isCloudEnabled, isSchemaNotReady, SUPABASE_ANON_KEY_VALUE } from '../../config/supabase';
+import { supabase, isCloudEnabled, isSchemaNotReady } from '../../config/supabase';
 
 export interface CloudUserProfile {
   phone: string;
@@ -129,7 +129,6 @@ export async function sendOtp(phone: string, turnstileToken?: string): Promise<O
   try {
     const { data, error } = await supabase.functions.invoke('send-otp', {
       body: { phone, ...(turnstileToken ? { turnstileToken } : {}) },
-      headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY_VALUE}` },
     });
     if (error) throw error;
     const res = data as { success: boolean; error?: string };
@@ -154,7 +153,6 @@ export async function verifyOtp(phone: string, code: string): Promise<OtpVerifyR
   try {
     const { data, error } = await supabase.functions.invoke('verify-otp', {
       body: { phone, code },
-      headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY_VALUE}` },
     });
     if (error) throw error;
     const res = data as { valid: boolean; name?: string; role?: string; error?: string };
