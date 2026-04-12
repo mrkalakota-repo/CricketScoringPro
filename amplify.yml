@@ -9,6 +9,7 @@ frontend:
         - npm ci --legacy-peer-deps
     build:
       commands:
+        - echo "EXPO_PUBLIC vars available:" && printenv | grep EXPO_PUBLIC | sed 's/=.*/=***/' || echo "(none found)"
         - npx expo export --platform web
   artifacts:
     baseDirectory: dist
