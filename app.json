@@ -4,7 +4,7 @@
     "slug": "gully-cricket-scorer",
     "version": "1.1.3",
     "sdkVersion": "55.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "inningsly",
@@ -66,7 +66,8 @@
           "cameraPermission": false
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "react-native-edge-to-edge"
     ],
     "extra": {
       "router": {},
