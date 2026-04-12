@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Inningsly — CLAUDE.md
 
 ## Project Overview
-**Inningsly** — Cross-platform cricket scoring app (Android + iOS + mobile web) — React Native + Expo SDK 54.
+**Inningsly** — Cross-platform cricket scoring app (Android + iOS + mobile web) — React Native + Expo SDK 55.
 Supports T20/ODI/Test/custom formats, team/player management, ball-by-ball scoring with undo,
 proximity-based team discovery, leagues, real-time player chat, and delegate team access.
 
@@ -58,9 +58,9 @@ Required secrets (set in Supabase dashboard → Edge Functions → Secrets):
 
 | Layer | Choice |
 |---|---|
-| Framework | React Native + Expo SDK 54 |
+| Framework | React Native 0.83 + Expo SDK 55 |
 | Language | TypeScript (strict) |
-| Navigation | Expo Router v6 (file-based) |
+| Navigation | Expo Router 55.x (file-based) |
 | UI | React Native Paper (MD3) |
 | State | Zustand (no immer middleware — engine uses immer internally) |
 | Persistence | expo-sqlite (native), localStorage (web) via `.web.ts` Metro resolution |
@@ -146,6 +146,26 @@ Available roles at registration: `scorer`, `team_admin`, `league_admin`, `viewer
 
 ### Sync Status
 `src/hooks/useSyncStatus.ts` — subscribes to cloud match repo sync events. States: `synced` | `syncing` | `offline` | `disabled`. Used for the scoring-screen cloud indicator.
+
+### Plan Gates (Monetization)
+`src/hooks/usePlan.ts` — central plan authority. Reads the stored plan from `useUserAuth` profile, hard-caps to `'free'` on web (`Platform.OS === 'web'`), and derives per-feature booleans from `PLAN_LIMITS`.
+
+```
+free  → canUseTeamChat: false, canCloudSync: false, canExportScorecard: false,
+        canViewNRRStandings: false, canCreatePublicScoreboard: false, canExportData: false
+pro   → + canUseTeamChat, canCloudSync, canExportScorecard
+league→ + all of the above + canViewNRRStandings, canCreatePublicScoreboard, canExportData
+```
+
+`UpgradeSheet` (`src/components/UpgradeSheet.tsx`) — `<Portal><Dialog>` that shows feature copy and navigates to `/upgrade`. Props: `feature: PlanFeature`, `requiredPlan: 'pro' | 'league'`, `visible`, `onDismiss`. Use this pattern when gating any feature:
+```tsx
+const { canExportScorecard } = usePlan();
+if (!canExportScorecard) { setShowUpgrade(true); return; }
+// ... do the feature
+<UpgradeSheet visible={showUpgrade} feature="scorecard_export" requiredPlan="pro" onDismiss={...} />
+```
+
+Cloud sync gate lives in `src/store/match-store.ts` as a module-level `publishToCloud(m: Match)` helper — calls `canCloudSync()` (reads `useUserAuth.getState()` directly, safe outside React) and early-returns for free users. All 8 cloud publish call-sites use this helper; do not call `cloudMatchRepo.publishLiveMatch` / `cloudMatchRepo.publishMatchState` directly from the store.
 
 ---
 
@@ -343,6 +363,8 @@ Supported key formats: legacy JWT (`length > 100`) **or** new publishable format
 - `src/utils/constants.ts` — `BALLS_PER_OVER = 6` and other shared constants. Import from here; do not redefine inline.
 - `src/utils/player-stats.ts` — `aggregatePlayerStats(matches, playerId)` — computes career batting/bowling stats across all stored matches. Used by player profile screens.
 - `src/utils/scorecard-export.ts` — generates a plain-text scorecard string from a `MatchEngine` instance (for sharing/copying).
+- `src/utils/data-export.ts` — `buildDataExportCSV(matches: Match[]): string` — builds a 3-section CSV (Match Results, Batting Stats, Bowling Stats) from completed matches. Used by the Export button on the Stats screen (League plan gate).
+- `src/components/UpgradeSheet.tsx` — plan-gate upgrade prompt; see **Plan Gates** above.
 - `src/components/TurnstileWidget.web.tsx` / `TurnstileWidget.tsx` — Cloudflare Turnstile bot-protection widget. The `.web.tsx` file injects the Cloudflare script and renders the challenge; the `.tsx` stub is a no-op for native. Shown on the phone-entry step of register and restore-OTP flows. "Send OTP" is disabled until a token is received. Token is passed to `sendOtp()` → `cloud-user-repo` → `send-otp` Edge Function for server-side verification. Site key is hardcoded in the `.web.tsx` file; secret key is in Supabase secrets.
 - `src/services/purchases.ts` — RevenueCat in-app purchase integration. `configurePurchases()` is called once on startup (no-op when API keys are absent, e.g. web). `getCurrentPlan()` returns `'free' | 'pro' | 'league'`. `loginPurchasesUser(phone)` / `logoutPurchasesUser()` tie the RC anonymous user to the phone number on auth state change. Env vars: `EXPO_PUBLIC_RC_API_KEY_IOS`, `EXPO_PUBLIC_RC_API_KEY_ANDROID`.
 - `src/components/AdminPinModal.tsx` — modal for entering an existing team admin PIN; used on team detail screens. `src/components/SetAdminPinModal.tsx` — modal for creating/changing a PIN.
@@ -365,7 +387,7 @@ After a wicket, `confirmWicket` checks two things before opening any modal:
 The combined modal reuses `selectedNewBatter` and `selectedBowler` state, has two labeled scroll sections, and requires both selections before enabling Confirm. It calls `setNewBatter` then `setBowler` in sequence — Zustand reads fresh state between calls so ordering is safe.
 
 ### Match Creation Wizard Back Navigation
-`app/match/create.tsx` uses `Stack.Screen` with a custom `headerLeft` button to intercept the system/header back gesture. The `stepBack()` function maps the current step to `STEP_ORDER[idx - 1]`; on the first step (`format`) it calls `router.back()` to close the modal (button label "Cancel"). On all later steps it calls `setStep(prev)` (button label "Back"). The in-content Back buttons remain as a secondary affordance — do not remove them.
+`app/match/create.tsx` uses `Stack.Screen` with a custom `headerLeft` `IconButton` (`arrow-left`, white) to intercept the system/header back gesture. The header title updates dynamically per step via `STEP_TITLES`. The `stepBack()` function maps the current step to `STEP_ORDER[idx - 1]`; on the first step (`format`) it calls `router.back()` to close the modal. On all later steps it calls `setStep(prev)`. The in-content Back buttons remain as a secondary affordance — do not remove them.
 
 ### Player Photo Fallback
 `app/player/[id].tsx` tracks `photoError` state. The `<Image>` has `onError={() => setPhotoError(true)}`. When `photoUri` is absent or the file is gone (app reinstall, storage clear), a fallback circle is shown with the player's initial in white on a translucent primary-colour background. Reset `photoError` to `false` in `startEdit()` when a fresh photo URI is loaded.
@@ -387,6 +409,13 @@ eas build --profile production --platform android # Build AAB
 ```
 
 Android package: `com.gullycricket.scorer` (retained for Play Store continuity) · versionCode: bump in `app.json` before each store upload.
+
+After any change to `app.json` plugins, `android` config, or native dependencies, regenerate the native project before building:
+```bash
+npx expo prebuild --clean
+```
+
+**Android 15/16 compliance** — `react-native-edge-to-edge` is installed as a config plugin (replaces deprecated `setDecorFitsSystemWindows` API). `orientation` in `app.json` is `"default"` (not `"portrait"`) so Android 16 large-screen orientation override is handled gracefully. Do not change it back to `"portrait"`.
 
 ---
 
@@ -412,3 +441,5 @@ Android package: `com.gullycricket.scorer` (retained for Play Store continuity) 
 - **Do not** import from `docs/` in app code — those files are standalone static HTML, not part of the Expo build
 - **Do not** require a Turnstile token on native — the token is optional in `sendOtp(phone, token?)`; the Edge Function skips Turnstile verification when the token is absent (native apps have no widget)
 - **Do not** call `configurePurchases()` or other RevenueCat methods on web — `src/services/purchases.ts` guards every call with an API-key check and returns safe defaults when keys are absent
+- **Do not** call `cloudMatchRepo.publishLiveMatch` / `cloudMatchRepo.publishMatchState` directly from `match-store.ts` — always go through the `publishToCloud(m)` helper which enforces the cloud-sync plan gate
+- **Do not** change `orientation` in `app.json` back to `"portrait"` — it is intentionally `"default"` for Android 16 large-screen compliance
