@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { View } from 'react-native';
 
 const SITE_KEY = '0x4AAAAAAC6kSbNeaU9DWDDR';
+const SCRIPT_ID = 'cf-turnstile-script';
+const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 
 declare global {
   interface Window {
@@ -29,20 +30,25 @@ interface Props {
 }
 
 export function TurnstileWidget({ onToken, onExpire }: Props) {
-  const containerRef = useRef<View>(null);
+  // Use a real HTMLDivElement ref — React Native View refs are component
+  // instances, not DOM nodes, and Turnstile requires an actual DOM element.
+  const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    const SCRIPT_ID = 'cf-turnstile-script';
+  // Keep callback refs current so the widget never holds a stale closure.
+  const onTokenRef = useRef(onToken);
+  const onExpireRef = useRef(onExpire);
+  useEffect(() => { onTokenRef.current = onToken; }, [onToken]);
+  useEffect(() => { onExpireRef.current = onExpire; }, [onExpire]);
 
+  useEffect(() => {
     function renderWidget() {
       if (!containerRef.current || !window.turnstile) return;
-      const domNode = containerRef.current as unknown as HTMLElement;
-      widgetIdRef.current = window.turnstile.render(domNode, {
+      widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: SITE_KEY,
-        callback: onToken,
-        'expired-callback': onExpire,
-        'error-callback': onExpire,
+        callback: (token) => onTokenRef.current(token),
+        'expired-callback': () => onExpireRef.current(),
+        'error-callback': () => onExpireRef.current(),
         theme: 'light',
         size: 'normal',
         appearance: 'always',
@@ -50,17 +56,26 @@ export function TurnstileWidget({ onToken, onExpire }: Props) {
     }
 
     if (window.turnstile) {
+      // API already loaded (e.g. component remounted after navigation).
       renderWidget();
+    } else if (!document.getElementById(SCRIPT_ID)) {
+      // First load — inject the script and render when ready.
+      const script = document.createElement('script');
+      script.id = SCRIPT_ID;
+      script.src = SCRIPT_SRC;
+      script.async = true;
+      script.onload = renderWidget;
+      document.head.appendChild(script);
     } else {
-      let script = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
-      if (!script) {
-        script = document.createElement('script');
-        script.id = SCRIPT_ID;
-        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-        script.async = true;
-        document.head.appendChild(script);
-      }
-      script.addEventListener('load', renderWidget);
+      // Script tag exists but hasn't finished loading yet — poll until ready.
+      const poll = setInterval(() => {
+        if (window.turnstile) {
+          clearInterval(poll);
+          renderWidget();
+        }
+      }, 50);
+      const timeout = setTimeout(() => clearInterval(poll), 10_000);
+      return () => { clearInterval(poll); clearTimeout(timeout); };
     }
 
     return () => {
@@ -71,5 +86,10 @@ export function TurnstileWidget({ onToken, onExpire }: Props) {
     };
   }, []);
 
-  return <View ref={containerRef} style={{ minHeight: 65, marginVertical: 8 }} />;
+  return (
+    <div
+      ref={containerRef}
+      style={{ minHeight: 65, marginTop: 8, marginBottom: 8 }}
+    />
+  );
 }
