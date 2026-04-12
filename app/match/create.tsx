@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Button, Card, useTheme, TextInput, RadioButton, Checkbox, Divider } from 'react-native-paper';
+import { Text, Button, Card, useTheme, TextInput, RadioButton, Checkbox, Divider, IconButton } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -142,15 +142,13 @@ export default function CreateMatchScreen() {
         options={{
           title: STEP_TITLES[step],
           headerLeft: () => (
-            <Button
-              compact
-              mode="text"
-              textColor="#FFFFFF"
+            <IconButton
+              icon="arrow-left"
+              iconColor="#FFFFFF"
+              size={24}
               onPress={stepBack}
-              style={{ marginLeft: -8 }}
-            >
-              {step === 'format' ? 'Cancel' : 'Back'}
-            </Button>
+              style={{ marginLeft: -4 }}
+            />
           ),
         }}
       />
