@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, FlatList, ScrollView } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, StyleSheet, FlatList, ScrollView, Share, TouchableOpacity } from 'react-native';
 import { Text, Card, Button, useTheme, SegmentedButtons, Divider, Portal, Dialog, IconButton } from 'react-native-paper';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,7 +8,25 @@ import { useLeagueStore } from '../../../src/store/league-store';
 import { useTeamStore } from '../../../src/store/team-store';
 import { usePrefsStore } from '../../../src/store/prefs-store';
 import { useRole } from '../../../src/hooks/useRole';
-import type { LeagueFixture, LeagueStandingRow } from '../../../src/engine/types';
+import { usePlan } from '../../../src/hooks/usePlan';
+import { UpgradeSheet } from '../../../src/components/UpgradeSheet';
+import type { LeagueFixture, LeagueStandingRow, Team } from '../../../src/engine/types';
+
+function buildStandingsText(leagueName: string, standings: LeagueStandingRow[], getTeam: (id: string) => Team | undefined): string {
+  const lines: string[] = [];
+  lines.push(`${leagueName} — Standings`);
+  lines.push('');
+  lines.push(`${'#'.padEnd(4)}${'Team'.padEnd(12)}${'P'.padEnd(4)}${'W'.padEnd(4)}${'L'.padEnd(4)}${'T'.padEnd(4)}${'Pts'.padEnd(6)}NRR`);
+  lines.push('─'.repeat(42));
+  for (const [idx, row] of standings.entries()) {
+    const name = (getTeam(row.teamId)?.shortName ?? '???').padEnd(12);
+    const nrr = row.nrr === 0 ? '-' : (row.nrr > 0 ? '+' : '') + row.nrr.toFixed(3);
+    lines.push(`${String(idx + 1).padEnd(4)}${name}${String(row.played).padEnd(4)}${String(row.won).padEnd(4)}${String(row.lost).padEnd(4)}${String(row.tied).padEnd(4)}${String(row.points).padEnd(6)}${nrr}`);
+  }
+  lines.push('');
+  lines.push('Shared via Inningsly 🏏');
+  return lines.join('\n');
+}
 
 type Tab = 'teams' | 'standings' | 'fixtures' | 'bracket';
 
@@ -31,6 +49,7 @@ export default function LeagueDetailScreen() {
   const myLeagueIds = usePrefsStore(s => s.myLeagueIds);
 
   const { canCreateLeague } = useRole();
+  const { canViewNRRStandings, canCreatePublicScoreboard } = usePlan();
   const league = leagues.find(l => l.id === id);
   const isOwner = league ? myLeagueIds.includes(league.id) : false;
   // Can manage only if both the league belongs to this user AND their role permits it
@@ -42,6 +61,8 @@ export default function LeagueDetailScreen() {
   const [showAddTeam, setShowAddTeam] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [removeTeamId, setRemoveTeamId] = useState<string | null>(null);
+  const [showNRRUpgrade, setShowNRRUpgrade] = useState(false);
+  const [showStandingsUpgrade, setShowStandingsUpgrade] = useState(false);
 
   useFocusEffect(useCallback(() => {
     loadLeagues();
@@ -61,6 +82,14 @@ export default function LeagueDetailScreen() {
   const availableTeams = teams.filter(t => !league.teamIds.includes(t.id));
 
   const getTeam = (teamId: string) => teams.find(t => t.id === teamId);
+
+  const handleShareStandings = async () => {
+    if (!canCreatePublicScoreboard) { setShowStandingsUpgrade(true); return; }
+    if (standings.length === 0) return;
+    try {
+      await Share.share({ message: buildStandingsText(league.name, standings, getTeam) });
+    } catch { /* user cancelled */ }
+  };
 
   const doDelete = async () => {
     setShowDeleteDialog(false);
@@ -115,6 +144,9 @@ export default function LeagueDetailScreen() {
             }}>Remove</Button>
           </Dialog.Actions>
         </Dialog>
+
+        <UpgradeSheet visible={showNRRUpgrade} feature="public_scoreboard" requiredPlan="league" onDismiss={() => setShowNRRUpgrade(false)} />
+        <UpgradeSheet visible={showStandingsUpgrade} feature="public_scoreboard" requiredPlan="league" onDismiss={() => setShowStandingsUpgrade(false)} />
 
         <Dialog visible={showAddTeam} onDismiss={() => setShowAddTeam(false)}>
           <Dialog.Title>Add Team</Dialog.Title>
@@ -286,6 +318,15 @@ export default function LeagueDetailScreen() {
 
       {tab === 'standings' && (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 8) + 16 }}>
+          <Button
+            mode="outlined"
+            icon={canCreatePublicScoreboard ? 'share-variant' : 'lock-outline'}
+            onPress={handleShareStandings}
+            style={{ marginBottom: 12, borderRadius: 20 }}
+            disabled={standings.length === 0}
+          >
+            Share Standings
+          </Button>
           {standings.length === 0 ? (
             <View style={styles.empty}>
               <MaterialCommunityIcons name="podium" size={40} color={theme.colors.outlineVariant} />
@@ -305,7 +346,16 @@ export default function LeagueDetailScreen() {
                   <Text style={[styles.numCol, { color: theme.colors.onPrimaryContainer, fontWeight: '700' }]}>L</Text>
                   <Text style={[styles.numCol, { color: theme.colors.onPrimaryContainer, fontWeight: '700' }]}>T</Text>
                   <Text style={[styles.numCol, { color: theme.colors.primary, fontWeight: '800' }]}>Pts</Text>
-                  <Text style={[styles.nrrCol, { color: theme.colors.onPrimaryContainer, fontWeight: '700' }]}>NRR</Text>
+                  <TouchableOpacity
+                    style={{ width: 52, alignItems: 'center' }}
+                    onPress={canViewNRRStandings ? undefined : () => setShowNRRUpgrade(true)}
+                    disabled={canViewNRRStandings}
+                  >
+                    {canViewNRRStandings
+                      ? <Text style={[styles.nrrCol, { color: theme.colors.onPrimaryContainer, fontWeight: '700' }]}>NRR</Text>
+                      : <MaterialCommunityIcons name="lock-outline" size={14} color={theme.colors.onPrimaryContainer} />
+                    }
+                  </TouchableOpacity>
                 </View>
                 <Divider />
                 {standings.map((row, idx) => {
@@ -324,7 +374,12 @@ export default function LeagueDetailScreen() {
                         <Text style={[styles.numCol, { color: theme.colors.error }]}>{row.lost}</Text>
                         <Text style={[styles.numCol, { color: theme.colors.onSurfaceVariant }]}>{row.tied}</Text>
                         <Text style={[styles.numCol, { color: theme.colors.primary, fontWeight: '800' }]}>{row.points}</Text>
-                        <Text style={[styles.nrrCol, { color: nrrColor, fontWeight: '600' }]}>{nrrStr}</Text>
+                        {canViewNRRStandings
+                          ? <Text style={[styles.nrrCol, { color: nrrColor, fontWeight: '600' }]}>{nrrStr}</Text>
+                          : <TouchableOpacity style={{ width: 52, alignItems: 'center' }} onPress={() => setShowNRRUpgrade(true)}>
+                              <MaterialCommunityIcons name="lock-outline" size={14} color={theme.colors.outlineVariant} />
+                            </TouchableOpacity>
+                        }
                       </View>
                       {idx < standings.length - 1 && <Divider />}
                     </View>

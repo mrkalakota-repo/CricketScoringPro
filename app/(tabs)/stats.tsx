@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Share } from 'react-native';
 import { useResponsive } from '../../src/hooks/useResponsive';
-import { Text, Card, useTheme, Divider, Surface, ActivityIndicator } from 'react-native-paper';
+import { Text, Card, Button, useTheme, Divider, Surface, ActivityIndicator } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useMatchStore } from '../../src/store/match-store';
@@ -15,6 +15,9 @@ import { formatOvers } from '../../src/utils/formatters';
 import * as cloudMatchRepo from '../../src/db/repositories/cloud-match-repo';
 import type { CloudMatchRow } from '../../src/db/repositories/cloud-match-repo';
 import { isCloudEnabled } from '../../src/config/supabase';
+import { usePlan } from '../../src/hooks/usePlan';
+import { UpgradeSheet } from '../../src/components/UpgradeSheet';
+import { buildDataExportCSV } from '../../src/utils/data-export';
 
 type PlayerRunStat = { name: string; runs: number; matches: number; high: number };
 type PlayerWktStat = { name: string; wickets: number; matches: number; bestWickets: number; bestRuns: number; economy: number };
@@ -140,6 +143,16 @@ export default function StatsScreen() {
   const wktStats = useMemo(() => computeWktStats(allCompleted), [allCompleted]);
 
   const { isTablet } = useResponsive();
+  const { canExportData } = usePlan();
+  const [showExportUpgrade, setShowExportUpgrade] = useState(false);
+
+  const handleExportData = async () => {
+    if (!canExportData) { setShowExportUpgrade(true); return; }
+    const csv = buildDataExportCSV(allCompleted);
+    try {
+      await Share.share({ message: csv });
+    } catch { /* user cancelled */ }
+  };
 
   const overviewStats = [
     { icon: 'cricket' as const,        value: completedCount, label: 'Completed',     onPress: () => router.push('/matches') },
@@ -273,6 +286,24 @@ export default function StatsScreen() {
             )}
           </View>
         )}
+
+        {/* Data Export */}
+        <Button
+          mode="outlined"
+          icon={canExportData ? 'database-export-outline' : 'lock-outline'}
+          onPress={handleExportData}
+          style={{ marginTop: 8, borderRadius: 20 }}
+          disabled={allCompleted.length === 0}
+        >
+          Export All Data (CSV)
+        </Button>
+
+        <UpgradeSheet
+          visible={showExportUpgrade}
+          feature="data_export"
+          requiredPlan="league"
+          onDismiss={() => setShowExportUpgrade(false)}
+        />
       </View>
     </ScrollView>
   );

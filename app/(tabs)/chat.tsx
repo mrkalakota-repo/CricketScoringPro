@@ -8,6 +8,7 @@ import { useTeamStore } from '../../src/store/team-store';
 import { usePrefsStore } from '../../src/store/prefs-store';
 import { useChatStore } from '../../src/store/chat-store';
 import { isCloudEnabled } from '../../src/config/supabase';
+import { usePlan } from '../../src/hooks/usePlan';
 import type { Team } from '../../src/engine/types';
 import { getAvatarColor } from '../../src/utils/avatar';
 
@@ -57,6 +58,7 @@ export default function ChatTab() {
   const teams = useTeamStore(s => s.teams);
   const { myTeamIds, delegateTeamIds } = usePrefsStore();
   const messages = useChatStore(s => s.messages);
+  const { canUseTeamChat } = usePlan();
 
   useFocusEffect(useCallback(() => {
     // nothing to load — messages are loaded on enter to each chat
@@ -64,6 +66,28 @@ export default function ChatTab() {
 
   const accessibleTeamIds = new Set([...myTeamIds, ...delegateTeamIds]);
   const chatTeams = teams.filter(t => accessibleTeamIds.has(t.id));
+
+  if (!canUseTeamChat) {
+    return (
+      <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
+        <MaterialCommunityIcons name="lock-outline" size={56} color={theme.colors.outlineVariant} />
+        <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, textAlign: 'center' }}>
+          Team Chat is a Pro feature
+        </Text>
+        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
+          Upgrade to Pro Team to message your squad in real time.
+        </Text>
+        <Button
+          mode="contained"
+          icon="crown-outline"
+          onPress={() => router.push('/upgrade')}
+          style={{ marginTop: 20 }}
+        >
+          Upgrade
+        </Button>
+      </View>
+    );
+  }
 
   if (!isCloudEnabled) {
     return (

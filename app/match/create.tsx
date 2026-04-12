@@ -120,6 +120,13 @@ export default function CreateMatchScreen() {
     : (team1XI.size === requiredXI && team2XI.size === requiredXI);
 
   const STEP_ORDER: Step[] = ['format', 'teams', 'playing_xi', 'venue', 'confirm'];
+  const STEP_TITLES: Record<Step, string> = {
+    format: 'Select Format',
+    teams: 'Select Teams',
+    playing_xi: 'Playing XI',
+    venue: 'Match Details',
+    confirm: 'Confirm Match',
+  };
   const stepBack = () => {
     const idx = STEP_ORDER.indexOf(step);
     if (idx > 0) {
@@ -130,14 +137,15 @@ export default function CreateMatchScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 16 }}>
       <Stack.Screen
         options={{
-          title: 'New Match',
+          title: STEP_TITLES[step],
           headerLeft: () => (
             <Button
               compact
               mode="text"
+              textColor="#FFFFFF"
               onPress={stepBack}
               style={{ marginLeft: -8 }}
             >

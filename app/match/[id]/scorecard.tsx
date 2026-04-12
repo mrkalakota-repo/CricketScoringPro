@@ -8,18 +8,23 @@ import { formatOvers, formatBatterScore, formatBowlerFigures, dismissalDescripti
 import { getBallCommentary } from '../../../src/utils/commentary';
 import { strikeRate, economyRate } from '../../../src/utils/cricket-math';
 import { buildScorecardText } from '../../../src/utils/scorecard-export';
+import { usePlan } from '../../../src/hooks/usePlan';
+import { UpgradeSheet } from '../../../src/components/UpgradeSheet';
 
 export default function ScorecardScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const engine = useMatchStore(s => s.engine);
+  const { canExportScorecard } = usePlan();
+  const [showExportUpgrade, setShowExportUpgrade] = useState(false);
 
   const match = engine?.getMatch();
   const [selectedInningsIndex, setSelectedInningsIndex] = useState('0');
 
   const handleShare = async () => {
     if (!match) return;
+    if (!canExportScorecard) { setShowExportUpgrade(true); return; }
     try {
       await Share.share({ message: buildScorecardText(match) });
     } catch { /* user cancelled */ }
@@ -248,6 +253,13 @@ export default function ScorecardScreen() {
           Share Scorecard
         </Button>
       </View>
+
+      <UpgradeSheet
+        visible={showExportUpgrade}
+        feature="scorecard_export"
+        requiredPlan="pro"
+        onDismiss={() => setShowExportUpgrade(false)}
+      />
     </ScrollView>
   );
 }
