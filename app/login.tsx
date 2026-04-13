@@ -19,7 +19,7 @@ import { TurnstileWidget } from '../src/components/TurnstileWidget';
 type Mode = 'register' | 'login' | 'restore';
 
 /** Steps within the registration wizard. */
-type RegStep = 'phone' | 'otp' | 'name' | 'role' | 'pin' | 'confirm';
+type RegStep = 'phone' | 'otp' | 'name' | 'role' | 'pin';
 
 /**
  * Restore has two paths:
@@ -27,7 +27,7 @@ type RegStep = 'phone' | 'otp' | 'name' | 'role' | 'pin' | 'confirm';
  * - 'otp'  → phone → OTP → set new PIN (forgot PIN)
  */
 type RestoreTab = 'pin' | 'otp';
-type RestoreOtpStep = 'phone' | 'otp' | 'pin' | 'confirm';
+type RestoreOtpStep = 'phone' | 'otp' | 'pin';
 
 // ── Country data ──────────────────────────────────────────────────────────────
 
@@ -179,7 +179,7 @@ function CountryPicker({
 
 // ── Step progress bar ─────────────────────────────────────────────────────────
 
-const REG_STEPS: RegStep[] = ['phone', 'otp', 'name', 'role', 'pin', 'confirm'];
+const REG_STEPS: RegStep[] = ['phone', 'otp', 'name', 'role', 'pin'];
 
 function StepProgress({ current, total }: { current: number; total: number }) {
   const theme = useTheme();
@@ -268,6 +268,9 @@ export default function LoginScreen() {
 
   // ── Register warning dialog ───────────────────────────────────────────────
   const [registerWarningVisible, setRegisterWarningVisible] = useState(false);
+  // ── Phone number confirmation dialogs ─────────────────────────────────────
+  const [showPhoneConfirm, setShowPhoneConfirm] = useState(false);
+  const [showRestorePhoneConfirm, setShowRestorePhoneConfirm] = useState(false);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -303,23 +306,29 @@ export default function LoginScreen() {
 
   // ── Register handlers ─────────────────────────────────────────────────────
 
-  async function handleSendOtp() {
+  function handleSendOtp() {
     const digits = regPhone.replace(/\D/g, '');
     if (digits.length !== regCountry.digits) {
       setRegError(`Enter a valid ${regCountry.digits}-digit number for ${regCountry.name}`);
       return;
     }
     setRegError('');
+    setShowPhoneConfirm(true);
+  }
+
+  async function confirmAndSendOtp() {
+    setShowPhoneConfirm(false);
+    const digits = regPhone.replace(/\D/g, '');
     const fullPhone = `${regCountry.code.replace('+', '')}${digits}`;
     const ok = await sendOtp(fullPhone, isWeb ? turnstileToken : undefined);
     if (ok) {
-      setRegPhone(digits); // store clean digits only
+      setRegPhone(digits);
       setRegStep('otp');
       setTurnstileToken('');
       startResendCooldown();
     } else {
-      setRegError(otpError || 'Failed to send OTP. Try again.');
-      setTurnstileToken(''); // force re-challenge on failure
+      setRegError(otpError || 'Failed to send verification code. Try again.');
+      setTurnstileToken('');
     }
   }
 
@@ -402,13 +411,19 @@ export default function LoginScreen() {
 
   // ── Restore — OTP path handlers ───────────────────────────────────────────
 
-  async function handleRestoreOtpSend() {
+  function handleRestoreOtpSend() {
     const digits = restoreOtpPhone.replace(/\D/g, '');
     if (digits.length !== restoreOtpCountry.digits) {
       setRestoreOtpError(`Enter a valid ${restoreOtpCountry.digits}-digit number`);
       return;
     }
     setRestoreOtpError('');
+    setShowRestorePhoneConfirm(true);
+  }
+
+  async function confirmAndSendRestoreOtp() {
+    setShowRestorePhoneConfirm(false);
+    const digits = restoreOtpPhone.replace(/\D/g, '');
     const fullPhone = `${restoreOtpCountry.code.replace('+', '')}${digits}`;
     const ok = await sendOtp(fullPhone, isWeb ? turnstileToken : undefined);
     if (ok) {
@@ -417,8 +432,8 @@ export default function LoginScreen() {
       setTurnstileToken('');
       startResendCooldown();
     } else {
-      setRestoreOtpError(otpError || 'Failed to send OTP. Try again.');
-      setTurnstileToken(''); // force re-challenge on failure
+      setRestoreOtpError(otpError || 'Failed to send verification code. Try again.');
+      setTurnstileToken('');
     }
   }
 
@@ -468,6 +483,44 @@ export default function LoginScreen() {
       style={[styles.root, { backgroundColor: theme.colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/* Phone confirmation — register */}
+      <Portal>
+        <Dialog visible={showPhoneConfirm} onDismiss={() => setShowPhoneConfirm(false)}>
+          <Dialog.Icon icon="message-text-outline" />
+          <Dialog.Title>Send verification code?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              We'll send a 6-digit SMS code to{'\n'}
+              <Text style={{ fontWeight: '700' }}>{regCountry.code} {regPhone}</Text>
+              {'\n\n'}Make sure this number is correct before continuing.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowPhoneConfirm(false)}>Change Number</Button>
+            <Button onPress={confirmAndSendOtp} loading={otpSending}>Send Code</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* Phone confirmation — restore OTP */}
+      <Portal>
+        <Dialog visible={showRestorePhoneConfirm} onDismiss={() => setShowRestorePhoneConfirm(false)}>
+          <Dialog.Icon icon="message-text-outline" />
+          <Dialog.Title>Send verification code?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              We'll send a 6-digit SMS code to{'\n'}
+              <Text style={{ fontWeight: '700' }}>{restoreOtpCountry.code} {restoreOtpPhone}</Text>
+              {'\n\n'}Make sure this number is correct before continuing.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setShowRestorePhoneConfirm(false)}>Change Number</Button>
+            <Button onPress={confirmAndSendRestoreOtp} loading={otpSending}>Send Code</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
       {/* Replace-account warning */}
       <Portal>
         <Dialog visible={registerWarningVisible} onDismiss={() => setRegisterWarningVisible(false)}>
@@ -551,7 +604,7 @@ export default function LoginScreen() {
                   style={[styles.button, { borderRadius: 12 }]}
                   icon="message-text"
                 >
-                  Send OTP
+                  Send Verification Code
                 </Button>
                 <Divider style={styles.divider} />
                 <Button mode="text" icon="login" onPress={() => switchMode(profile ? 'login' : 'restore')} style={styles.linkBtn}>
@@ -564,10 +617,13 @@ export default function LoginScreen() {
             {regStep === 'otp' && (
               <View style={styles.stepBlock}>
                 <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
-                  Enter the 6-digit code
+                  Verify your phone number
+                </Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 4 }}>
+                  We sent a 6-digit SMS code to {regCountry.code} {regPhone}
                 </Text>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 20 }}>
-                  Sent to {regCountry.code} {regPhone}
+                  This one-time code confirms your number — it's not your app PIN.
                 </Text>
                 {(otpVerifying) ? (
                   <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginVertical: 24 }} />
@@ -590,7 +646,7 @@ export default function LoginScreen() {
                   loading={otpSending}
                   style={styles.linkBtn}
                 >
-                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
+                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
                 </Button>
                 <Button mode="text" icon="arrow-left" onPress={() => { setRegStep('phone'); setRegOtp(''); setRegError(''); clearOtpError(); }} style={styles.linkBtn}>
                   Change number
@@ -704,14 +760,14 @@ export default function LoginScreen() {
               </View>
             )}
 
-            {/* Step: pin */}
+            {/* Step: pin + confirm (merged) */}
             {regStep === 'pin' && (
               <View style={styles.stepBlock}>
                 <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
-                  Create a PIN
+                  Create your app PIN
                 </Text>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 12 }}>
-                  Used to unlock the app on this device
+                  You'll enter this PIN every time you open Inningsly.{'\n'}It's separate from the SMS code you just received.
                 </Text>
                 <TextInput
                   label="Create PIN (4–6 digits)"
@@ -726,51 +782,21 @@ export default function LoginScreen() {
                   left={<TextInput.Icon icon="lock" />}
                   right={<TextInput.Icon icon={showRegPin ? 'eye-off' : 'eye'} onPress={() => setShowRegPin(v => !v)} />}
                   autoFocus
-                  returnKeyType="done"
-                  onSubmitEditing={() => {
-                    if (regPin.length >= 4) { setRegStep('confirm'); setRegError(''); }
-                    else setRegError('PIN must be at least 4 digits');
-                  }}
+                  returnKeyType="next"
                 />
                 <PinDots count={regPin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
-                {regError ? <HelperText type="error" style={styles.helper}>{regError}</HelperText> : null}
-                <Button
-                  mode="contained"
-                  onPress={() => {
-                    if (regPin.length < 4) { setRegError('PIN must be at least 4 digits'); return; }
-                    setRegError('');
-                    setRegStep('confirm');
-                  }}
-                  style={[styles.button, { borderRadius: 12 }]}
-                  icon="arrow-right"
-                >
-                  Continue
-                </Button>
-                <Button mode="text" icon="arrow-left" onPress={() => setRegStep('role')} style={[styles.linkBtn, { marginTop: 8 }]}>
-                  Back
-                </Button>
-              </View>
-            )}
-
-            {/* Step: confirm PIN */}
-            {regStep === 'confirm' && (
-              <View style={styles.stepBlock}>
-                <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
-                  Confirm your PIN
-                </Text>
                 <TextInput
                   label="Confirm PIN"
                   value={regConfirmPin}
                   onChangeText={t => { setRegConfirmPin(t.replace(/\D/g, '')); setRegError(''); }}
                   mode="outlined"
-                  style={styles.input}
+                  style={[styles.input, { marginTop: 8 }]}
                   keyboardType="numeric"
                   secureTextEntry={!showRegConfirmPin}
                   maxLength={6}
                   error={!!regError}
                   left={<TextInput.Icon icon="lock-check" />}
                   right={<TextInput.Icon icon={showRegConfirmPin ? 'eye-off' : 'eye'} onPress={() => setShowRegConfirmPin(v => !v)} />}
-                  autoFocus
                   returnKeyType="done"
                   onSubmitEditing={handleFinishRegister}
                 />
@@ -791,7 +817,7 @@ export default function LoginScreen() {
                 >
                   Create Account
                 </Button>
-                <Button mode="text" icon="arrow-left" onPress={() => { setRegStep('pin'); setRegConfirmPin(''); setRegError(''); }} style={[styles.linkBtn, { marginTop: 8 }]}>
+                <Button mode="text" icon="arrow-left" onPress={() => { setRegStep('role'); setRegPin(''); setRegConfirmPin(''); setRegError(''); }} style={[styles.linkBtn, { marginTop: 8 }]}>
                   Back
                 </Button>
               </View>
@@ -982,7 +1008,7 @@ export default function LoginScreen() {
                       style={[styles.button, { borderRadius: 12 }]}
                       icon="message-text"
                     >
-                      Send OTP
+                      Send Verification Code
                     </Button>
                   </>
                 )}
@@ -990,10 +1016,13 @@ export default function LoginScreen() {
                 {restoreOtpStep === 'otp' && (
                   <>
                     <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
-                      Enter the 6-digit code
+                      Verify your phone number
+                    </Text>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 4 }}>
+                      We sent a 6-digit SMS code to {restoreOtpCountry.code} {restoreOtpPhone}
                     </Text>
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 20 }}>
-                      Sent to {restoreOtpCountry.code} {restoreOtpPhone}
+                      This one-time code confirms your number — it's not your app PIN.
                     </Text>
                     {otpVerifying ? (
                       <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginVertical: 24 }} />
@@ -1021,7 +1050,7 @@ export default function LoginScreen() {
                       loading={otpSending}
                       style={styles.linkBtn}
                     >
-                      {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
+                      {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
                     </Button>
                     <Button mode="text" icon="arrow-left" onPress={() => { setRestoreOtpStep('phone'); setRestoreOtpCode(''); setRestoreOtpError(''); clearOtpError(); }} style={styles.linkBtn}>
                       Change number
@@ -1029,87 +1058,62 @@ export default function LoginScreen() {
                   </>
                 )}
 
-                {(restoreOtpStep === 'pin' || restoreOtpStep === 'confirm') && (
+                {restoreOtpStep === 'pin' && (
                   <>
                     <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
-                      {restoreOtpStep === 'pin' ? `Set a new PIN, ${verifiedName}` : 'Confirm your new PIN'}
+                      Set a new PIN, {verifiedName}
                     </Text>
-                    {restoreOtpStep === 'pin' ? (
-                      <>
-                        <TextInput
-                          label="New PIN (4–6 digits)"
-                          value={restoreNewPin}
-                          onChangeText={t => { setRestoreNewPin(t.replace(/\D/g, '')); setRestoreOtpError(''); }}
-                          mode="outlined"
-                          style={styles.input}
-                          keyboardType="numeric"
-                          secureTextEntry={!showRestoreNewPin}
-                          maxLength={6}
-                          error={!!restoreOtpError}
-                          left={<TextInput.Icon icon="lock" />}
-                          right={<TextInput.Icon icon={showRestoreNewPin ? 'eye-off' : 'eye'} onPress={() => setShowRestoreNewPin(v => !v)} />}
-                          autoFocus
-                          returnKeyType="done"
-                          onSubmitEditing={() => {
-                            if (restoreNewPin.length >= 4) { setRestoreOtpStep('confirm'); setRestoreOtpError(''); }
-                            else setRestoreOtpError('PIN must be at least 4 digits');
-                          }}
-                        />
-                        <PinDots count={restoreNewPin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
-                        {restoreOtpError ? <HelperText type="error" style={styles.helper}>{restoreOtpError}</HelperText> : null}
-                        <Button
-                          mode="contained"
-                          onPress={() => {
-                            if (restoreNewPin.length < 4) { setRestoreOtpError('PIN must be at least 4 digits'); return; }
-                            setRestoreOtpError('');
-                            setRestoreOtpStep('confirm');
-                          }}
-                          style={[styles.button, { borderRadius: 12 }]}
-                          icon="arrow-right"
-                        >
-                          Continue
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <TextInput
-                          label="Confirm PIN"
-                          value={restoreConfirmPin}
-                          onChangeText={t => { setRestoreConfirmPin(t.replace(/\D/g, '')); setRestoreOtpError(''); }}
-                          mode="outlined"
-                          style={styles.input}
-                          keyboardType="numeric"
-                          secureTextEntry={!showRestoreConfirmPin}
-                          maxLength={6}
-                          error={!!restoreOtpError}
-                          left={<TextInput.Icon icon="lock-check" />}
-                          right={<TextInput.Icon icon={showRestoreConfirmPin ? 'eye-off' : 'eye'} onPress={() => setShowRestoreConfirmPin(v => !v)} />}
-                          autoFocus
-                          returnKeyType="done"
-                          onSubmitEditing={handleRestoreOtpSetPin}
-                        />
-                        <PinDots
-                          count={restoreConfirmPin.length}
-                          max={6}
-                          color={restoreConfirmPin.length > 0 && restoreNewPin !== restoreConfirmPin ? theme.colors.error : theme.colors.primary}
-                          dimColor={theme.colors.outlineVariant}
-                        />
-                        {restoreOtpError ? <HelperText type="error" style={styles.helper}>{restoreOtpError}</HelperText> : null}
-                        <Button
-                          mode="contained"
-                          onPress={handleRestoreOtpSetPin}
-                          loading={restoreBusy}
-                          disabled={restoreBusy}
-                          style={[styles.button, { borderRadius: 12 }]}
-                          icon="lock-reset"
-                        >
-                          Reset PIN & Sign In
-                        </Button>
-                        <Button mode="text" icon="arrow-left" onPress={() => { setRestoreOtpStep('pin'); setRestoreConfirmPin(''); setRestoreOtpError(''); }} style={[styles.linkBtn, { marginTop: 8 }]}>
-                          Back
-                        </Button>
-                      </>
-                    )}
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 12 }}>
+                      You'll use this PIN to sign in — it's separate from the SMS code.
+                    </Text>
+                    <TextInput
+                      label="New PIN (4–6 digits)"
+                      value={restoreNewPin}
+                      onChangeText={t => { setRestoreNewPin(t.replace(/\D/g, '')); setRestoreOtpError(''); }}
+                      mode="outlined"
+                      style={styles.input}
+                      keyboardType="numeric"
+                      secureTextEntry={!showRestoreNewPin}
+                      maxLength={6}
+                      error={!!restoreOtpError}
+                      left={<TextInput.Icon icon="lock" />}
+                      right={<TextInput.Icon icon={showRestoreNewPin ? 'eye-off' : 'eye'} onPress={() => setShowRestoreNewPin(v => !v)} />}
+                      autoFocus
+                      returnKeyType="next"
+                    />
+                    <PinDots count={restoreNewPin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
+                    <TextInput
+                      label="Confirm PIN"
+                      value={restoreConfirmPin}
+                      onChangeText={t => { setRestoreConfirmPin(t.replace(/\D/g, '')); setRestoreOtpError(''); }}
+                      mode="outlined"
+                      style={[styles.input, { marginTop: 8 }]}
+                      keyboardType="numeric"
+                      secureTextEntry={!showRestoreConfirmPin}
+                      maxLength={6}
+                      error={!!restoreOtpError}
+                      left={<TextInput.Icon icon="lock-check" />}
+                      right={<TextInput.Icon icon={showRestoreConfirmPin ? 'eye-off' : 'eye'} onPress={() => setShowRestoreConfirmPin(v => !v)} />}
+                      returnKeyType="done"
+                      onSubmitEditing={handleRestoreOtpSetPin}
+                    />
+                    <PinDots
+                      count={restoreConfirmPin.length}
+                      max={6}
+                      color={restoreConfirmPin.length > 0 && restoreNewPin !== restoreConfirmPin ? theme.colors.error : theme.colors.primary}
+                      dimColor={theme.colors.outlineVariant}
+                    />
+                    {restoreOtpError ? <HelperText type="error" style={styles.helper}>{restoreOtpError}</HelperText> : null}
+                    <Button
+                      mode="contained"
+                      onPress={handleRestoreOtpSetPin}
+                      loading={restoreBusy}
+                      disabled={restoreBusy}
+                      style={[styles.button, { borderRadius: 12 }]}
+                      icon="lock-reset"
+                    >
+                      Reset PIN & Sign In
+                    </Button>
                   </>
                 )}
               </View>
