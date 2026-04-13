@@ -119,6 +119,32 @@ export type OtpVerifyResult =
   | { valid: true; name?: string; role?: string }
   | { valid: false; error?: string };
 
+export interface PhoneCheckResult {
+  exists: boolean;
+  name?: string;
+}
+
+/**
+ * Check whether a phone number already has a registered account in Supabase.
+ * Calls send-otp with checkOnly:true — no SMS is sent.
+ * Fails open (returns exists:false) if cloud is unavailable, so registration
+ * is never blocked by a network error.
+ */
+export async function checkPhoneExists(phone: string): Promise<PhoneCheckResult> {
+  if (!isCloudEnabled || !supabase) return { exists: false };
+  try {
+    const { data, error } = await supabase.functions.invoke('send-otp', {
+      body: { phone, checkOnly: true },
+      headers: { 'x-function-secret': FUNCTION_SECRET },
+    });
+    if (error) return { exists: false };
+    const res = data as { exists: boolean; name?: string };
+    return { exists: res.exists ?? false, name: res.name };
+  } catch {
+    return { exists: false };
+  }
+}
+
 /**
  * Trigger a Twilio Verify SMS OTP for the given phone number.
  * Phone should be in stored format (e.g. "919876543210") — the edge function

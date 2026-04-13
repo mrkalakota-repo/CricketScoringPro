@@ -210,7 +210,7 @@ export default function LoginScreen() {
     profile, sessionExpired,
     register, login, restoreFromCloud,
     restoreStatus, resetRestoreStatus,
-    sendOtp, verifyOtp, otpSending, otpVerifying, otpError, clearOtpError,
+    sendOtp, verifyOtp, checkPhoneExists, otpSending, otpVerifying, otpError, clearOtpError,
   } = useUserAuth();
 
   const defaultMode: Mode = profile ? 'login' : sessionExpired ? 'restore' : 'register';
@@ -322,6 +322,14 @@ export default function LoginScreen() {
     setShowPhoneConfirm(false);
     const digits = regPhone.replace(/\D/g, '');
     const fullPhone = `${regCountry.code.replace('+', '')}${digits}`;
+
+    // Check for existing account before sending OTP — no SMS wasted
+    const check = await checkPhoneExists(fullPhone);
+    if (check.exists) {
+      setExistingAccountName(check.name ?? 'You');
+      return;
+    }
+
     const ok = await sendOtp(fullPhone, isWeb ? turnstileToken : undefined);
     if (ok) {
       setRegPhone(digits);

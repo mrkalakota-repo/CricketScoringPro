@@ -123,11 +123,44 @@ serve(async (req) => {
   }
 
   try {
-    const { phone, turnstileToken } = await req.json() as { phone: string; turnstileToken?: string };
+    const { phone, turnstileToken, checkOnly } = await req.json() as {
+      phone: string;
+      turnstileToken?: string;
+      checkOnly?: boolean;
+    };
 
     if (!phone) {
       return new Response(JSON.stringify({ success: false, error: 'Phone is required' }), {
         status: 400,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── Phone existence check (checkOnly: true skips OTP send entirely) ──────
+    // Used by the registration flow to detect existing accounts before sending
+    // an SMS, so users can be redirected to sign in without wasting an OTP.
+    if (checkOnly) {
+      if (!isValidPhone(phone)) {
+        return new Response(JSON.stringify({ exists: false }), {
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+        });
+      }
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (supabaseUrl && serviceKey) {
+        const supabase = createClient(supabaseUrl, serviceKey);
+        const { data } = await supabase
+          .from('user_profiles')
+          .select('name')
+          .eq('phone', phone)
+          .maybeSingle();
+        return new Response(
+          JSON.stringify({ exists: !!data, name: data?.name ?? null }),
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
+        );
+      }
+      // Supabase not configured — fail open so registration isn't blocked
+      return new Response(JSON.stringify({ exists: false }), {
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       });
     }

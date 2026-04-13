@@ -87,6 +87,12 @@ interface UserAuthStore {
   logout: () => Promise<void>;
 
   /**
+   * Check whether a phone number already has a registered account in Supabase.
+   * No SMS is sent. Fails open (returns exists:false) on network error.
+   */
+  checkPhoneExists: (phone: string) => Promise<import('../db/repositories/cloud-user-repo').PhoneCheckResult>;
+
+  /**
    * Send a Twilio Verify OTP SMS to the given phone.
    * Phone should be in stored format e.g. "919876543210".
    * Returns true on success; sets otpError on failure.
@@ -240,6 +246,8 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
     await usePrefsStore.getState().clearOwnershipPrefs();
     set({ isAuthenticated: false });
   },
+
+  checkPhoneExists: (phone) => cloudUserRepo.checkPhoneExists(phone),
 
   sendOtp: async (phone, turnstileToken) => {
     set({ otpSending: true, otpError: '' });
