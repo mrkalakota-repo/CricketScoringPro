@@ -134,11 +134,15 @@ Key behaviours:
 
 `src/hooks/useRole.ts` — pure function of `profile.role`; returns `RolePermissions` object. Use this for all gate checks; never inspect `profile.role` directly in UI.
 
-Roles and permissions matrix:
+Roles and permissions are a **two-layer gate** — role controls UI visibility/access, plan controls execution:
+- `useRole()` — first gate: can the user see/navigate to the feature?
+- `usePlan()` — second gate: can the user actually execute it? (e.g. `league_admin` on `free` plan sees "Create League" but hits the upgrade sheet because `maxLeagues: 0`)
+
+Roles matrix (UI access layer — plan limits apply on top):
 
 | Permission | league_admin | team_admin | scorer | viewer |
 |---|:---:|:---:|:---:|:---:|
-| Create League | ✅ | ❌ | ❌ | ❌ |
+| Create League (also needs pro/league plan) | ✅ | ❌ | ❌ | ❌ |
 | Manage Teams | ✅ | ✅ | ❌ | ❌ |
 | Create/Start Match | ✅ | ✅ | ✅ | ❌ |
 | Record Balls (Score) | ✅ | ✅ | ✅ | ❌ |

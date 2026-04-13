@@ -3,15 +3,18 @@
  *
  * Permissions matrix (requirements doc):
  *
- *   Feature              | League Admin | Team Admin | Scorer | Viewer
- *   ---------------------|:------------:|:----------:|:------:|:------:
- *   Create League        |      ✅      |     ❌     |   ❌   |   ❌
- *   Edit Player Stats    |      ✅      |     ✅     |   ❌   |   ❌
- *   Record Ball Data     |      ✅      |     ✅     |   ✅   |   ❌
- *   View Live Scores     |      ✅      |     ✅     |   ✅   |   ✅
- *   Delete Match         |      ✅      |     ❌     |   ❌   |   ❌
- *   Create/Start Match   |      ✅      |     ✅     |   ✅   |   ❌
- *   Create Team          |      ✅      |     ✅     |   ❌   |   ❌
+ *   Role is the FIRST gate (UI visibility/access). Plan is the SECOND gate (execution).
+ *   e.g. league_admin on free plan sees Create League but hits the upgrade sheet (maxLeagues: 0).
+ *
+ *   Feature                          | League Admin | Team Admin | Scorer | Viewer
+ *   ---------------------------------|:------------:|:----------:|:------:|:------:
+ *   Create League (+ pro/league plan)|      ✅      |     ❌     |   ❌   |   ❌
+ *   Edit Player Stats                |      ✅      |     ✅     |   ❌   |   ❌
+ *   Record Ball Data                 |      ✅      |     ✅     |   ✅   |   ❌
+ *   View Live Scores                 |      ✅      |     ✅     |   ✅   |   ✅
+ *   Delete Match                     |      ✅      |     ❌     |   ❌   |   ❌
+ *   Create/Start Match               |      ✅      |     ✅     |   ✅   |   ❌
+ *   Create Team                      |      ✅      |     ✅     |   ❌   |   ❌
  */
 
 import { useUserAuth } from './useUserAuth';
