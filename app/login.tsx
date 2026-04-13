@@ -271,6 +271,8 @@ export default function LoginScreen() {
   // ── Phone number confirmation dialogs ─────────────────────────────────────
   const [showPhoneConfirm, setShowPhoneConfirm] = useState(false);
   const [showRestorePhoneConfirm, setShowRestorePhoneConfirm] = useState(false);
+  // ── Existing account detected during registration ─────────────────────────
+  const [existingAccountName, setExistingAccountName] = useState('');
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -338,6 +340,11 @@ export default function LoginScreen() {
     if (!result.valid) {
       setRegOtp('');
       setRegError(otpError || 'Incorrect code. Try again.');
+    } else if (result.name) {
+      // Phone is already registered in Supabase — block re-registration
+      // and prompt them to sign in to preserve their existing plan and PIN.
+      setRegOtp('');
+      setExistingAccountName(result.name);
     } else {
       setRegError('');
       setRegStep('name');
@@ -517,6 +524,36 @@ export default function LoginScreen() {
           <Dialog.Actions>
             <Button onPress={() => setShowRestorePhoneConfirm(false)}>Change Number</Button>
             <Button onPress={confirmAndSendRestoreOtp} loading={otpSending}>Send Code</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* Existing account detected during registration */}
+      <Portal>
+        <Dialog visible={!!existingAccountName} onDismiss={() => setExistingAccountName('')}>
+          <Dialog.Icon icon="account-check-outline" />
+          <Dialog.Title>Account already exists</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              <Text style={{ fontWeight: '700' }}>{existingAccountName}</Text> is already registered with this number.{'\n\n'}Sign in to keep your existing PIN and plan intact.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setExistingAccountName('')}>Back</Button>
+            <Button
+              mode="contained"
+              onPress={() => {
+                const savedCountry = regCountry;
+                const savedPhone = regPhone;
+                setExistingAccountName('');
+                switchMode('restore');
+                // Pre-fill phone so user doesn't have to re-enter it
+                setRestoreCountry(savedCountry);
+                setRestorePhone(savedPhone);
+              }}
+            >
+              Sign In
+            </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
