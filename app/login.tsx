@@ -213,7 +213,8 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
     sendOtp, verifyOtp, checkPhoneExists, otpSending, otpVerifying, otpError, clearOtpError,
   } = useUserAuth();
 
-  const defaultMode: Mode = initialMode ?? (profile ? 'login' : sessionExpired ? 'restore' : 'register');
+  // sessionExpired must always win — local pinHash is '' and login is impossible until restored.
+  const defaultMode: Mode = sessionExpired ? 'restore' : (initialMode ?? (profile ? 'login' : 'register'));
   const [mode, setMode] = useState<Mode>(defaultMode);
 
   // ── Register wizard state ─────────────────────────────────────────────────
@@ -386,10 +387,26 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
 
   async function handleLogin() {
     if (loginPin.length < 4) { setLoginError('Enter your PIN'); return; }
+    // Show lockout message immediately if the user is already locked out
+    const { loginLockedUntil } = useUserAuth.getState();
+    if (loginLockedUntil > 0 && Date.now() < loginLockedUntil) {
+      const mins = Math.ceil((loginLockedUntil - Date.now()) / 60000);
+      setLoginError(`Too many incorrect attempts. Try again in ${mins} minute${mins !== 1 ? 's' : ''}.`);
+      return;
+    }
     setLoginBusy(true);
     try {
       const ok = await login(loginPin);
-      if (!ok) setLoginError('Incorrect PIN. Try again.');
+      if (!ok) {
+        // If this attempt triggered a lockout, show the lockout message
+        const { loginLockedUntil: newLocked } = useUserAuth.getState();
+        if (newLocked > 0) {
+          const mins = Math.ceil((newLocked - Date.now()) / 60000);
+          setLoginError(`Too many incorrect attempts. Try again in ${mins} minute${mins !== 1 ? 's' : ''}.`);
+        } else {
+          setLoginError('Incorrect PIN. Try again.');
+        }
+      }
     } finally {
       setLoginBusy(false);
     }
@@ -652,7 +669,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
                   Send Verification Code
                 </Button>
                 <Divider style={styles.divider} />
-                <Button mode="text" icon="login" onPress={() => switchMode(profile ? 'login' : 'restore')} style={styles.linkBtn}>
+                <Button mode="text" icon="login" onPress={() => switchMode(profile && !sessionExpired ? 'login' : 'restore')} style={styles.linkBtn}>
                   Already have an account? Sign in
                 </Button>
               </View>
