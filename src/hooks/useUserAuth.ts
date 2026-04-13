@@ -15,6 +15,7 @@ import { create } from 'zustand';
 import * as Crypto from 'expo-crypto';
 import * as prefsRepo from '../db/repositories/prefs-repo';
 import * as cloudUserRepo from '../db/repositories/cloud-user-repo';
+import { usePrefsStore } from '../store/prefs-store';
 import type { UserProfile, UserRole, UserPlan } from '../engine/types';
 import type { VerifyResult, OtpVerifyResult } from '../db/repositories/cloud-user-repo';
 
@@ -83,7 +84,7 @@ interface UserAuthStore {
   updateProfile: (name: string, newPin?: string, newRole?: UserRole, newPlan?: UserPlan) => Promise<void>;
 
   /** Sign out — clear in-memory session (profile stays in local DB + cloud). */
-  logout: () => void;
+  logout: () => Promise<void>;
 
   /**
    * Send a Twilio Verify OTP SMS to the given phone.
@@ -235,7 +236,8 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
     cloudUserRepo.pushUserProfile({ phone: updated.phone, name: updated.name, pinHash: updated.pinHash, role: updated.role, plan: updated.plan }).catch(() => {});
   },
 
-  logout: () => {
+  logout: async () => {
+    await usePrefsStore.getState().clearOwnershipPrefs();
     set({ isAuthenticated: false });
   },
 

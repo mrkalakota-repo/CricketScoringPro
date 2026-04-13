@@ -91,6 +91,13 @@ export async function removeDelegateTeamId(teamId: string): Promise<void> {
   localStorage.setItem(DELEGATE_KEY, JSON.stringify(loadDelegateIds().filter(id => id !== teamId)));
 }
 
+export async function clearOwnershipPrefs(): Promise<void> {
+  localStorage.removeItem(MY_TEAM_IDS_KEY);
+  localStorage.removeItem(PLAYER_TEAM_IDS_KEY);
+  localStorage.removeItem(DELEGATE_KEY);
+  localStorage.removeItem(MY_LEAGUE_IDS_KEY);
+}
+
 // ── User Profile ──────────────────────────────────────────────────────────────
 //
 // Security split:

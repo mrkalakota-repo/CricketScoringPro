@@ -149,6 +149,14 @@ export async function clearUserProfile(): Promise<void> {
   await db.runAsync('DELETE FROM user_prefs WHERE key = ?', [USER_PROFILE_KEY]);
 }
 
+export async function clearOwnershipPrefs(): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'DELETE FROM user_prefs WHERE key IN (?, ?, ?, ?)',
+    [MY_TEAM_IDS_KEY, PLAYER_TEAM_IDS_KEY, DELEGATE_TEAM_IDS_KEY, MY_LEAGUE_IDS_KEY],
+  );
+}
+
 // ── Chat Identity ─────────────────────────────────────────────────────────────
 
 export async function getChatIdentity(teamId: string): Promise<{ playerId: string; playerName: string } | null> {

@@ -114,9 +114,9 @@ export default function MyProfileScreen() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
     setLogoutVisible(false);
+    await logout();
     router.replace('/');
   };
 

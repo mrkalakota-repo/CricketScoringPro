@@ -16,6 +16,7 @@ interface PrefsStore {
   addMyLeague: (leagueId: string) => Promise<void>;
   removeMyLeague: (leagueId: string) => Promise<void>;
   setMyLeagueIds: (leagueIds: string[]) => Promise<void>;
+  clearOwnershipPrefs: () => Promise<void>;
 }
 
 export const usePrefsStore = create<PrefsStore>((set, get) => ({
@@ -101,6 +102,13 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
     try {
       await prefsRepo.setMyLeagueIds(leagueIds);
       set({ myLeagueIds: leagueIds });
+    } catch (e) { console.error('[prefs-store]', (e as Error).message); }
+  },
+
+  clearOwnershipPrefs: async () => {
+    try {
+      await prefsRepo.clearOwnershipPrefs();
+      set({ myTeamIds: [], playerTeamIds: [], delegateTeamIds: [], myLeagueIds: [] });
     } catch (e) { console.error('[prefs-store]', (e as Error).message); }
   },
 }));
