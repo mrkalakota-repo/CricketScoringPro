@@ -222,8 +222,8 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
       });
       return true;
     } catch (err) {
-      const msg = (err as { message?: string })?.message ?? String(err);
-      set({ restoreStatus: 'error', restoreErrorMessage: msg });
+      console.error('[useUserAuth] restoreFromCloud:', (err as Error).message);
+      set({ restoreStatus: 'error', restoreErrorMessage: 'Could not restore your account. Check your connection and try again.' });
       return false;
     }
   },
@@ -254,12 +254,14 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
     try {
       const result = await cloudUserRepo.sendOtp(phone, turnstileToken);
       if (!result.success) {
-        set({ otpError: result.error });
+        // result.error is already sanitized in cloud-user-repo
+        set({ otpError: result.error || 'Failed to send verification code. Please try again.' });
         return false;
       }
       return true;
     } catch (err) {
-      set({ otpError: (err as { message?: string })?.message ?? 'Failed to send OTP' });
+      console.error('[useUserAuth] sendOtp:', (err as Error).message);
+      set({ otpError: 'Unable to send verification code. Check your connection and try again.' });
       return false;
     } finally {
       set({ otpSending: false });
@@ -275,7 +277,8 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
       }
       return result;
     } catch (err) {
-      const message = (err as { message?: string })?.message ?? 'Verification failed';
+      console.error('[useUserAuth] verifyOtp:', (err as Error).message);
+      const message = 'Code verification failed. Check your connection and try again.';
       set({ otpError: message });
       return { valid: false, error: message };
     } finally {

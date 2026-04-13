@@ -13,8 +13,58 @@ const BORDER = '#D8EDD9';
 const TEXT = '#1A1A1A';
 const FOOTER_BG = '#0D2B12';
 
+// ── Plan comparison matrix ────────────────────────────────────────────────────
+
+type CellValue = 'check' | 'none' | string;
+
+interface MatrixRow {
+  label: string;
+  isGroup?: boolean;
+  free?: CellValue;
+  pro?: CellValue;
+  league?: CellValue;
+}
+
+const MATRIX_ROWS: MatrixRow[] = [
+  { label: 'TEAMS & SCORING', isGroup: true },
+  { label: 'Teams owned',          free: '1 team',        pro: 'Up to 3',       league: 'Unlimited' },
+  { label: 'Players per team',     free: 'Up to 15',      pro: 'Up to 15',      league: 'Unlimited' },
+  { label: 'Match scoring',        free: 'check',         pro: 'check',         league: 'check' },
+  { label: 'Formats',              free: 'T20·ODI·Test',  pro: 'T20·ODI·Test',  league: 'T20·ODI·Test' },
+  { label: 'Undo & live scorecard',free: 'check',         pro: 'check',         league: 'check' },
+  { label: 'Player stats',         free: 'check',         pro: 'check',         league: 'check' },
+
+  { label: 'CLOUD & TEAM', isGroup: true },
+  { label: 'Cloud backup & sync',  free: 'none',          pro: 'check',         league: 'check' },
+  { label: 'Real-time team chat',  free: 'none',          pro: 'check',         league: 'check' },
+  { label: 'Delegate access codes',free: 'none',          pro: 'check',         league: 'check' },
+  { label: 'Scorecard export',     free: 'none',          pro: 'check',         league: 'check' },
+
+  { label: 'LEAGUES & ADVANCED', isGroup: true },
+  { label: 'Leagues',              free: 'none',          pro: 'Up to 2',       league: 'Unlimited' },
+  { label: 'NRR standings',        free: 'none',          pro: 'none',          league: 'check' },
+  { label: 'Knockout brackets',    free: 'none',          pro: 'none',          league: 'check' },
+  { label: 'Public scoreboard',    free: 'none',          pro: 'none',          league: 'check' },
+  { label: 'Data export (CSV)',    free: 'none',          pro: 'none',          league: 'check' },
+];
+
+function MatrixCell({ value, highlighted }: { value: CellValue; highlighted: boolean }) {
+  const isCheck = value === 'check';
+  const isNone = value === 'none';
+  return (
+    <View style={[s.mCell, highlighted && s.mCellHL]}>
+      {isCheck  && <Text style={[s.mCheck, highlighted && s.mCheckHL]}>✓</Text>}
+      {isNone   && <Text style={s.mDash}>—</Text>}
+      {!isCheck && !isNone && (
+        <Text style={[s.mCellText, highlighted && s.mCellTextHL]} numberOfLines={2}>{value}</Text>
+      )}
+    </View>
+  );
+}
+
 interface Props {
   onSignIn: () => void;
+  onRegister: () => void;
 }
 
 const FEATURES = [
@@ -36,43 +86,8 @@ const STEPS = [
   { num: '4', title: 'Share the Scorecard', desc: 'When the final wicket falls, share the full scorecard with your team and friends instantly.' },
 ];
 
-const PLANS = [
-  {
-    name: 'Starter',
-    price: '$0',
-    period: '/ month',
-    sub: 'Free forever',
-    featured: false,
-    badge: null,
-    features: ['1 team (up to 15 players)', 'Unlimited match scoring', 'Ball-by-ball undo & live scorecard', 'Basic player stats', 'Match history stored locally'],
-    ctaLabel: 'Get Started Free',
-    ctaStyle: 'ghost' as const,
-  },
-  {
-    name: 'Pro Team',
-    price: '$5.99',
-    period: '/ month',
-    sub: 'or $49.99/yr · save 30%',
-    featured: true,
-    badge: 'Most Popular',
-    features: ['Everything in Starter', 'Up to 3 teams', 'Cloud sync & cross-device restore', 'Real-time team chat', 'Delegate access codes', 'Scorecard export & sharing', 'Up to 2 leagues', 'Scorers on your team get Pro features'],
-    ctaLabel: 'Upgrade to Pro',
-    ctaStyle: 'primary' as const,
-  },
-  {
-    name: 'Pro League',
-    price: '$29.99',
-    period: '/ month',
-    sub: 'or $249.99/yr · save 30%',
-    featured: false,
-    badge: null,
-    features: ['Everything in Pro Team', 'Unlimited teams & players', 'Unlimited leagues & knockout brackets', 'NRR tracking & standings tables', 'Fixture scheduling & match verification', 'Data export (CSV)', 'All team members inherit Pro features'],
-    ctaLabel: 'Upgrade to League',
-    ctaStyle: 'ghost' as const,
-  },
-];
 
-export function MarketingLandingScreen({ onSignIn }: Props) {
+export function MarketingLandingScreen({ onSignIn, onRegister }: Props) {
   return (
     <ScrollView style={s.root} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
@@ -87,7 +102,7 @@ export function MarketingLandingScreen({ onSignIn }: Props) {
             <Pressable style={s.navBtnOutline} onPress={onSignIn}>
               <Text style={s.navBtnOutlineText}>Sign In</Text>
             </Pressable>
-            <Pressable style={s.navBtnFilled} onPress={onSignIn}>
+            <Pressable style={s.navBtnFilled} onPress={onRegister}>
               <Text style={s.navBtnFilledText}>Create Account</Text>
             </Pressable>
           </View>
@@ -108,7 +123,7 @@ export function MarketingLandingScreen({ onSignIn }: Props) {
           Ball-by-ball scoring with instant undo, real-time team chat, delegate access, and full league management — all free to start.
         </Text>
         <View style={s.heroCtas}>
-          <Pressable style={s.heroBtnPrimary} onPress={onSignIn}>
+          <Pressable style={s.heroBtnPrimary} onPress={onRegister}>
             <Text style={s.heroBtnPrimaryText}>🚀  Get Started Free</Text>
           </Pressable>
           <Pressable style={s.heroBtnOutline} onPress={onSignIn}>
@@ -176,40 +191,75 @@ export function MarketingLandingScreen({ onSignIn }: Props) {
           <Text style={s.sectionTitle}>Start free, grow with your team</Text>
           <Text style={s.sectionSub}>No credit card needed to start. Upgrade when your team needs more.</Text>
         </View>
-        <View style={s.plansGrid}>
-          {PLANS.map(plan => (
-            <View key={plan.name} style={[s.planCard, plan.featured && s.planCardFeatured]}>
-              {plan.badge && (
-                <View style={s.planBadge}>
-                  <Text style={s.planBadgeText}>{plan.badge}</Text>
-                </View>
-              )}
-              <View style={[s.planHeader, plan.featured && s.planHeaderFeatured]}>
-                <Text style={[s.planName, plan.featured && s.planNameFeatured]}>{plan.name}</Text>
-                <View style={s.planPriceRow}>
-                  <Text style={[s.planPrice, plan.featured && s.planPriceFeatured]}>{plan.price}</Text>
-                  <Text style={[s.planPeriod, plan.featured && s.planPeriodFeatured]}>{plan.period}</Text>
-                </View>
-                <Text style={[s.planSub, plan.featured && s.planSubFeatured]}>{plan.sub}</Text>
-              </View>
-              <View style={s.planBody}>
-                {plan.features.map(feat => (
-                  <View key={feat} style={s.planFeatureRow}>
-                    <Text style={s.planCheck}>✓</Text>
-                    <Text style={s.planFeatureText}>{feat}</Text>
-                  </View>
-                ))}
-                <Pressable
-                  style={plan.ctaStyle === 'primary' ? s.planCtaPrimary : s.planCtaGhost}
-                  onPress={onSignIn}
-                >
-                  <Text style={plan.ctaStyle === 'primary' ? s.planCtaPrimaryText : s.planCtaGhostText}>
-                    {plan.ctaLabel}
-                  </Text>
-                </Pressable>
-              </View>
+
+        <View style={s.matrix}>
+          {/* Plan header row */}
+          <View style={[s.mRow, s.mHeaderRow]}>
+            <View style={s.mLabelCol} />
+            {/* Starter */}
+            <View style={s.mPlanCol}>
+              <Text style={s.mPlanName}>Starter</Text>
+              <Text style={s.mPlanPrice}>Free</Text>
+              <Text style={s.mPlanSub}>forever</Text>
             </View>
-          ))}
+            {/* Pro Team */}
+            <View style={[s.mPlanCol, s.mPlanColHL]}>
+              <View style={s.mPopularBadge}><Text style={s.mPopularText}>POPULAR</Text></View>
+              <Text style={s.mPlanNameHL}>Pro Team</Text>
+              <View style={s.mPriceRow}>
+                <Text style={s.mPlanPriceHL}>$5.99</Text>
+                <Text style={s.mPlanPeriodHL}>/mo</Text>
+              </View>
+              <Text style={s.mPlanSubHL}>$49.99/yr · save 30%</Text>
+            </View>
+            {/* Pro League */}
+            <View style={s.mPlanCol}>
+              <Text style={s.mPlanName}>Pro League</Text>
+              <View style={s.mPriceRow}>
+                <Text style={s.mPlanPrice}>$29.99</Text>
+                <Text style={s.mPlanPeriod}>/mo</Text>
+              </View>
+              <Text style={s.mPlanSub}>$249.99/yr · save 30%</Text>
+            </View>
+          </View>
+
+          {/* Feature rows */}
+          {MATRIX_ROWS.map((row, idx) =>
+            row.isGroup ? (
+              <View key={row.label} style={s.mGroupRow}>
+                <Text style={s.mGroupLabel}>{row.label}</Text>
+              </View>
+            ) : (
+              <View key={row.label} style={[s.mRow, idx % 2 === 1 && s.mRowAlt]}>
+                <View style={s.mLabelCol}>
+                  <Text style={s.mFeatureLabel}>{row.label}</Text>
+                </View>
+                <MatrixCell value={row.free!} highlighted={false} />
+                <MatrixCell value={row.pro!} highlighted={true} />
+                <MatrixCell value={row.league!} highlighted={false} />
+              </View>
+            )
+          )}
+
+          {/* CTA row */}
+          <View style={[s.mRow, s.mCtaRow]}>
+            <View style={s.mLabelCol} />
+            <View style={[s.mPlanCol, { paddingVertical: 16 }]}>
+              <Pressable style={s.mCtaGhost} onPress={onRegister}>
+                <Text style={s.mCtaGhostText}>Get Started</Text>
+              </Pressable>
+            </View>
+            <View style={[s.mPlanCol, s.mPlanColHL, { paddingVertical: 16 }]}>
+              <Pressable style={s.mCtaPrimary} onPress={onRegister}>
+                <Text style={s.mCtaPrimaryText}>Upgrade to Pro</Text>
+              </Pressable>
+            </View>
+            <View style={[s.mPlanCol, { paddingVertical: 16 }]}>
+              <Pressable style={s.mCtaGhost} onPress={onRegister}>
+                <Text style={s.mCtaGhostText}>Get League</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -244,7 +294,7 @@ export function MarketingLandingScreen({ onSignIn }: Props) {
         </View>
         <Text style={s.webAppNote}>
           In the meantime,{' '}
-          <Text style={s.webAppLink} onPress={onSignIn}>use the web app</Text>
+          <Text style={s.webAppLink} onPress={onRegister}>use the web app</Text>
           {' '}— it works great on any mobile browser.
         </Text>
       </View>
@@ -256,7 +306,7 @@ export function MarketingLandingScreen({ onSignIn }: Props) {
           Create your free account and start scoring in under two minutes.
         </Text>
         <View style={s.ctaButtons}>
-          <Pressable style={s.ctaBtnWhite} onPress={onSignIn}>
+          <Pressable style={s.ctaBtnWhite} onPress={onRegister}>
             <Text style={s.ctaBtnWhiteText}>🚀  Create Free Account</Text>
           </Pressable>
           <Pressable style={s.ctaBtnWhiteOutline} onPress={onSignIn}>
@@ -339,31 +389,44 @@ const s = StyleSheet.create({
   stepTitle: { fontSize: 15, fontWeight: '800', color: TEXT, marginBottom: 6, textAlign: 'center' },
   stepDesc: { fontSize: 13, color: MUTED, textAlign: 'center', lineHeight: 20 },
 
-  // Plans
-  plansGrid: { gap: 16 },
-  planCard: { backgroundColor: SURFACE, borderWidth: 1.5, borderColor: BORDER, borderRadius: 20, overflow: 'visible' },
-  planCardFeatured: { borderColor: GREEN },
-  planBadge: { position: 'absolute', top: -10, right: 14, backgroundColor: '#F9A825', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, zIndex: 1 },
-  planBadgeText: { fontSize: 10, fontWeight: '900', color: '#4E342E', letterSpacing: 0.5 },
-  planHeader: { padding: 24, paddingBottom: 20, backgroundColor: GREEN_LIGHT, borderTopLeftRadius: 18, borderTopRightRadius: 18 },
-  planHeaderFeatured: { backgroundColor: GREEN },
-  planName: { fontSize: 16, fontWeight: '900', color: TEXT },
-  planNameFeatured: { color: '#FFFFFF' },
-  planPriceRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 8, marginBottom: 2, gap: 4 },
-  planPrice: { fontSize: 32, fontWeight: '900', color: GREEN, lineHeight: 36 },
-  planPriceFeatured: { color: '#FFFFFF' },
-  planPeriod: { fontSize: 14, fontWeight: '500', color: MUTED, paddingBottom: 4 },
-  planPeriodFeatured: { color: 'rgba(255,255,255,0.7)' },
-  planSub: { fontSize: 12, color: MUTED },
-  planSubFeatured: { color: 'rgba(255,255,255,0.75)' },
-  planBody: { padding: 20, gap: 8 },
-  planFeatureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  planCheck: { color: GREEN, fontWeight: '900', fontSize: 13, marginTop: 1 },
-  planFeatureText: { fontSize: 13, color: MUTED, flex: 1, lineHeight: 19 },
-  planCtaPrimary: { marginTop: 12, backgroundColor: GREEN, paddingVertical: 12, borderRadius: 20, alignItems: 'center' },
-  planCtaPrimaryText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
-  planCtaGhost: { marginTop: 12, borderWidth: 1.5, borderColor: BORDER, paddingVertical: 12, borderRadius: 20, alignItems: 'center' },
-  planCtaGhostText: { color: MUTED, fontWeight: '700', fontSize: 14 },
+  // Plans matrix
+  matrix: { borderWidth: 1.5, borderColor: BORDER, borderRadius: 16, overflow: 'hidden', backgroundColor: SURFACE },
+  mRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: BORDER },
+  mRowAlt: { backgroundColor: BG },
+  mHeaderRow: { borderBottomWidth: 2, borderBottomColor: BORDER },
+  mGroupRow: { backgroundColor: '#D6EDD8', paddingHorizontal: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: BORDER },
+  mGroupLabel: { fontSize: 10, fontWeight: '800', color: GREEN_DARK, letterSpacing: 1 },
+  mCtaRow: { borderBottomWidth: 0 },
+
+  mLabelCol: { flex: 1.6, paddingHorizontal: 10, paddingVertical: 10, justifyContent: 'center' },
+  mFeatureLabel: { fontSize: 12, color: TEXT, lineHeight: 16 },
+
+  mPlanCol: { flex: 1, alignItems: 'center', paddingHorizontal: 4, paddingVertical: 12, borderLeftWidth: 1, borderLeftColor: BORDER },
+  mPlanColHL: { backgroundColor: '#EBF5EC', borderLeftColor: '#A5D6A7' },
+  mPlanName: { fontSize: 11, fontWeight: '800', color: TEXT, textAlign: 'center', marginBottom: 4 },
+  mPlanNameHL: { fontSize: 11, fontWeight: '900', color: GREEN, textAlign: 'center', marginBottom: 4 },
+  mPriceRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 1 },
+  mPlanPrice: { fontSize: 18, fontWeight: '900', color: TEXT, lineHeight: 22 },
+  mPlanPriceHL: { fontSize: 18, fontWeight: '900', color: GREEN, lineHeight: 22 },
+  mPlanPeriod: { fontSize: 10, color: MUTED, paddingBottom: 2 },
+  mPlanPeriodHL: { fontSize: 10, color: GREEN, paddingBottom: 2, opacity: 0.8 },
+  mPlanSub: { fontSize: 9, color: MUTED, textAlign: 'center', marginTop: 3 },
+  mPlanSubHL: { fontSize: 9, color: GREEN, textAlign: 'center', marginTop: 3, opacity: 0.8 },
+  mPopularBadge: { backgroundColor: '#F9A825', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, marginBottom: 5 },
+  mPopularText: { fontSize: 8, fontWeight: '900', color: '#4E342E', letterSpacing: 0.5 },
+
+  mCell: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, paddingVertical: 10, borderLeftWidth: 1, borderLeftColor: BORDER },
+  mCellHL: { backgroundColor: '#EBF5EC', borderLeftColor: '#A5D6A7' },
+  mCheck: { fontSize: 14, fontWeight: '900', color: GREEN },
+  mCheckHL: { color: GREEN },
+  mDash: { fontSize: 14, color: '#C8D8C9' },
+  mCellText: { fontSize: 10, color: TEXT, textAlign: 'center', lineHeight: 14 },
+  mCellTextHL: { color: GREEN, fontWeight: '700' },
+
+  mCtaGhost: { borderWidth: 1.5, borderColor: BORDER, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 14, alignItems: 'center', width: '92%' },
+  mCtaGhostText: { fontSize: 10, color: MUTED, fontWeight: '700' },
+  mCtaPrimary: { backgroundColor: GREEN, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 14, alignItems: 'center', width: '92%' },
+  mCtaPrimaryText: { fontSize: 10, color: '#FFFFFF', fontWeight: '700' },
 
   // App store
   appsGrid: { flexDirection: 'row', gap: 16, flexWrap: 'wrap' },

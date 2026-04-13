@@ -203,7 +203,7 @@ function StepProgress({ current, total }: { current: number; total: number }) {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 
-export default function LoginScreen() {
+export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const {
@@ -213,7 +213,7 @@ export default function LoginScreen() {
     sendOtp, verifyOtp, checkPhoneExists, otpSending, otpVerifying, otpError, clearOtpError,
   } = useUserAuth();
 
-  const defaultMode: Mode = profile ? 'login' : sessionExpired ? 'restore' : 'register';
+  const defaultMode: Mode = initialMode ?? (profile ? 'login' : sessionExpired ? 'restore' : 'register');
   const [mode, setMode] = useState<Mode>(defaultMode);
 
   // ── Register wizard state ─────────────────────────────────────────────────
@@ -337,7 +337,7 @@ export default function LoginScreen() {
       setTurnstileToken('');
       startResendCooldown();
     } else {
-      setRegError(otpError || 'Failed to send verification code. Try again.');
+      setRegError(otpError || 'Unable to send verification code. Please try again.');
       setTurnstileToken('');
     }
   }
@@ -347,7 +347,7 @@ export default function LoginScreen() {
     const result = await verifyOtp(fullPhone, code);
     if (!result.valid) {
       setRegOtp('');
-      setRegError(otpError || 'Incorrect code. Try again.');
+      setRegError(otpError || 'Incorrect code. Please check and try again.');
     } else if (result.name) {
       // Phone is already registered in Supabase — block re-registration
       // and prompt them to sign in to preserve their existing plan and PIN.
@@ -414,9 +414,9 @@ export default function LoginScreen() {
         if (s === 'not_found') ok = await restoreFromCloud(cleaned, restorePin);
         if (!ok) {
           const { restoreStatus: s2, restoreErrorMessage: msg2 } = useUserAuth.getState();
-          if (s2 === 'not_found') setRestorePinError('No account found for this number.');
+          if (s2 === 'not_found') setRestorePinError('No account found for this number. Double-check the number and try again.');
           else if (s2 === 'wrong_pin') setRestorePinError('Incorrect PIN. Try again.');
-          else setRestorePinError(msg2 || msg || 'Could not restore. Try again.');
+          else setRestorePinError(msg2 || msg || 'Could not restore your account. Check your connection and try again.');
         }
       }
     } finally {
@@ -447,7 +447,7 @@ export default function LoginScreen() {
       setTurnstileToken('');
       startResendCooldown();
     } else {
-      setRestoreOtpError(otpError || 'Failed to send verification code. Try again.');
+      setRestoreOtpError(otpError || 'Unable to send verification code. Please try again.');
       setTurnstileToken('');
     }
   }
@@ -457,7 +457,7 @@ export default function LoginScreen() {
     const result = await verifyOtp(fullPhone, code);
     if (!result.valid) {
       setRestoreOtpCode('');
-      setRestoreOtpError(otpError || 'Incorrect code. Try again.');
+      setRestoreOtpError(otpError || 'Incorrect code. Please check and try again.');
     } else {
       if (!result.name) {
         setRestoreOtpError('No account found for this number. Register instead.');

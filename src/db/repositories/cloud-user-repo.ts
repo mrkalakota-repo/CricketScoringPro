@@ -2,6 +2,16 @@ import { supabase, isCloudEnabled, isSchemaNotReady } from '../../config/supabas
 
 const FUNCTION_SECRET = process.env.EXPO_PUBLIC_FUNCTION_SECRET ?? '';
 
+/**
+ * Log the real error for debugging; return a generic user-readable fallback.
+ * Never expose internal error strings (Supabase codes, stack traces, etc.) to the UI.
+ */
+function sanitizeError(context: string, err: unknown, fallback: string): string {
+  const msg = (err as { message?: string })?.message ?? String(err);
+  console.error(`[cloud-user-repo] ${context}:`, msg);
+  return fallback;
+}
+
 export interface CloudUserProfile {
   phone: string;
   name: string;
@@ -68,7 +78,7 @@ export async function verifyUserProfile(
   pinHash: string,
 ): Promise<VerifyResult> {
   if (!isCloudEnabled || !supabase) {
-    return { status: 'error', message: 'Cloud not enabled' };
+    return { status: 'error', message: 'An internet connection is required to restore your account.' };
   }
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -80,7 +90,7 @@ export async function verifyUserProfile(
 
       if (error) {
         // PGRST205 = table/function not found — degrade gracefully
-        if (isSchemaNotReady(error)) return { status: 'error', message: 'Cloud table not ready' };
+        if (isSchemaNotReady(error)) return { status: 'error', message: 'Service temporarily unavailable. Please try again.' };
         // Schema cache error — Supabase free tier waking up; retry after delay
         if (isSchemaCacheError(error.message) && attempt < MAX_RETRIES) {
           await sleep(RETRY_DELAY_MS);
@@ -90,7 +100,7 @@ export async function verifyUserProfile(
       }
 
       const row = Array.isArray(data) ? data[0] : data;
-      if (!row) return { status: 'error', message: 'Empty RPC response' };
+      if (!row) return { status: 'error', message: 'Server error. Please try again.' };
 
       if (!row.found) return { status: 'not_found' };
       if (!row.pin_correct) return { status: 'wrong_pin' };
@@ -101,8 +111,7 @@ export async function verifyUserProfile(
         await sleep(RETRY_DELAY_MS);
         continue;
       }
-      console.error('[cloud-user-repo] verifyUserProfile failed:', message);
-      return { status: 'error', message };
+      return { status: 'error', message: sanitizeError('verifyUserProfile', err, 'Could not verify your account. Please try again.') };
     }
   }
 
@@ -152,7 +161,7 @@ export async function checkPhoneExists(phone: string): Promise<PhoneCheckResult>
  */
 export async function sendOtp(phone: string, turnstileToken?: string): Promise<OtpSendResult> {
   if (!isCloudEnabled || !supabase) {
-    return { success: false, error: 'Cloud not enabled' };
+    return { success: false, error: 'An internet connection is required to send a verification code.' };
   }
   try {
     const { data, error } = await supabase.functions.invoke('send-otp', {
@@ -161,12 +170,20 @@ export async function sendOtp(phone: string, turnstileToken?: string): Promise<O
     });
     if (error) throw error;
     const res = data as { success: boolean; error?: string };
-    if (!res.success) return { success: false, error: res.error ?? 'Failed to send OTP' };
+    if (!res.success) {
+      // Edge function errors (e.g. rate-limit, Turnstile) are already user-readable
+      const raw = res.error ?? '';
+      const lower = raw.toLowerCase();
+      const friendly = lower.includes('rate') || lower.includes('too many')
+        ? 'Too many attempts. Please wait a moment and try again.'
+        : lower.includes('turnstile') || lower.includes('security')
+          ? 'Security check failed. Please refresh the page and try again.'
+          : 'Failed to send verification code. Please try again.';
+      return { success: false, error: friendly };
+    }
     return { success: true };
   } catch (err) {
-    const message = (err as { message?: string })?.message ?? String(err);
-    console.error('[cloud-user-repo] sendOtp failed:', message);
-    return { success: false, error: message };
+    return { success: false, error: sanitizeError('sendOtp', err, 'Unable to send verification code. Check your connection and try again.') };
   }
 }
 
@@ -177,7 +194,7 @@ export async function sendOtp(phone: string, turnstileToken?: string): Promise<O
  */
 export async function verifyOtp(phone: string, code: string): Promise<OtpVerifyResult> {
   if (!isCloudEnabled || !supabase) {
-    return { valid: false, error: 'Cloud not enabled' };
+    return { valid: false, error: 'An internet connection is required to verify the code.' };
   }
   try {
     const { data, error } = await supabase.functions.invoke('verify-otp', {
@@ -186,11 +203,12 @@ export async function verifyOtp(phone: string, code: string): Promise<OtpVerifyR
     });
     if (error) throw error;
     const res = data as { valid: boolean; name?: string; role?: string; error?: string };
-    if (!res.valid) return { valid: false, error: res.error };
+    if (!res.valid) {
+      // Edge function invalid-code response — map to a consistent user-readable message
+      return { valid: false, error: 'Incorrect code. Please check and try again.' };
+    }
     return { valid: true, name: res.name, role: res.role };
   } catch (err) {
-    const message = (err as { message?: string })?.message ?? String(err);
-    console.error('[cloud-user-repo] verifyOtp failed:', message);
-    return { valid: false, error: message };
+    return { valid: false, error: sanitizeError('verifyOtp', err, 'Code verification failed. Check your connection and try again.') };
   }
 }

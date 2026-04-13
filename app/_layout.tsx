@@ -23,6 +23,7 @@ export default function RootLayout() {
   const loadPrefs = usePrefsStore(s => s.loadPrefs);
   const { loadProfile, isLoading, isAuthenticated, profile, updateProfile } = useUserAuth();
   const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState<'register' | 'login'>('register');
   // Track previous auth state to detect login/logout transitions
   const prevAuthRef = useRef<boolean | null>(null);
 
@@ -120,14 +121,17 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <SafeAreaProvider>
             <PaperProvider theme={theme}>
-              <MarketingLandingScreen onSignIn={() => setShowAuth(true)} />
+              <MarketingLandingScreen
+                  onSignIn={() => { setAuthMode('login'); setShowAuth(true); }}
+                  onRegister={() => { setAuthMode('register'); setShowAuth(true); }}
+                />
             </PaperProvider>
           </SafeAreaProvider>
         </GestureHandlerRootView>
       );
     }
 
-    const loginContent = <LoginScreen />;
+    const loginContent = <LoginScreen initialMode={authMode} />;
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>

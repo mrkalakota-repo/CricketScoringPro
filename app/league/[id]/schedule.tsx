@@ -98,7 +98,7 @@ export default function ScheduleScreen() {
       await createFixture(id!, team1Id, team2Id, venue.trim(), d);
       setError('');
       router.back();
-    } catch { setError('Could not add fixture'); setSaving(false); }
+    } catch { setError('Could not save fixture. Check your connection and try again.'); setSaving(false); }
   };
 
   const handleRoundRobin = async () => {
@@ -111,7 +111,7 @@ export default function ScheduleScreen() {
     try {
       await generateRoundRobin(id!, d, days, rrVenue.trim());
       router.back();
-    } catch { setError('Could not generate schedule'); setSaving(false); }
+    } catch { setError('Could not generate schedule. Check your connection and try again.'); setSaving(false); }
   };
 
   const handleKnockout = async () => {
@@ -124,7 +124,7 @@ export default function ScheduleScreen() {
     try {
       await generateKnockout(id!, d, days, rrVenue.trim());
       router.back();
-    } catch { setError('Could not generate bracket'); setSaving(false); }
+    } catch { setError('Could not generate bracket. Check your connection and try again.'); setSaving(false); }
   };
 
   const handleSaveResult = async () => {
@@ -147,7 +147,7 @@ export default function ScheduleScreen() {
       }
       await updateFixtureResult(editFixture.id, result, winnerTeamId || null, t1Score || null, t2Score || null, nrrData);
       router.back();
-    } catch { setError('Could not save result'); setSaving(false); }
+    } catch { setError('Could not save result. Check your connection and try again.'); setSaving(false); }
   };
 
   const handleDeleteFixture = async () => {

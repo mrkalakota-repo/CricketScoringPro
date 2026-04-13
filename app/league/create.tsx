@@ -42,7 +42,7 @@ export default function CreateLeagueScreen() {
       const league = await createLeague(n, s, format);
       router.replace(`/league/${league.id}`);
     } catch {
-      setError('Could not create league. Please try again.');
+      setError('Could not create league. Check your connection and try again.');
       setSaving(false);
     }
   };
