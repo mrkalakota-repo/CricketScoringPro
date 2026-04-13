@@ -24,8 +24,8 @@ npm test -- --testPathPattern=functional          # Run a single test file by na
 npm test -- --testNamePattern="strike rotation"   # Run tests matching a name pattern
 npm test -- --coverage                            # Coverage report
 npx expo install <pkg> # Add Expo package (add --legacy-peer-deps if it fails)
-supabase functions deploy send-otp   # Deploy a single Edge Function
-supabase functions deploy verify-otp
+supabase functions deploy send-otp --no-verify-jwt   # Deploy Edge Functions — --no-verify-jwt is REQUIRED
+supabase functions deploy verify-otp --no-verify-jwt  # Without it, Supabase re-enables JWT auth and returns 401
 ```
 
 ---
@@ -51,6 +51,9 @@ eas build --profile production --platform android
 
 Required secrets (set in Supabase dashboard → Edge Functions → Secrets):
 `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, `TURNSTILE_SECRET_KEY`
+
+**Always deploy with `--no-verify-jwt`** — these functions are called with the anon key (not a user JWT).
+Without this flag Supabase re-enables JWT verification on every deploy and returns 401 to all clients.
 
 ---
 
