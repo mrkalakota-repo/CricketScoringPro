@@ -1,12 +1,7 @@
 import { BALLS_PER_OVER } from './constants';
 
-export function totalBallsBowled(overs: number, balls: number): number {
+function totalBallsBowled(overs: number, balls: number): number {
   return overs * BALLS_PER_OVER + balls;
-}
-
-export function oversToString(overs: number, balls: number): string {
-  if (balls === 0) return `${overs}.0`;
-  return `${overs}.${balls}`;
 }
 
 export function currentRunRate(runs: number, overs: number, balls: number): number {
@@ -36,14 +31,4 @@ export function economyRate(runsConceded: number, overs: number, balls: number):
   const totalBalls = totalBallsBowled(overs, balls);
   if (totalBalls === 0) return 0;
   return (runsConceded / totalBalls) * BALLS_PER_OVER;
-}
-
-export function bowlingAverage(runsConceded: number, wickets: number): number {
-  if (wickets === 0) return runsConceded > 0 ? Infinity : 0;
-  return runsConceded / wickets;
-}
-
-export function battingAverage(runs: number, dismissals: number): number {
-  if (dismissals === 0) return runs;
-  return runs / dismissals;
 }

@@ -86,6 +86,8 @@ Metro resolves `.web.ts` over `.ts` on web. Every DB repo needs both files:
 
 Cloud repos (`cloud-team-repo`, `cloud-chat-repo`, `cloud-delegate-repo`, `cloud-match-repo`, `cloud-league-repo`, `cloud-user-repo`) use Supabase — same on all platforms, no `.web.ts` needed.
 
+`src/services/purchases.ts` / `src/services/purchases.web.ts` — RevenueCat IAP service also uses Metro platform resolution. The `.web.ts` stub returns safe no-op defaults and prevents `@revenuecat/purchases-js` (and its Stripe.js dependency) from being bundled into the web output.
+
 ### Scoring Engine
 `src/engine/` — pure TypeScript, zero React/RN dependencies. Never import React or RN APIs there.
 
@@ -100,6 +102,13 @@ Test files live in `src/engine/__tests__/`:
 - `functional.test.ts` — end-to-end ball-by-ball scenarios
 - `commentary.test.ts` — deterministic commentary generation
 - `roles-and-rules.test.ts` — bowling rule enforcement and RBAC
+- `engine-coverage.test.ts` — accessor methods, abandonMatch, applyDLS, retireBatter, swapStrike, super over lifecycle, test match completion
+
+`src/utils/__tests__/`:
+- `formatters.test.ts` — all formatters.ts exports including every dismissal type and ball outcome
+- `dls-calculator.test.ts` — getResourcePercentage, calculateDLSTarget, calculateDLSParScore, calculateGullyTarget
+
+When writing test helpers that bowl multiple overs, use a **pool of ≥5 bowlers** and pick the eligible one with the fewest overs (not round-robin) to avoid quota exhaustion. For test match completion scenarios, use 3-player squads (`playersPerSide: 3`, `MAX_WICKETS = 2`) so innings end by all-out without needing declaration (which doesn't trigger `checkMatchCompletion`).
 
 ### Store Pattern
 All mutations go through Zustand stores, never directly through repos.

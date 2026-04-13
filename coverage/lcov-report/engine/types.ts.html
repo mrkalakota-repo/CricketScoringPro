@@ -450,7 +450,47 @@
 <a name='L385'></a><a href='#L385'>385</a>
 <a name='L386'></a><a href='#L386'>386</a>
 <a name='L387'></a><a href='#L387'>387</a>
-<a name='L388'></a><a href='#L388'>388</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a>
+<a name='L390'></a><a href='#L390'>390</a>
+<a name='L391'></a><a href='#L391'>391</a>
+<a name='L392'></a><a href='#L392'>392</a>
+<a name='L393'></a><a href='#L393'>393</a>
+<a name='L394'></a><a href='#L394'>394</a>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a>
+<a name='L397'></a><a href='#L397'>397</a>
+<a name='L398'></a><a href='#L398'>398</a>
+<a name='L399'></a><a href='#L399'>399</a>
+<a name='L400'></a><a href='#L400'>400</a>
+<a name='L401'></a><a href='#L401'>401</a>
+<a name='L402'></a><a href='#L402'>402</a>
+<a name='L403'></a><a href='#L403'>403</a>
+<a name='L404'></a><a href='#L404'>404</a>
+<a name='L405'></a><a href='#L405'>405</a>
+<a name='L406'></a><a href='#L406'>406</a>
+<a name='L407'></a><a href='#L407'>407</a>
+<a name='L408'></a><a href='#L408'>408</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -914,12 +954,19 @@ export interface Player {
  */
 export type UserRole = 'viewer' | 'scorer' | 'team_admin' | 'league_admin';
 &nbsp;
+/**
+ * Subscription tier hierarchy (least → most privileged):
+ *   free → pro → league
+ */
+export type UserPlan = 'free' | 'pro' | 'league';
+&nbsp;
 /** Logged-in user profile stored locally */
 export interface UserProfile {
   phone: string;
   name: string;
   pinHash: string; // SHA-256 of the user's PIN
   role: UserRole;
+  plan: UserPlan;
 }
 &nbsp;
 export interface Team {
@@ -962,6 +1009,7 @@ export interface BallOutcome {
   dismissal: Dismissal | null;
   isFreeHit: boolean;
   timestamp: number;
+  scoringZone?: number; // 0–7 representing 45° field zones (0=straight, clockwise); only on scoring shots
 }
 &nbsp;
 // ===== Innings Aggregates =====
@@ -1044,6 +1092,11 @@ export interface Innings {
   powerplays: PowerplayConfig[];
   target: number | null;
   isSuperOver: boolean;
+  // DLS fields — set when an admin applies a rain interruption ruling
+  revisedTarget?: number;   // DLS/Gully-mode revised target
+  revisedOvers?: number;    // Revised overs quota after interruption
+  dlsMode?: 'standard' | 'gully'; // Which DLS variant was applied
+  dlsGullyRunsPerOver?: number;   // Gully-mode custom RPO override
 }
 &nbsp;
 export interface OverSummary {
@@ -1075,6 +1128,7 @@ export interface MatchConfig {
 &nbsp;
 export interface Match {
   id: string;
+  schemaVersion?: number; // Migration stamp — see src/engine/migration.ts
   config: MatchConfig;
   status: MatchStatus;
   team1: Team;
@@ -1106,6 +1160,7 @@ export interface BallInput {
     batsmanId?: string; // For run outs (could be non-striker)
   } | null;
   isBoundary: boolean;
+  scoringZone?: number; // 0–7 field zone tap; only on scoring shots, optional
 }
 &nbsp;
 // ===== League Models =====
@@ -1140,6 +1195,11 @@ export interface LeagueFixture {
   bracketSlot: number | null;  // position within round (0-based) for pairing
   createdAt: number;
   updatedAt: number;
+  // Verification — set by a league_admin to lock the result against further edits
+  isVerified?: boolean;
+  verifiedByPhone?: string | null;
+  verifiedAt?: number | null;
+  verifiedByName?: string | null;
 }
 &nbsp;
 export type LeagueFormat = 'round_robin' | 'knockout';
@@ -1231,7 +1291,7 @@ export const FORMAT_CONFIGS: Record&lt;Exclude&lt;MatchFormat, 'custom'&gt;, Omi
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-03-26T04:09:50.078Z
+                at 2026-04-13T13:21:06.546Z
             </div>
         <script src="../prettify.js"></script>
         <script>

@@ -9,7 +9,3 @@ export function generateDelegateCode(): string {
 }
 
 export const DELEGATE_CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-
-export function isDelegateCodeExpired(expiresAt: number): boolean {
-  return Date.now() > expiresAt;
-}
