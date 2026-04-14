@@ -17,6 +17,7 @@
  */
 
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import Purchases, {
   type CustomerInfo,
   type PurchasesOffering,
@@ -45,8 +46,9 @@ export function configurePurchases(userId?: string): void {
     // No API key provided — purchases disabled (dev / web builds)
     return;
   }
-  if (__DEV__) {
-    Purchases.setLogLevel(LOG_LEVEL.DEBUG);
+  if (!Constants.isDevice) {
+    // Simulator has no real StoreKit session — skip RC init to avoid noisy errors
+    return;
   }
   Purchases.configure({ apiKey, appUserID: userId ?? null });
 }

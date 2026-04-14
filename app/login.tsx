@@ -10,6 +10,7 @@ import {
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getLocales } from 'expo-localization';
+import Constants from 'expo-constants';
 import { useUserAuth } from '../src/hooks/useUserAuth';
 import type { UserRole } from '../src/engine/types';
 import { TurnstileWidget } from '../src/components/TurnstileWidget';
@@ -32,12 +33,15 @@ type RestoreOtpStep = 'phone' | 'otp' | 'pin';
 // ── Country data ──────────────────────────────────────────────────────────────
 
 const COUNTRY_CODES = [
-  { code: '+91',  flag: '🇮🇳', name: 'India',          digits: 10 },
-  { code: '+1',   flag: '🇺🇸', name: 'USA / Canada',   digits: 10 },
-  { code: '+44',  flag: '🇬🇧', name: 'United Kingdom', digits: 10 },
-  { code: '+61',  flag: '🇦🇺', name: 'Australia',      digits: 9  },
-  { code: '+64',  flag: '🇳🇿', name: 'New Zealand',    digits: 9  },
+  { code: '+91',  flag: '🇮🇳', iso: 'IN', name: 'India',          digits: 10 },
+  { code: '+1',   flag: '🇺🇸', iso: 'US', name: 'USA / Canada',   digits: 10 },
+  { code: '+44',  flag: '🇬🇧', iso: 'GB', name: 'United Kingdom', digits: 10 },
+  { code: '+61',  flag: '🇦🇺', iso: 'AU', name: 'Australia',      digits: 9  },
+  { code: '+64',  flag: '🇳🇿', iso: 'NZ', name: 'New Zealand',    digits: 9  },
 ];
+
+// Flag emojis don't render on iOS simulator — use ISO code as fallback
+const FLAG_RENDERS = Platform.OS === 'ios' && !Constants.isDevice;
 type CountryEntry = typeof COUNTRY_CODES[number];
 
 const REGION_TO_DIAL: Record<string, string> = {
@@ -147,7 +151,9 @@ function CountryPicker({
         style={[styles.countryRow, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}
         activeOpacity={0.7}
       >
-        <Text style={{ fontSize: 20 }}>{value.flag}</Text>
+        <Text style={{ fontSize: FLAG_RENDERS ? 12 : 20, fontWeight: FLAG_RENDERS ? '700' : '400' }}>
+          {FLAG_RENDERS ? value.iso : value.flag}
+        </Text>
         <Text style={{ fontWeight: '700', color: theme.colors.onSurface, flex: 1, marginLeft: 8 }}>
           {value.code}  {value.name}
         </Text>
@@ -164,7 +170,9 @@ function CountryPicker({
                   onPress={() => { onChange(c); setVisible(false); }}
                   style={[styles.countryOption, c.code === value.code && { backgroundColor: theme.colors.primaryContainer }]}
                 >
-                  <Text style={{ fontSize: 20 }}>{c.flag}</Text>
+                  <Text style={{ fontSize: FLAG_RENDERS ? 12 : 20, fontWeight: FLAG_RENDERS ? '700' : '400' }}>
+                    {FLAG_RENDERS ? c.iso : c.flag}
+                  </Text>
                   <Text style={{ flex: 1, marginLeft: 12, color: theme.colors.onSurface }}>{c.name}</Text>
                   <Text style={{ color: theme.colors.onSurfaceVariant, fontWeight: '700' }}>{c.code}</Text>
                 </TouchableOpacity>
