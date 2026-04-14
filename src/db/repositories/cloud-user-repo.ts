@@ -118,6 +118,26 @@ export async function verifyUserProfile(
   return { status: 'error', message: 'Server is waking up — please try again.' };
 }
 
+/**
+ * Fetch the plan stored in Supabase for the given phone number.
+ * Used on login to sync cloud plan changes (e.g. manual admin upgrades) to the local profile.
+ * Returns null if cloud is unavailable or the user has no cloud record.
+ */
+export async function fetchCloudPlan(phone: string): Promise<string | null> {
+  if (!isCloudEnabled || !supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('plan')
+      .eq('phone', phone)
+      .single();
+    if (error || !data) return null;
+    return (data as { plan?: string }).plan ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ── OTP via Twilio Verify edge functions ──────────────────────────────────────
 
 export type OtpSendResult =

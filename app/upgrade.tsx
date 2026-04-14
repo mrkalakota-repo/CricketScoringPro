@@ -243,7 +243,19 @@ export default function UpgradeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Stack.Screen options={{ title: 'Upgrade Plan', presentation: 'modal' }} />
+      <Stack.Screen options={{
+        title: 'Upgrade Plan',
+        presentation: 'modal',
+        headerRight: () => (
+          <MaterialCommunityIcons
+            name="close"
+            size={24}
+            color={theme.colors.onSurface}
+            onPress={() => router.back()}
+            style={{ paddingHorizontal: 8 }}
+          />
+        ),
+      }} />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 24 }]}
         showsVerticalScrollIndicator={false}

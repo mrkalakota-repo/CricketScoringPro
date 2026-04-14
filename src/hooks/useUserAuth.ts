@@ -172,9 +172,16 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
 
     const hash = await hashPin(pin);
     if (hash === profile.pinHash) {
-      set({ isAuthenticated: true, loginAttempts: 0, loginLockedUntil: 0 });
+      // Sync plan from cloud — picks up manual admin upgrades without requiring a restore.
+      const cloudPlan = await cloudUserRepo.fetchCloudPlan(profile.phone);
+      const plan: UserPlan = (cloudPlan as UserPlan) ?? profile.plan;
+      const updatedProfile: UserProfile = plan !== profile.plan ? { ...profile, plan } : profile;
+      if (plan !== profile.plan) {
+        await prefsRepo.setUserProfile({ phone: updatedProfile.phone, name: updatedProfile.name, pinHash: updatedProfile.pinHash, role: updatedProfile.role, plan });
+      }
+      set({ isAuthenticated: true, loginAttempts: 0, loginLockedUntil: 0, profile: updatedProfile });
       // Re-push to cloud in case the initial registration push failed (e.g. table didn't exist yet).
-      cloudUserRepo.pushUserProfile({ phone: profile.phone, name: profile.name, pinHash: profile.pinHash, role: profile.role, plan: profile.plan }).catch(() => {});
+      cloudUserRepo.pushUserProfile({ phone: updatedProfile.phone, name: updatedProfile.name, pinHash: updatedProfile.pinHash, role: updatedProfile.role, plan: updatedProfile.plan }).catch(() => {});
       return true;
     }
 
