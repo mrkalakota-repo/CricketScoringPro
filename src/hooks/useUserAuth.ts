@@ -110,7 +110,13 @@ interface UserAuthStore {
   clearOtpError: () => void;
 }
 
-async function hashPin(pin: string): Promise<string> {
+/** Salted PIN hash — phone acts as a per-user salt, preventing cross-user hash correlation. */
+async function hashPin(pin: string, phone: string): Promise<string> {
+  return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, `${phone}:${pin.trim()}`);
+}
+
+/** Legacy unsalted hash — used only as a migration fallback for existing accounts. */
+async function hashPinLegacy(pin: string): Promise<string> {
   return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, pin.trim());
 }
 
@@ -151,7 +157,7 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
   },
 
   register: async (phone, name, pin, role = 'scorer') => {
-    const pinHash = await hashPin(pin);
+    const pinHash = await hashPin(pin, phone);
     const plan: UserPlan = 'free';
     const profile: UserProfile = { phone, name, pinHash, role, plan };
     // Save locally first so auth works even if cloud push fails
@@ -170,18 +176,31 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
       return false;
     }
 
-    const hash = await hashPin(pin);
-    if (hash === profile.pinHash) {
+    // Try new salted hash first; fall back to legacy for existing accounts.
+    const newHash = await hashPin(pin, profile.phone);
+    let pinCorrect = newHash === profile.pinHash;
+    let needsMigration = false;
+
+    if (!pinCorrect) {
+      const legacyHash = await hashPinLegacy(pin);
+      if (legacyHash === profile.pinHash) {
+        pinCorrect = true;
+        needsMigration = true; // will re-hash and push with new format below
+      }
+    }
+
+    if (pinCorrect) {
       // Sync plan from cloud — picks up manual admin upgrades without requiring a restore.
       const cloudPlan = await cloudUserRepo.fetchCloudPlan(profile.phone);
       const plan: UserPlan = (cloudPlan as UserPlan) ?? profile.plan;
-      const updatedProfile: UserProfile = plan !== profile.plan ? { ...profile, plan } : profile;
-      if (plan !== profile.plan) {
-        await prefsRepo.setUserProfile({ phone: updatedProfile.phone, name: updatedProfile.name, pinHash: updatedProfile.pinHash, role: updatedProfile.role, plan });
+      const pinHash = needsMigration ? newHash : profile.pinHash;
+      const updatedProfile: UserProfile = { ...profile, plan, pinHash };
+      if (needsMigration || plan !== profile.plan) {
+        await prefsRepo.setUserProfile({ phone: updatedProfile.phone, name: updatedProfile.name, pinHash, role: updatedProfile.role, plan });
       }
       set({ isAuthenticated: true, loginAttempts: 0, loginLockedUntil: 0, profile: updatedProfile });
-      // Re-push to cloud in case the initial registration push failed (e.g. table didn't exist yet).
-      cloudUserRepo.pushUserProfile({ phone: updatedProfile.phone, name: updatedProfile.name, pinHash: updatedProfile.pinHash, role: updatedProfile.role, plan: updatedProfile.plan }).catch(() => {});
+      // Re-push to cloud: recovers failed registration pushes and migrates legacy hashes.
+      cloudUserRepo.pushUserProfile({ phone: updatedProfile.phone, name: updatedProfile.name, pinHash, role: updatedProfile.role, plan: updatedProfile.plan }).catch(() => {});
       return true;
     }
 
@@ -195,9 +214,18 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
   restoreFromCloud: async (phone, pin) => {
     set({ restoreStatus: 'fetching' });
     try {
-      // Hash the PIN client-side; the server verifies it without returning the stored hash.
-      const pinHash = await hashPin(pin);
-      const result: VerifyResult = await cloudUserRepo.verifyUserProfile(phone.trim(), pinHash);
+      const trimmedPhone = phone.trim();
+
+      // Try new salted hash first; fall back to legacy for existing accounts.
+      const newHash = await hashPin(pin, trimmedPhone);
+      let result: VerifyResult = await cloudUserRepo.verifyUserProfile(trimmedPhone, newHash);
+      let migrated = false;
+
+      if (result.status === 'wrong_pin') {
+        const legacyHash = await hashPinLegacy(pin);
+        result = await cloudUserRepo.verifyUserProfile(trimmedPhone, legacyHash);
+        if (result.status === 'ok') migrated = true;
+      }
 
       if (result.status === 'not_found') {
         set({ restoreStatus: 'not_found', restoreErrorMessage: '' });
@@ -212,21 +240,19 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
         return false;
       }
 
-      // PIN correct — save locally (storing our locally-computed hash) and authenticate
+      // PIN correct — always store locally with new salted hash going forward.
       const role: UserRole = (result.role as UserRole) ?? 'scorer';
       const plan: UserPlan = (result.plan as UserPlan) ?? 'free';
-      await prefsRepo.setUserProfile({
-        phone: phone.trim(),
-        name: result.name,
-        pinHash,  // local hash — never received from server
-        role,
-        plan,
-      });
+      await prefsRepo.setUserProfile({ phone: trimmedPhone, name: result.name, pinHash: newHash, role, plan });
       set({
-        profile: { phone: phone.trim(), name: result.name, pinHash, role, plan },
+        profile: { phone: trimmedPhone, name: result.name, pinHash: newHash, role, plan },
         isAuthenticated: true,
         restoreStatus: 'success',
       });
+      // Push new hash to cloud when migrating from legacy format.
+      if (migrated) {
+        cloudUserRepo.pushUserProfile({ phone: trimmedPhone, name: result.name, pinHash: newHash, role, plan }).catch(() => {});
+      }
       return true;
     } catch (err) {
       console.error('[useUserAuth] restoreFromCloud:', (err as Error).message);
@@ -240,7 +266,7 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
   updateProfile: async (name, newPin, newRole, newPlan) => {
     const { profile } = get();
     if (!profile) return;
-    const pinHash = newPin ? await hashPin(newPin) : profile.pinHash;
+    const pinHash = newPin ? await hashPin(newPin, profile.phone) : profile.pinHash;
     const role: UserRole = newRole ?? profile.role;
     const plan: UserPlan = newPlan ?? profile.plan;
     const updated: UserProfile = { ...profile, name: name.trim(), pinHash, role, plan };
