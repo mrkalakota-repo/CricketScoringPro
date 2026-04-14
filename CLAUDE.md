@@ -133,6 +133,7 @@ Native apps skip the marketing layer entirely and go straight to the login form.
 `src/hooks/useUserAuth.ts` — Zustand store for global auth (phone-number registration + PIN). Profile is saved locally (`user_prefs`) and pushed to Supabase `user_profiles` for cross-device restore.
 
 Key behaviours:
+- `login()` calls `cloudUserRepo.fetchCloudPlan()` after PIN verification to sync the latest plan from Supabase before re-pushing the profile. This means manual admin plan changes in Supabase take effect on the user's next login without a full account restore. The cloud plan always wins over the locally-stored plan when they differ.
 - `login()` re-pushes the profile to Supabase on every successful local sign-in, recovering profiles whose initial push was dropped (e.g. table didn't exist at registration time).
 - `updateProfile(name, newPin?)` — updates name and/or PIN locally + cloud; used by `app/my-profile.tsx` (the logged-in user's own profile screen, with name edit, PIN change, and sign-out).
 - `sessionExpired: boolean` — set when web `sessionStorage` is missing the PIN hash (tab closed and reopened). UI auto-switches to the restore form with phone pre-filled; local login is impossible in this state.
@@ -424,12 +425,17 @@ eas build --profile preview --platform android    # Build APK
 eas build --profile production --platform android # Build AAB
 ```
 
-Android package: `com.gullycricket.scorer` (retained for Play Store continuity) · versionCode: bump in `app.json` before each store upload.
+Android package: `com.gullycricket.scorer` (retained for Play Store continuity). Before each store upload bump all three version fields together in `app.json`:
+- `version` (semver string, e.g. `"1.1.5"`) — shown to users on both platforms
+- `ios.buildNumber` (string integer, e.g. `"5"`) — must increment on every TestFlight / App Store upload
+- `android.versionCode` (integer, e.g. `15`) — must increment on every Play Store upload
 
 After any change to `app.json` plugins, `android` config, or native dependencies, regenerate the native project before building:
 ```bash
 npx expo prebuild --clean
 ```
+
+**iOS source build (required for iOS 26 / Xcode 17)** — `ios/Podfile.properties.json` sets `"ios.buildReactNativeFromSource": "true"` so React Native is compiled from source instead of using the pre-built CI binaries (which have hardcoded paths incompatible with iOS 26). The `post_install` hook in `ios/Podfile` sets `CLANG_CXX_LANGUAGE_STANDARD = 'c++20'` for all pod targets (required because RN bridging headers use C++20 `requires` concept syntax). After any `pod install` you may see `Removing React-Core-prebuilt / Removing ReactNativeDependencies` — this is expected and correct. When running from Xcode directly (not `npx expo run:ios`), Metro must already be running; launch `npx expo start` first. If `npx expo prebuild --clean` fails with `ENOTEMPTY`, run `rm -rf ios android` first then `npx expo prebuild`.
 
 **Android 15/16 compliance** — `react-native-edge-to-edge` is installed as a config plugin (replaces deprecated `setDecorFitsSystemWindows` API). `orientation` in `app.json` is `"default"` (not `"portrait"`) so Android 16 large-screen orientation override is handled gracefully. Do not change it back to `"portrait"`.
 
@@ -459,3 +465,4 @@ npx expo prebuild --clean
 - **Do not** call `configurePurchases()` or other RevenueCat methods on web — `src/services/purchases.ts` guards every call with an API-key check and returns safe defaults when keys are absent
 - **Do not** call `cloudMatchRepo.publishLiveMatch` / `cloudMatchRepo.publishMatchState` directly from `match-store.ts` — always go through the `publishToCloud(m)` helper which enforces the cloud-sync plan gate
 - **Do not** change `orientation` in `app.json` back to `"portrait"` — it is intentionally `"default"` for Android 16 large-screen compliance
+- **Do not** push the local plan to Supabase in `login()` before fetching the cloud plan — `fetchCloudPlan()` must run first so manual admin upgrades are not overwritten by a stale local `'free'` value

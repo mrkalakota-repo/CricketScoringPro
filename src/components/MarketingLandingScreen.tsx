@@ -1,5 +1,6 @@
 import { ScrollView, View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const GREEN = '#1B6B28';
 const GREEN_DARK = '#145220';
@@ -271,22 +272,27 @@ export function MarketingLandingScreen({ onSignIn, onRegister }: Props) {
           <Text style={s.sectionSub}>The full Inningsly experience is being polished for the App Store and Google Play. Use the web app today — your data syncs automatically when the apps launch.</Text>
         </View>
         <View style={s.appsGrid}>
-          {[
-            { icon: '🍎', platform: 'iPhone & iPad', desc: 'Optimised for iOS with haptic feedback and native performance.', storeLabel: 'App Store', eta: 'Available soon on iOS 16+' },
-            { icon: '🤖', platform: 'Android', desc: 'Full-featured Android app with offline scoring and background sync.', storeLabel: 'Google Play', eta: 'Available soon on Android 8+' },
-          ].map(app => (
+          {([
+            { iconName: 'apple' as const, platform: 'iPhone & iPad', desc: 'Optimised for iOS with haptic feedback and native performance.', storeBtnSub: 'Download on the', storeLabel: 'App Store', eta: 'Available soon on iOS 16+' },
+            { iconName: 'android' as const, platform: 'Android', desc: 'Full-featured Android app with offline scoring and background sync.', storeBtnSub: 'Get it on', storeLabel: 'Google Play', eta: 'Available soon on Android 8+' },
+          ]).map(app => (
             <View key={app.platform} style={s.appCard}>
               <View style={s.comingSoonBadge}>
                 <Text style={s.comingSoonText}>COMING SOON</Text>
               </View>
               <View style={s.appIconWrap}>
-                <Text style={s.appIconEmoji}>{app.icon}</Text>
+                <MaterialCommunityIcons name={app.iconName} size={34} color="#FFFFFF" />
               </View>
               <Text style={s.appPlatform}>{app.platform}</Text>
               <Text style={s.appDesc}>{app.desc}</Text>
               <View style={s.storeBtn}>
-                <Text style={s.storeBtnSub}>Download on the</Text>
-                <Text style={s.storeBtnMain}>{app.storeLabel}</Text>
+                <View style={s.storeBtnInner}>
+                  <MaterialCommunityIcons name={app.iconName} size={22} color="#FFFFFF" style={s.storeBtnIcon} />
+                  <View>
+                    <Text style={s.storeBtnSub}>{app.storeBtnSub}</Text>
+                    <Text style={s.storeBtnMain}>{app.storeLabel}</Text>
+                  </View>
+                </View>
               </View>
               <Text style={s.appEta}>{app.eta}</Text>
             </View>
@@ -434,10 +440,11 @@ const s = StyleSheet.create({
   comingSoonBadge: { position: 'absolute', top: -10, right: -10, backgroundColor: ORANGE, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   comingSoonText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
   appIconWrap: { width: 64, height: 64, borderRadius: 18, backgroundColor: GREEN, alignItems: 'center', justifyContent: 'center' },
-  appIconEmoji: { fontSize: 30 },
   appPlatform: { fontSize: 15, fontWeight: '800', color: TEXT },
   appDesc: { fontSize: 12, color: MUTED, textAlign: 'center', lineHeight: 18 },
-  storeBtn: { backgroundColor: '#1A1A1A', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, width: '100%', alignItems: 'center', opacity: 0.5 },
+  storeBtn: { backgroundColor: '#1A1A1A', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, width: '100%', opacity: 0.5 },
+  storeBtnInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  storeBtnIcon: { opacity: 0.9 },
   storeBtnSub: { fontSize: 10, color: '#FFFFFF', opacity: 0.75 },
   storeBtnMain: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
   appEta: { fontSize: 11, color: MUTED },
