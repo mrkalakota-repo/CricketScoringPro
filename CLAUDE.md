@@ -26,6 +26,7 @@ npm test -- --coverage                            # Coverage report
 npx expo install <pkg> # Add Expo package (add --legacy-peer-deps if it fails)
 supabase functions deploy send-otp --no-verify-jwt   # Deploy Edge Functions — --no-verify-jwt is REQUIRED
 supabase functions deploy verify-otp --no-verify-jwt  # Without it, Supabase re-enables JWT auth and returns 401
+supabase functions deploy rc-webhook --no-verify-jwt  # RevenueCat webhook — called by RC, not user JWTs
 ```
 
 ---
@@ -50,7 +51,7 @@ eas build --profile production --platform android
 - `verify-otp` — Twilio code check + returns existing profile name/role for restore flow
 
 Required secrets (set in Supabase dashboard → Edge Functions → Secrets):
-`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, `TURNSTILE_SECRET_KEY`
+`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, `TURNSTILE_SECRET_KEY`, `RC_WEBHOOK_SECRET`
 
 **Always deploy with `--no-verify-jwt`** — these functions are called with the anon key (not a user JWT).
 Without this flag Supabase re-enables JWT verification on every deploy and returns 401 to all clients.
