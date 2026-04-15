@@ -115,6 +115,7 @@ export interface StoredUserProfile {
   name: string;
   pinHash: string;
   role?: string; // UserRole — optional for backwards compat with existing stored profiles
+  plan?: string; // UserPlan — optional for backwards compat; missing → 'free'
 }
 
 export async function getUserProfile(): Promise<StoredUserProfile | null> {
@@ -126,7 +127,7 @@ export async function getUserProfile(): Promise<StoredUserProfile | null> {
     if (typeof meta?.phone !== 'string' || typeof meta?.name !== 'string') return null;
     // If session has expired, return profile without pinHash — caller must re-authenticate
     const pinHash = rawPin ?? '';
-    return { phone: meta.phone, name: meta.name, role: meta.role, pinHash } as StoredUserProfile;
+    return { phone: meta.phone, name: meta.name, role: meta.role, plan: meta.plan, pinHash } as StoredUserProfile;
   } catch { return null; }
 }
 
@@ -136,6 +137,7 @@ export async function setUserProfile(profile: StoredUserProfile): Promise<void> 
     phone: profile.phone,
     name: profile.name,
     role: profile.role,
+    plan: profile.plan,
   }));
   // Store PIN hash in sessionStorage only (cleared when tab closes)
   sessionStorage.setItem(USER_PROFILE_PIN_KEY, profile.pinHash);
