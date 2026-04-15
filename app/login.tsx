@@ -222,7 +222,13 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
   } = useUserAuth();
 
   // sessionExpired must always win — local pinHash is '' and login is impossible until restored.
-  const defaultMode: Mode = sessionExpired ? 'restore' : (initialMode ?? (profile ? 'login' : 'register'));
+  // If initialMode='login' but there's no local profile (private browser / new device),
+  // fall back to 'restore' — login requires a locally stored profile.
+  const defaultMode: Mode = sessionExpired
+    ? 'restore'
+    : (initialMode === 'login' && !profile)
+      ? 'restore'
+      : (initialMode ?? (profile ? 'login' : 'register'));
   const [mode, setMode] = useState<Mode>(defaultMode);
 
   // ── Register wizard state ─────────────────────────────────────────────────
@@ -512,7 +518,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
   const regStepIndex = REG_STEPS.indexOf(regStep);
 
   const subtitle =
-    mode === 'login'    ? `Welcome back, ${profile!.name}!` :
+    mode === 'login'    ? `Welcome back, ${profile?.name ?? ''}!` :
     mode === 'restore'  ? 'Recover access to your account' :
                           'Create your player profile';
 
@@ -902,10 +908,10 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
               <MaterialCommunityIcons name="account-circle" size={32} color={theme.colors.primary} />
               <View style={{ flex: 1 }}>
                 <Text variant="titleSmall" style={{ color: theme.colors.onPrimaryContainer, fontWeight: '700' }}>
-                  {profile!.name}
+                  {profile?.name}
                 </Text>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  +{profile!.phone}
+                  +{profile?.phone}
                 </Text>
               </View>
             </View>
@@ -953,7 +959,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
               style={[styles.linkBtn, { opacity: 0.6 }]}
               labelStyle={{ fontSize: 12 }}
             >
-              Not {profile!.name}? Register a new account
+              Not {profile?.name}? Register a new account
             </Button>
           </View>
         )}
