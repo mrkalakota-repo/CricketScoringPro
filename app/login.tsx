@@ -312,6 +312,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
     setRegRole('scorer'); setRegPin(''); setRegConfirmPin('');
     setRegError('');
     setLoginPin(''); setLoginError('');
+    setRestoreCountry(detectDefaultCountry());
     setRestorePhone(''); setRestorePin(''); setRestorePinError('');
     setRestoreOtpStep('phone'); setRestoreOtpPhone(''); setRestoreOtpCode('');
     setRestoreNewPin(''); setRestoreConfirmPin(''); setRestoreOtpError('');
@@ -442,7 +443,13 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
       let ok = await restoreFromCloud(fullPhone, restorePin);
       if (!ok) {
         const { restoreStatus: s, restoreErrorMessage: msg } = useUserAuth.getState();
-        if (s === 'not_found') ok = await restoreFromCloud(cleaned, restorePin);
+        // Also try without country code prefix if the full-phone attempt failed:
+        // - not_found: account was registered with a shorter phone format
+        // - wrong_pin: phone was found but the hash was computed with a different phone salt
+        //   (can happen when the phone column was updated separately from the hash)
+        if ((s === 'not_found' || s === 'wrong_pin') && fullPhone !== cleaned) {
+          ok = await restoreFromCloud(cleaned, restorePin);
+        }
         if (!ok) {
           const { restoreStatus: s2, restoreErrorMessage: msg2 } = useUserAuth.getState();
           if (s2 === 'not_found') setRestorePinError('No account found for this number. Double-check the number and try again.');
@@ -1011,6 +1018,8 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
                   error={!!restorePinError}
                   autoFocus
                   returnKeyType="next"
+                  textContentType="none"
+                  autoComplete="off"
                 />
                 <TextInput
                   label="Enter PIN"
