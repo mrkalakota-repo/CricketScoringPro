@@ -46,9 +46,10 @@ eas build --profile production --platform android
 
 **`docs/` directory** — standalone static HTML pages (`index.html`, `privacy.html`, `support.html`). These are **not** part of the Expo web build and not served by Amplify. They exist as a separate marketing site. Do not import from `docs/` in app code.
 
-**Edge Functions** — two Supabase Edge Functions in `supabase/functions/`:
+**Edge Functions** — three Supabase Edge Functions in `supabase/functions/`:
 - `send-otp` — rate-limits + Cloudflare Turnstile verification + Twilio Verify SMS
 - `verify-otp` — Twilio code check + returns existing profile name/role for restore flow
+- `rc-webhook` — RevenueCat webhook handler; syncs subscription events (INITIAL_PURCHASE, RENEWAL, EXPIRATION, PRODUCT_CHANGE, UNCANCELLATION) to `user_profiles.plan` + `cloud_teams.team_plan`. CANCELLATION is intentionally ignored — EXPIRATION fires when access actually ends. Webhook URL: `https://<project>.supabase.co/functions/v1/rc-webhook?secret=<RC_WEBHOOK_SECRET>`. RC user ID = phone number (set by `loginPurchasesUser`).
 
 Required secrets (set in Supabase dashboard → Edge Functions → Secrets):
 `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, `TURNSTILE_SECRET_KEY`, `RC_WEBHOOK_SECRET`
@@ -70,7 +71,7 @@ Without this flag Supabase re-enables JWT verification on every deploy and retur
 | Persistence | expo-sqlite (native), localStorage (web) via `.web.ts` Metro resolution |
 | Cloud | Supabase — proximity sync, real-time chat, delegate codes |
 | Icons | MaterialCommunityIcons (`@expo/vector-icons`) |
-| Hashing | expo-crypto SHA-256 for admin PINs |
+| Hashing | expo-crypto SHA-256 — admin PINs (unsalted); user PINs salted with phone (`${phone}:${pin}`) |
 | Location | expo-location for proximity team discovery |
 | Testing | Jest (pure engine tests) |
 
@@ -134,8 +135,8 @@ Native apps skip the marketing layer entirely and go straight to the login form.
 `src/hooks/useUserAuth.ts` — Zustand store for global auth (phone-number registration + PIN). Profile is saved locally (`user_prefs`) and pushed to Supabase `user_profiles` for cross-device restore.
 
 Key behaviours:
-- `login()` calls `cloudUserRepo.fetchCloudPlan()` after PIN verification to sync the latest plan from Supabase before re-pushing the profile. This means manual admin plan changes in Supabase take effect on the user's next login without a full account restore. The cloud plan always wins over the locally-stored plan when they differ.
-- `login()` re-pushes the profile to Supabase on every successful local sign-in, recovering profiles whose initial push was dropped (e.g. table didn't exist at registration time).
+- `login()` calls `cloudUserRepo.fetchCloudProfile()` after PIN verification to sync the latest **plan and role** from Supabase before re-pushing. This means manual admin changes in Supabase (e.g. upgrading a user to `league_admin` / `league` plan) take effect on the user's next login without a full account restore. Cloud values always win over locally-stored ones.
+- `login()` re-pushes the profile to Supabase on every successful local sign-in using the cloud-fetched plan+role, recovering profiles whose initial push was dropped **and** ensuring admin grants are never overwritten by stale local values.
 - `updateProfile(name, newPin?)` — updates name and/or PIN locally + cloud; used by `app/my-profile.tsx` (the logged-in user's own profile screen, with name edit, PIN change, and sign-out).
 - `sessionExpired: boolean` — set when web `sessionStorage` is missing the PIN hash (tab closed and reopened). UI auto-switches to the restore form with phone pre-filled; local login is impossible in this state.
 - `restoreErrorMessage` — propagated from `verifyUserProfile` RPC so the UI can show actionable errors.
@@ -166,7 +167,7 @@ Available roles at registration: `scorer`, `team_admin`, `league_admin`, `viewer
 `src/hooks/useSyncStatus.ts` — subscribes to cloud match repo sync events. States: `synced` | `syncing` | `offline` | `disabled`. Used for the scoring-screen cloud indicator.
 
 ### Plan Gates (Monetization)
-`src/hooks/usePlan.ts` — central plan authority. Reads the stored plan from `useUserAuth` profile, hard-caps to `'free'` on web (`Platform.OS === 'web'`), and derives per-feature booleans from `PLAN_LIMITS`.
+`src/hooks/usePlan.ts` — central plan authority. Reads the stored plan from `useUserAuth` profile and derives per-feature booleans from `PLAN_LIMITS`. The plan is trusted on all platforms — admin-granted plans work on web too. Web users cannot purchase via IAP but can receive plans via admin grant or by restoring a native account.
 
 ```
 free  → canUseTeamChat: false, canCloudSync: false, canExportScorecard: false,
@@ -362,7 +363,7 @@ Run `supabase-setup.sql` in the SQL Editor (idempotent — safe to re-run).
 Tables: `cloud_teams`, `cloud_players`, `delegate_codes`, `chat_messages`, `live_matches`, `user_profiles`, `cloud_leagues`, `cloud_league_fixtures`.
 Credentials go in `.env` as `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
 
-`user_profiles` stores phone, name, pinHash, role. PIN verification goes through `verify_user_profile()` RPC (SECURITY DEFINER) — the hash is never returned to clients. The RPC uses pgcrypto (`crypt`, `gen_salt`) and requires `SET search_path = public, extensions` because Supabase installs pgcrypto in the `extensions` schema.
+`user_profiles` stores phone, name, pin_hash, role, plan. User PIN is hashed client-side as `SHA256("${phone}:${pin}")` — the phone acts as a per-user salt, preventing cross-user hash correlation. The hash is sent to `verify_user_profile()` RPC (SECURITY DEFINER) for server-side comparison; the stored hash is never returned to clients. `login()` and `restoreFromCloud()` both transparently fall back to the legacy unsalted hash (`SHA256(pin)`) for existing accounts and re-hash on success — transparent migration with no user action required.
 
 `cloud_leagues` / `cloud_league_fixtures` are owner-scoped (`owner_phone` column). `league-store` pushes on every mutation and pulls on `loadLeagues` when authenticated.
 
@@ -466,4 +467,7 @@ npx expo prebuild --clean
 - **Do not** call `configurePurchases()` or other RevenueCat methods on web — `src/services/purchases.ts` guards every call with an API-key check and returns safe defaults when keys are absent
 - **Do not** call `cloudMatchRepo.publishLiveMatch` / `cloudMatchRepo.publishMatchState` directly from `match-store.ts` — always go through the `publishToCloud(m)` helper which enforces the cloud-sync plan gate
 - **Do not** change `orientation` in `app.json` back to `"portrait"` — it is intentionally `"default"` for Android 16 large-screen compliance
-- **Do not** push the local plan to Supabase in `login()` before fetching the cloud plan — `fetchCloudPlan()` must run first so manual admin upgrades are not overwritten by a stale local `'free'` value
+- **Do not** push the local plan or role to Supabase in `login()` before calling `fetchCloudProfile()` — cloud values must be fetched first so manual admin upgrades are not overwritten by stale local values
+- **Do not** use `profile!.name` or `profile!.phone` non-null assertions in UI — use `profile?.name` / `profile?.phone`; in private/incognito browser `profile` is null while the login screen is visible
+- **Do not** pass `initialMode='login'` to `LoginScreen` when `profile` is null — the `defaultMode` logic already guards this, but never add code that assumes `profile` is non-null on web before authentication completes
+- **Do not** call the removed `fetchCloudPlan()` — it was replaced by `fetchCloudProfile()` which returns both `plan` and `role`
