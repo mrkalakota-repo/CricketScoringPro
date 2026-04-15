@@ -119,20 +119,22 @@ export async function verifyUserProfile(
 }
 
 /**
- * Fetch the plan stored in Supabase for the given phone number.
- * Used on login to sync cloud plan changes (e.g. manual admin upgrades) to the local profile.
+ * Fetch the plan and role stored in Supabase for the given phone number.
+ * Used on login to sync cloud changes (e.g. manual admin upgrades) to the local profile.
  * Returns null if cloud is unavailable or the user has no cloud record.
  */
-export async function fetchCloudPlan(phone: string): Promise<string | null> {
+export async function fetchCloudProfile(phone: string): Promise<{ plan: string; role: string } | null> {
   if (!isCloudEnabled || !supabase) return null;
   try {
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('plan')
+      .select('plan, role')
       .eq('phone', phone)
       .single();
     if (error || !data) return null;
-    return (data as { plan?: string }).plan ?? null;
+    const row = data as { plan?: string; role?: string };
+    if (!row.plan) return null;
+    return { plan: row.plan, role: row.role ?? 'scorer' };
   } catch {
     return null;
   }

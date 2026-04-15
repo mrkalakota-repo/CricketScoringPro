@@ -190,17 +190,19 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
     }
 
     if (pinCorrect) {
-      // Sync plan from cloud — picks up manual admin upgrades without requiring a restore.
-      const cloudPlan = await cloudUserRepo.fetchCloudPlan(profile.phone);
-      const plan: UserPlan = (cloudPlan as UserPlan) ?? profile.plan;
+      // Sync plan + role from cloud — picks up manual admin upgrades without requiring a restore.
+      const cloudProfile = await cloudUserRepo.fetchCloudProfile(profile.phone);
+      const plan: UserPlan = (cloudProfile?.plan as UserPlan) ?? profile.plan;
+      const role: UserRole = (cloudProfile?.role as UserRole) ?? profile.role;
       const pinHash = needsMigration ? newHash : profile.pinHash;
-      const updatedProfile: UserProfile = { ...profile, plan, pinHash };
-      if (needsMigration || plan !== profile.plan) {
-        await prefsRepo.setUserProfile({ phone: updatedProfile.phone, name: updatedProfile.name, pinHash, role: updatedProfile.role, plan });
+      const updatedProfile: UserProfile = { ...profile, plan, role, pinHash };
+      if (needsMigration || plan !== profile.plan || role !== profile.role) {
+        await prefsRepo.setUserProfile({ phone: updatedProfile.phone, name: updatedProfile.name, pinHash, role, plan });
       }
       set({ isAuthenticated: true, loginAttempts: 0, loginLockedUntil: 0, profile: updatedProfile });
       // Re-push to cloud: recovers failed registration pushes and migrates legacy hashes.
-      cloudUserRepo.pushUserProfile({ phone: updatedProfile.phone, name: updatedProfile.name, pinHash, role: updatedProfile.role, plan: updatedProfile.plan }).catch(() => {});
+      // Uses cloud-fetched plan + role so admin grants are never overwritten.
+      cloudUserRepo.pushUserProfile({ phone: updatedProfile.phone, name: updatedProfile.name, pinHash, role, plan }).catch(() => {});
       return true;
     }
 
