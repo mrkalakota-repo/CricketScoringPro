@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import { useUserAuth } from './useUserAuth';
 import { useTeamStore } from '../store/team-store';
 import type { UserPlan } from '../engine/types';
@@ -118,7 +117,7 @@ export interface PlanPermissions {
 export function usePlan(): PlanPermissions {
   const storedPlan: UserPlan = useUserAuth(s => s.profile?.plan ?? 'free');
   // Web has no payment support — cap all web users at free regardless of stored plan
-  const plan: UserPlan = Platform.OS === 'web' ? 'free' : storedPlan;
+  const plan: UserPlan = storedPlan;
   const limits = PLAN_LIMITS[plan];
 
   const effectivePlanFor = (teamPlan?: string): UserPlan => {
