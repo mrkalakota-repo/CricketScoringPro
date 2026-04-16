@@ -10,6 +10,9 @@ import { strikeRate, economyRate } from '../../../src/utils/cricket-math';
 import { buildScorecardText } from '../../../src/utils/scorecard-export';
 import { usePlan } from '../../../src/hooks/usePlan';
 import { UpgradeSheet } from '../../../src/components/UpgradeSheet';
+import ManhattanChart from '../../../src/components/ManhattanChart';
+import RunRateWorm from '../../../src/components/RunRateWorm';
+import WagonWheel from '../../../src/components/WagonWheel';
 
 export default function ScorecardScreen() {
   const theme = useTheme();
@@ -21,6 +24,7 @@ export default function ScorecardScreen() {
 
   const match = engine?.getMatch();
   const [selectedInningsIndex, setSelectedInningsIndex] = useState('0');
+  const [viewMode, setViewMode] = useState<'scorecard' | 'charts'>('scorecard');
 
   const handleShare = async () => {
     if (!match) return;
@@ -74,6 +78,54 @@ export default function ScorecardScreen() {
           style={styles.inningsSelector}
         />
       )}
+
+      {/* Scorecard / Charts toggle */}
+      <SegmentedButtons
+        value={viewMode}
+        onValueChange={v => setViewMode(v as 'scorecard' | 'charts')}
+        buttons={[
+          { value: 'scorecard', label: 'Scorecard', icon: 'format-list-bulleted' },
+          { value: 'charts', label: 'Charts', icon: 'chart-bar' },
+        ]}
+        style={styles.viewToggle}
+      />
+
+      {/* ── CHARTS TAB ── */}
+      {viewMode === 'charts' && (
+        <>
+          {/* Manhattan — runs per over */}
+          <Surface style={styles.card} elevation={1}>
+            <Text variant="titleSmall" style={styles.cardTitle}>Runs per Over — {battingTeamName}</Text>
+            <View style={styles.chartPad}>
+              <ManhattanChart overs={innings.overs} />
+            </View>
+          </Surface>
+
+          {/* Run-rate Worm — both innings */}
+          <Surface style={styles.card} elevation={1}>
+            <Text variant="titleSmall" style={styles.cardTitle}>Run Progression</Text>
+            <View style={styles.chartPad}>
+              <RunRateWorm
+                innings={match.innings}
+                teamNames={match.innings.map(inn =>
+                  inn.battingTeamId === match.team1.id ? match.team1.shortName : match.team2.shortName
+                )}
+              />
+            </View>
+          </Surface>
+
+          {/* Wagon Wheel — only when scoring zones were recorded */}
+          <Surface style={styles.card} elevation={1}>
+            <Text variant="titleSmall" style={styles.cardTitle}>Wagon Wheel — {battingTeamName}</Text>
+            <View style={[styles.chartPad, { alignItems: 'center' }]}>
+              <WagonWheel balls={innings.allBalls} />
+            </View>
+          </Surface>
+        </>
+      )}
+
+      {/* ── SCORECARD TAB ── */}
+      {viewMode === 'scorecard' && <>
 
       {/* Score Summary */}
       <Surface style={styles.summaryCard} elevation={1}>
@@ -242,6 +294,8 @@ export default function ScorecardScreen() {
         </Surface>
       )}
 
+      </>}{/* end scorecard tab */}
+
       {/* Share Button */}
       <View style={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16) + 16 }}>
         <Button
@@ -269,7 +323,9 @@ const styles = StyleSheet.create({
   center: { justifyContent: 'center', alignItems: 'center' },
   resultBanner: { padding: 12, alignItems: 'center' },
   resultText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
-  inningsSelector: { margin: 12 },
+  inningsSelector: { margin: 12, marginBottom: 0 },
+  viewToggle: { margin: 12 },
+  chartPad: { paddingHorizontal: 8, paddingBottom: 12 },
   summaryCard: { margin: 12, padding: 16, borderRadius: 12 },
   summaryRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4 },
   card: { margin: 12, marginTop: 0, borderRadius: 12, overflow: 'hidden' },
