@@ -44,7 +44,7 @@ eas build --profile preview --platform android
 eas build --profile production --platform android
 ```
 
-**`docs/` directory** — standalone static HTML pages (`index.html`, `privacy.html`, `support.html`). These are **not** part of the Expo web build and not served by Amplify. They exist as a separate marketing site. Do not import from `docs/` in app code.
+**`docs/` directory** — standalone static HTML pages (`index.html`, `privacy.html`, `support.html`, `terms.html`). The `amplify.yml` build copies them into `dist/privacy/`, `dist/support/`, and `dist/terms/` after the Expo export, so they are served at `inningsly.com/privacy`, `/support`, and `/terms` from the same Amplify deployment. Do not import from `docs/` in app code. Metro **does** bundle web-only components (like `MarketingLandingScreen.tsx`) into the iOS JS bundle even when guarded by `Platform.OS === 'web'` — string literals in those files are visible to Apple's binary scanner. Keep user-visible copy in those files store-neutral (no "Google Play" references).
 
 **Edge Functions** — three Supabase Edge Functions in `supabase/functions/`:
 - `send-otp` — rate-limits + Cloudflare Turnstile verification + Twilio Verify SMS
@@ -137,7 +137,8 @@ Native apps skip the marketing layer entirely and go straight to the login form.
 Key behaviours:
 - `login()` calls `cloudUserRepo.fetchCloudProfile()` after PIN verification to sync the latest **plan and role** from Supabase before re-pushing. This means manual admin changes in Supabase (e.g. upgrading a user to `league_admin` / `league` plan) take effect on the user's next login without a full account restore. Cloud values always win over locally-stored ones.
 - `login()` re-pushes the profile to Supabase on every successful local sign-in using the cloud-fetched plan+role, recovering profiles whose initial push was dropped **and** ensuring admin grants are never overwritten by stale local values.
-- `updateProfile(name, newPin?)` — updates name and/or PIN locally + cloud; used by `app/my-profile.tsx` (the logged-in user's own profile screen, with name edit, PIN change, and sign-out).
+- `updateProfile(name, newPin?)` — updates name and/or PIN locally + cloud; used by `app/my-profile.tsx` (the logged-in user's own profile screen, with name edit, PIN change, sign-out, and account deletion).
+- `deleteAccount()` — deletes the `user_profiles` row from Supabase (fire-and-forget), then calls `prefsRepo.clearUserProfile()` + `clearOwnershipPrefs()` and nulls the in-memory session. Navigates to `/` after completion.
 - `sessionExpired: boolean` — set when web `sessionStorage` is missing the PIN hash (tab closed and reopened). UI auto-switches to the restore form with phone pre-filled; local login is impossible in this state.
 - `restoreErrorMessage` — propagated from `verifyUserProfile` RPC so the UI can show actionable errors.
 - `verifyUserProfile` in `cloud-user-repo.ts` auto-retries up to 3× with a 2.5 s delay on Supabase schema-cache cold-start errors (`PGRST205` / "schema cache" phrase) before returning a friendly "Server is waking up" message.
@@ -383,6 +384,7 @@ Supported key formats: legacy JWT (`length > 100`) **or** new publishable format
 - `src/utils/player-stats.ts` — `aggregatePlayerStats(matches, playerId)` — computes career batting/bowling stats across all stored matches. Used by player profile screens.
 - `src/utils/scorecard-export.ts` — generates a plain-text scorecard string from a `MatchEngine` instance (for sharing/copying).
 - `src/utils/data-export.ts` — `buildDataExportCSV(matches: Match[]): string` — builds a 3-section CSV (Match Results, Batting Stats, Bowling Stats) from completed matches. Used by the Export button on the Stats screen (League plan gate).
+- `src/utils/content-filter.ts` — `filterMessage(text): FilterResult` — client-side profanity and abuse filter for team chat. `normalise()` collapses l33tspeak and repeated chars before matching against `BLOCKLIST`. Call before `sendMessage()` and show `result.reason` inline on failure. Not exhaustive — the in-app long-press report mechanism and server-side moderation are the second layer.
 - `src/components/UpgradeSheet.tsx` — plan-gate upgrade prompt; see **Plan Gates** above.
 - `src/components/TurnstileWidget.web.tsx` / `TurnstileWidget.tsx` — Cloudflare Turnstile bot-protection widget. The `.web.tsx` file injects the Cloudflare script and renders the challenge; the `.tsx` stub is a no-op for native. Shown on the phone-entry step of register and restore-OTP flows. "Send OTP" is disabled until a token is received. Token is passed to `sendOtp()` → `cloud-user-repo` → `send-otp` Edge Function for server-side verification. Site key is hardcoded in the `.web.tsx` file; secret key is in Supabase secrets.
 - `src/services/purchases.ts` — RevenueCat in-app purchase integration. `configurePurchases()` is called once on startup (no-op when API keys are absent, e.g. web). `getCurrentPlan()` returns `'free' | 'pro' | 'league'`. `loginPurchasesUser(phone)` / `logoutPurchasesUser()` tie the RC anonymous user to the phone number on auth state change. Env vars: `EXPO_PUBLIC_RC_API_KEY_IOS`, `EXPO_PUBLIC_RC_API_KEY_ANDROID`.
@@ -429,8 +431,8 @@ eas build --profile production --platform android # Build AAB
 
 Android package: `com.gullycricket.scorer` (retained for Play Store continuity). Before each store upload bump all three version fields together in `app.json`:
 - `version` (semver string, e.g. `"1.1.5"`) — shown to users on both platforms
-- `ios.buildNumber` (string integer, e.g. `"5"`) — must increment on every TestFlight / App Store upload
-- `android.versionCode` (integer, e.g. `15`) — must increment on every Play Store upload
+- `ios.buildNumber` (string integer, e.g. `"7"`) — must increment on every TestFlight / App Store upload
+- `android.versionCode` (integer, e.g. `16`) — must increment on every Play Store upload
 
 After any change to `app.json` plugins, `android` config, or native dependencies, regenerate the native project before building:
 ```bash
@@ -463,6 +465,7 @@ npx expo prebuild --clean
 - **Do not** re-introduce the sequential New Batter → Bowler modal chain after a wicket on the last ball of an over — use the combined `batterAndBowlerModal` instead
 - **Do not** store phone numbers with a `+` prefix or separator — stored format is `{countryCodeDigits}{localDigits}` (e.g. `919876543210`)
 - **Do not** import from `docs/` in app code — those files are standalone static HTML, not part of the Expo build
+- **Do not** put store-specific strings (e.g. "Google Play") in any file imported by the app, even inside `Platform.OS === 'web'` guards — Metro bundles all imported files into the iOS binary and Apple's static scanner reads string literals regardless of runtime branches
 - **Do not** require a Turnstile token on native — the token is optional in `sendOtp(phone, token?)`; the Edge Function skips Turnstile verification when the token is absent (native apps have no widget)
 - **Do not** call `configurePurchases()` or other RevenueCat methods on web — `src/services/purchases.ts` guards every call with an API-key check and returns safe defaults when keys are absent
 - **Do not** call `cloudMatchRepo.publishLiveMatch` / `cloudMatchRepo.publishMatchState` directly from `match-store.ts` — always go through the `publishToCloud(m)` helper which enforces the cloud-sync plan gate
