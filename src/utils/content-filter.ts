@@ -9,35 +9,31 @@ const BLOCKLIST: string[] = [
   // General profanity
   'fuck', 'f u c k', 'fck', 'fuk',
   'shit', 'sh1t', 'sht',
-  'ass', 'arse',
+  'asshole', 'arsehole',
   'bitch', 'b1tch', 'btch',
   'bastard',
   'cunt',
-  'damn', 'damnit',
   'dick', 'd1ck',
-  'cock',
+  'cocksucker',
   'pussy',
   'piss',
-  'crap',
   'whore',
   'slut',
   'twat',
   'wank', 'wanker',
   'bollocks',
-  'bugger',
 
   // Slurs (racial, ethnic, gender, sexuality)
   'nigger', 'nigga',
-  'faggot', 'fag',
+  'faggot',
   'dyke',
   'tranny',
   'chink',
-  'spic', 'spick',
+  'spick',
   'kike',
   'wetback',
   'raghead',
   'retard',
-  'cracker',
 
   // Threats / harassment
   'kill yourself', 'kys',
@@ -81,13 +77,9 @@ export function filterMessage(text: string): FilterResult {
   const normalised = normalise(text);
 
   for (const term of BLOCKLIST) {
-    // Match whole word / phrase (word boundaries for single words, substring for phrases)
+    // Substring match — catches derived forms (fucking, shitty, etc.)
     const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = term.includes(' ')
-      ? new RegExp(escaped, 'i')
-      : new RegExp(`\\b${escaped}\\b`, 'i');
-
-    if (pattern.test(normalised)) {
+    if (new RegExp(escaped, 'i').test(normalised)) {
       return { ok: false, reason: 'Your message contains language that isn\'t allowed in team chat. Please keep it respectful.' };
     }
   }
