@@ -290,6 +290,16 @@ export default function TeamDetailScreen() {
         ) : null}
       </View>
 
+      {/* Player membership notice */}
+      {isPlayerTeam && !isMyTeam && !isDelegate && (
+        <View style={[styles.playerNotice, { backgroundColor: theme.colors.primaryContainer }]}>
+          <MaterialCommunityIcons name="account-check" size={16} color={theme.colors.onPrimaryContainer} />
+          <Text variant="bodySmall" style={[styles.playerNoticeText, { color: theme.colors.onPrimaryContainer }]}>
+            You were added to this team. Your stats here count towards your player record.
+          </Text>
+        </View>
+      )}
+
       {/* Actions */}
       <View style={styles.actions}>
         {hasEditAccess && (
@@ -481,6 +491,8 @@ const styles = StyleSheet.create({
   },
   teamName: { color: '#FFFFFF', fontWeight: 'bold', marginTop: 12 },
   shortName: { color: 'rgba(255,255,255,0.8)', marginTop: 4 },
+  playerNotice: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, marginHorizontal: 16, marginTop: 12, borderRadius: 10 },
+  playerNoticeText: { flex: 1, lineHeight: 18 },
   actions: { gap: 10, padding: 16 },
   actionsRow: { flexDirection: 'row', gap: 10 },
   actionButtonFull: { borderRadius: 20 },

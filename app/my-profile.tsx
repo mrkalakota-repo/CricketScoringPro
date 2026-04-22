@@ -27,7 +27,7 @@ export default function MyProfileScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { profile, updateProfile, logout } = useUserAuth();
+  const { profile, updateProfile, logout, deleteAccount } = useUserAuth();
   const { roleLabel, roleIcon, roleColor } = useRole();
   const { plan, isFree } = usePlan();
 
@@ -49,6 +49,10 @@ export default function MyProfileScreen() {
 
   // Logout confirm
   const [logoutVisible, setLogoutVisible] = useState(false);
+
+  // Delete account confirm
+  const [deleteVisible, setDeleteVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Role downgrade confirm
   const [downgradeVisible, setDowngradeVisible] = useState(false);
@@ -118,6 +122,17 @@ export default function MyProfileScreen() {
     setLogoutVisible(false);
     await logout();
     router.replace('/');
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      router.replace('/');
+    } finally {
+      setDeleting(false);
+      setDeleteVisible(false);
+    }
   };
 
   return (
@@ -343,6 +358,19 @@ export default function MyProfileScreen() {
         >
           Sign Out
         </Button>
+
+        <Divider style={styles.divider} />
+
+        {/* Delete Account */}
+        <Button
+          mode="text"
+          icon="delete-forever-outline"
+          textColor={theme.colors.error}
+          style={styles.button}
+          onPress={() => setDeleteVisible(true)}
+        >
+          Delete Account
+        </Button>
       </View>
 
       {/* Role downgrade warning dialog */}
@@ -374,6 +402,32 @@ export default function MyProfileScreen() {
           <Dialog.Actions>
             <Button onPress={() => setLogoutVisible(false)}>Cancel</Button>
             <Button textColor={theme.colors.error} onPress={handleLogout}>Sign Out</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* Delete account confirm dialog */}
+      <Portal>
+        <Dialog visible={deleteVisible} onDismiss={() => { if (!deleting) setDeleteVisible(false); }}>
+          <Dialog.Title>Delete Account?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
+              This permanently deletes your account and removes your profile from our servers.
+            </Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
+              Your local match history and team data on this device will remain. This cannot be undone.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDeleteVisible(false)} disabled={deleting}>Cancel</Button>
+            <Button
+              textColor={theme.colors.error}
+              onPress={handleDeleteAccount}
+              loading={deleting}
+              disabled={deleting}
+            >
+              Delete Account
+            </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

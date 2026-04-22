@@ -269,12 +269,12 @@ export function MarketingLandingScreen({ onSignIn, onRegister }: Props) {
         <View style={s.sectionHeader}>
           <Text style={s.sectionLabel}>MOBILE APPS</Text>
           <Text style={s.sectionTitle}>Native apps coming soon</Text>
-          <Text style={s.sectionSub}>The full Inningsly experience is being polished for the App Store and Google Play. Use the web app today — your data syncs automatically when the apps launch.</Text>
+          <Text style={s.sectionSub}>Inningsly is available on the App Store. The Android app is coming soon. Use the web app today — your data syncs automatically across all your devices.</Text>
         </View>
         <View style={s.appsGrid}>
           {([
             { iconName: 'apple' as const, platform: 'iPhone & iPad', desc: 'Optimised for iOS with haptic feedback and native performance.', storeBtnSub: 'Download on the', storeLabel: 'App Store', eta: 'Available soon on iOS 16+' },
-            { iconName: 'android' as const, platform: 'Android', desc: 'Full-featured Android app with offline scoring and background sync.', storeBtnSub: 'Get it on', storeLabel: 'Google Play', eta: 'Available soon on Android 8+' },
+            { iconName: 'android' as const, platform: 'Android', desc: 'Full-featured Android app with offline scoring and background sync.', storeBtnSub: 'Coming to', storeLabel: 'Android', eta: 'Available soon on Android 8+' },
           ]).map(app => (
             <View key={app.platform} style={s.appCard}>
               <View style={s.comingSoonBadge}>

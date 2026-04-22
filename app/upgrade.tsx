@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Platform, Linking } from 'react-native';
 import { Text, Button, useTheme, Divider, ActivityIndicator } from 'react-native-paper';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -323,8 +323,28 @@ export default function UpgradeScreen() {
           variant="bodySmall"
           style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 8, paddingHorizontal: 16, lineHeight: 18 }}
         >
-          Subscriptions renew automatically. Cancel any time in your App Store / Google Play account settings.
+          Payment will be charged to your Apple Account at confirmation of purchase. Subscriptions automatically
+          renew unless cancelled at least 24 hours before the end of the current period. Your account will be
+          charged for renewal within 24 hours prior to the end of the current period. Manage or cancel
+          subscriptions in your device&apos;s Account Settings after purchase.
         </Text>
+        <View style={styles.legalLinks}>
+          <Text
+            variant="bodySmall"
+            style={{ color: theme.colors.primary, textDecorationLine: 'underline' }}
+            onPress={() => Linking.openURL('https://inningsly.com/privacy')}
+          >
+            Privacy Policy
+          </Text>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}> · </Text>
+          <Text
+            variant="bodySmall"
+            style={{ color: theme.colors.primary, textDecorationLine: 'underline' }}
+            onPress={() => Linking.openURL('https://inningsly.com/terms')}
+          >
+            Terms of Use
+          </Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -361,4 +381,5 @@ const styles = StyleSheet.create({
     marginTop: 8, paddingVertical: 10, paddingHorizontal: 12,
     borderWidth: 1, borderRadius: 20,
   },
+  legalLinks: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8 },
 });

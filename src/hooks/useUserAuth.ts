@@ -86,6 +86,9 @@ interface UserAuthStore {
   /** Sign out — clear in-memory session (profile stays in local DB + cloud). */
   logout: () => Promise<void>;
 
+  /** Permanently delete the account from local DB and cloud. */
+  deleteAccount: () => Promise<void>;
+
   /**
    * Check whether a phone number already has a registered account in Supabase.
    * No SMS is sent. Fails open (returns exists:false) on network error.
@@ -280,6 +283,17 @@ export const useUserAuth = create<UserAuthStore>((set, get) => ({
   logout: async () => {
     await usePrefsStore.getState().clearOwnershipPrefs();
     set({ isAuthenticated: false });
+  },
+
+  deleteAccount: async () => {
+    const { profile } = get();
+    if (!profile) return;
+    // Delete from cloud (best-effort — don't block local wipe on network failure)
+    cloudUserRepo.deleteUserProfile(profile.phone).catch(() => {});
+    // Wipe local profile + ownership prefs
+    await prefsRepo.clearUserProfile();
+    await usePrefsStore.getState().clearOwnershipPrefs();
+    set({ profile: null, isAuthenticated: false, sessionExpired: false });
   },
 
   checkPhoneExists: (phone) => cloudUserRepo.checkPhoneExists(phone),

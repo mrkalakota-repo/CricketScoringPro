@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, FlatList, KeyboardAvoidingView, Platform, Linking, Pressable } from 'react-native';
 import { Text, TextInput, IconButton, useTheme, Portal, Dialog, Button, ActivityIndicator } from 'react-native-paper';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import { isCloudEnabled } from '../../src/config/supabase';
 import * as chatRepo from '../../src/db/repositories/cloud-chat-repo';
 import type { ChatMessage } from '../../src/engine/types';
 import { getAvatarColor } from '../../src/utils/avatar';
+import { filterMessage } from '../../src/utils/content-filter';
 
 function Avatar({ name, isMine, color }: { name: string; isMine: boolean; color: string }) {
   const initials = name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
@@ -51,6 +52,8 @@ export default function ChatScreen() {
   const [text, setText] = useState('');
   const [showPicker, setShowPicker] = useState(false);
   const [sending, setSending] = useState(false);
+  const [filterError, setFilterError] = useState('');
+  const [reportMsg, setReportMsg] = useState<ChatMessage | null>(null);
   const listRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -97,6 +100,12 @@ export default function ChatScreen() {
   const handleSend = async () => {
     const msg = text.trim();
     if (!msg || !myIdentity || !teamId) return;
+    const check = filterMessage(msg);
+    if (!check.ok) {
+      setFilterError(check.reason ?? 'Message not allowed.');
+      return;
+    }
+    setFilterError('');
     setText('');
     setSending(true);
     try {
@@ -214,6 +223,38 @@ export default function ChatScreen() {
         </Dialog>
       </Portal>
 
+      {/* Report dialog */}
+      <Portal>
+        <Dialog visible={!!reportMsg} onDismiss={() => setReportMsg(null)}>
+          <Dialog.Title>Report Message</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
+              Report this message from {reportMsg?.playerName} as offensive or abusive?
+            </Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
+              This will open an email to our support team with the message details.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setReportMsg(null)}>Cancel</Button>
+            <Button
+              textColor={theme.colors.error}
+              onPress={() => {
+                if (!reportMsg) return;
+                const subject = encodeURIComponent('Chat Report — Inningsly');
+                const body = encodeURIComponent(
+                  `Team: ${team?.name ?? teamId}\nFrom: ${reportMsg.playerName}\nMessage: ${reportMsg.text}\nTime: ${new Date(reportMsg.createdAt).toISOString()}`
+                );
+                Linking.openURL(`mailto:support@inningsly.app?subject=${subject}&body=${body}`);
+                setReportMsg(null);
+              }}
+            >
+              Report
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
       {/* Identity bar */}
       {myIdentity && (
         <View style={[styles.identityBar, { backgroundColor: theme.colors.primaryContainer }]}>
@@ -250,17 +291,22 @@ export default function ChatScreen() {
             return (
               <View style={[styles.msgRow, isMine && styles.msgRowMine]}>
                 {!isMine && <Avatar name={item.playerName} isMine={false} color={color} />}
-                <View style={[styles.bubble, isMine ? [styles.bubbleMine, { backgroundColor: theme.colors.primary }] : [styles.bubbleOther, { backgroundColor: theme.colors.surfaceVariant }]]}>
-                  {!isMine && (
-                    <Text style={[styles.senderName, { color }]}>{item.playerName}</Text>
-                  )}
-                  <Text style={[styles.msgText, { color: isMine ? '#FFFFFF' : theme.colors.onSurface }]}>
-                    {item.text}
-                  </Text>
-                  <Text style={[styles.msgTime, { color: isMine ? 'rgba(255,255,255,0.6)' : theme.colors.onSurfaceVariant }]}>
-                    {time}
-                  </Text>
-                </View>
+                <Pressable
+                  onLongPress={() => { if (!isMine) setReportMsg(item); }}
+                  delayLongPress={500}
+                >
+                  <View style={[styles.bubble, isMine ? [styles.bubbleMine, { backgroundColor: theme.colors.primary }] : [styles.bubbleOther, { backgroundColor: theme.colors.surfaceVariant }]]}>
+                    {!isMine && (
+                      <Text style={[styles.senderName, { color }]}>{item.playerName}</Text>
+                    )}
+                    <Text style={[styles.msgText, { color: isMine ? '#FFFFFF' : theme.colors.onSurface }]}>
+                      {item.text}
+                    </Text>
+                    <Text style={[styles.msgTime, { color: isMine ? 'rgba(255,255,255,0.6)' : theme.colors.onSurfaceVariant }]}>
+                      {time}
+                    </Text>
+                  </View>
+                </Pressable>
                 {isMine && <Avatar name={item.playerName} isMine={true} color={color} />}
               </View>
             );
@@ -270,28 +316,35 @@ export default function ChatScreen() {
 
       {/* Input bar */}
       <View style={[styles.inputBar, { borderTopColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface, paddingBottom: Math.max(insets.bottom, 8) }]}>
-        <TextInput
-          value={text}
-          onChangeText={setText}
-          placeholder={myIdentity ? 'Type a message…' : 'Select your player first'}
-          mode="outlined"
-          style={styles.textInput}
-          dense
-          disabled={!myIdentity}
-          right={null}
-          onSubmitEditing={handleSend}
-          returnKeyType="send"
-          blurOnSubmit={false}
-        />
-        <IconButton
-          icon="send"
-          mode="contained"
-          containerColor={theme.colors.primary}
-          iconColor="#FFFFFF"
-          size={22}
-          disabled={!text.trim() || !myIdentity || sending}
-          onPress={handleSend}
-        />
+        {!!filterError && (
+          <Text variant="bodySmall" style={[styles.filterError, { color: theme.colors.error }]}>
+            {filterError}
+          </Text>
+        )}
+        <View style={styles.inputRow}>
+          <TextInput
+            value={text}
+            onChangeText={t => { setText(t); if (filterError) setFilterError(''); }}
+            placeholder={myIdentity ? 'Type a message…' : 'Select your player first'}
+            mode="outlined"
+            style={styles.textInput}
+            dense
+            disabled={!myIdentity}
+            right={null}
+            onSubmitEditing={handleSend}
+            returnKeyType="send"
+            blurOnSubmit={false}
+          />
+          <IconButton
+            icon="send"
+            mode="contained"
+            containerColor={theme.colors.primary}
+            iconColor="#FFFFFF"
+            size={22}
+            disabled={!text.trim() || !myIdentity || sending}
+            onPress={handleSend}
+          />
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -310,6 +363,8 @@ const styles = StyleSheet.create({
   senderName: { fontSize: 11, fontWeight: '700', marginBottom: 3 },
   msgText: { fontSize: 14, lineHeight: 20 },
   msgTime: { fontSize: 10, marginTop: 3, textAlign: 'right' },
-  inputBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
+  inputBar: { paddingHorizontal: 12, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
+  inputRow: { flexDirection: 'row', alignItems: 'center' },
+  filterError: { marginBottom: 4, lineHeight: 16 },
   textInput: { flex: 1, fontSize: 14 },
 });

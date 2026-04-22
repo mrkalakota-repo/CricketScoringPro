@@ -234,3 +234,16 @@ export async function verifyOtp(phone: string, code: string): Promise<OtpVerifyR
     return { valid: false, error: sanitizeError('verifyOtp', err, 'Code verification failed. Check your connection and try again.') };
   }
 }
+
+/**
+ * Permanently delete a user profile from Supabase.
+ * Silently no-ops if cloud is disabled or the table doesn't exist.
+ */
+export async function deleteUserProfile(phone: string): Promise<void> {
+  if (!isCloudEnabled || !supabase) return;
+  try {
+    await supabase.from('user_profiles').delete().eq('phone', phone);
+  } catch (err) {
+    console.error('[cloud-user-repo] deleteUserProfile:', (err as Error).message);
+  }
+}

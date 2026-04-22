@@ -11,6 +11,10 @@ frontend:
       commands:
         - echo "EXPO_PUBLIC vars available:" && printenv | grep EXPO_PUBLIC | sed 's/=.*/=***/' || echo "(none found)"
         - npx expo export --platform web
+        - mkdir -p dist/privacy dist/support dist/terms
+        - cp docs/privacy.html dist/privacy/index.html
+        - cp docs/support.html dist/support/index.html
+        - cp docs/terms.html dist/terms/index.html
   artifacts:
     baseDirectory: dist
     files:
