@@ -13,6 +13,7 @@ import { useSyncStatus } from '../../../src/hooks/useSyncStatus';
 import { isCloudEnabled } from '../../../src/config/supabase';
 import { formatOvers, formatBallOutcome } from '../../../src/utils/formatters';
 import { getLiveFeed } from '../../../src/utils/commentary';
+import { parseBallFeedPayload, type RawFeedItem, type ParsedFeedItem } from '../../../src/utils/ball-feed-parser';
 import { currentRunRate, requiredRunRate } from '../../../src/utils/cricket-math';
 import { calculateDLSParScore, calculateDLSTarget, calculateGullyTarget } from '../../../src/utils/dls-calculator';
 import { colors } from '../../../src/theme';
@@ -171,6 +172,10 @@ export default function ScoringScreen() {
 
   const commentaryCtx = { getName: (id: string) => getPlayerName(id) };
   const liveFeed = innings ? getLiveFeed(innings.allBalls, commentaryCtx, 5) : [];
+
+  // External ball-by-ball payload — reverse-chronological input, normalised to chronological
+  const [externalFeed, setExternalFeed] = useState<ParsedFeedItem[]>([]);
+  const loadExternalFeed = (raw: RawFeedItem[]) => setExternalFeed(parseBallFeedPayload(raw));
 
   const crr = innings ? currentRunRate(innings.totalRuns, innings.totalOvers, innings.totalBalls) : 0;
   const rrr = innings?.target && match.config.oversPerInnings
@@ -568,6 +573,58 @@ export default function ScoringScreen() {
               {line}
             </Text>
           ))}
+        </View>
+      )}
+
+      {/* External Ball-by-Ball Feed — rendered when loadExternalFeed() has been called */}
+      {externalFeed.length > 0 && (
+        <View style={[styles.externalFeed, { borderColor: theme.colors.outlineVariant }]}>
+          <Text style={[styles.externalFeedLabel, { color: theme.colors.onSurfaceVariant }]}>
+            Ball by Ball
+          </Text>
+          {externalFeed.map((item, i) =>
+            item.type === 'over_summary' ? (
+              <View
+                key={`summary-${item.overNumber}-${i}`}
+                style={[styles.overSummaryRow, { backgroundColor: theme.colors.primaryContainer }]}
+              >
+                <Text style={[styles.overSummaryText, { color: theme.colors.onPrimaryContainer }]}>
+                  End of Over {item.overNumber} — {item.totalRuns} run{item.totalRuns !== 1 ? 's' : ''},{' '}
+                  {item.totalWickets} wkt{item.totalWickets !== 1 ? 's' : ''}
+                </Text>
+              </View>
+            ) : (
+              <View key={`ball-${item.ballId}-${i}`} style={styles.externalBallRow}>
+                <View
+                  style={[
+                    styles.externalBallBubble,
+                    {
+                      backgroundColor: item.isWicket
+                        ? colors.wicket
+                        : item.runs === 4
+                        ? colors.four
+                        : item.runs === 6
+                        ? colors.six
+                        : item.runs === 0
+                        ? colors.dot
+                        : colors.single,
+                    },
+                  ]}
+                >
+                  <Text style={styles.ballText}>
+                    {item.isWicket ? 'W' : String(item.runs)}
+                  </Text>
+                </View>
+                <Text
+                  style={[styles.externalBallMeta, { color: theme.colors.onSurfaceVariant }]}
+                  numberOfLines={1}
+                >
+                  Over {item.overNumber}.{item.ballInOver}
+                  {item.commentary && item.commentary !== '...' ? `  ${item.commentary}` : ''}
+                </Text>
+              </View>
+            )
+          )}
         </View>
       )}
 
@@ -1350,6 +1407,15 @@ const styles = StyleSheet.create({
   // Live Commentary Feed
   liveFeed: { paddingHorizontal: 14, paddingVertical: 8, gap: 4 },
   liveFeedLine: { fontSize: 12, lineHeight: 18 },
+
+  // External Ball-by-Ball Feed
+  externalFeed: { marginHorizontal: 12, marginTop: 8, borderWidth: 1, borderRadius: 10, overflow: 'hidden' },
+  externalFeedLabel: { fontSize: 11, fontWeight: '700', paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  externalBallRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 6 },
+  externalBallBubble: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  externalBallMeta: { fontSize: 12, flex: 1 },
+  overSummaryRow: { paddingHorizontal: 12, paddingVertical: 6 },
+  overSummaryText: { fontSize: 12, fontWeight: '600' },
 
   // Zone selector
   zoneGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
