@@ -294,6 +294,7 @@ export default function ChatScreen() {
                 <Pressable
                   onLongPress={() => { if (!isMine) setReportMsg(item); }}
                   delayLongPress={500}
+                  style={styles.pressable}
                 >
                   <View style={[styles.bubble, isMine ? [styles.bubbleMine, { backgroundColor: theme.colors.primary }] : [styles.bubbleOther, { backgroundColor: theme.colors.surfaceVariant }]]}>
                     {!isMine && (
@@ -355,9 +356,10 @@ const styles = StyleSheet.create({
   center: { justifyContent: 'center', alignItems: 'center' },
   identityBar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 6 },
   messageList: { padding: 12, gap: 10 },
-  msgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 4 },
+  msgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 4, flex: 1 },
   msgRowMine: { flexDirection: 'row-reverse' },
-  bubble: { maxWidth: '72%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
+  pressable: { maxWidth: '75%', flexShrink: 1 },
+  bubble: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
   bubbleMine: { borderBottomRightRadius: 4 },
   bubbleOther: { borderBottomLeftRadius: 4 },
   senderName: { fontSize: 11, fontWeight: '700', marginBottom: 3 },
