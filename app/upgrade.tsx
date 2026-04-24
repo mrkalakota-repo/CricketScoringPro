@@ -212,11 +212,14 @@ export default function UpgradeScreen() {
           return;
         }
         await applyPlan(result.plan);
-      } else {
-        // RC not configured or product not found — direct admin/dev override
+        router.back();
+      } else if (__DEV__) {
+        // Dev-only override: no RC package found in development builds
         await applyPlan(targetPlan);
+        router.back();
+      } else {
+        setError('Purchase unavailable. Please check your connection and try again.');
       }
-      router.back();
     } catch (err) {
       setError((err as { message?: string })?.message ?? 'Upgrade failed. Please try again.');
     } finally {
