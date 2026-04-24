@@ -539,6 +539,29 @@ $$;
 GRANT EXECUTE ON FUNCTION public.verify_user_profile(TEXT, TEXT) TO anon;
 GRANT EXECUTE ON FUNCTION public.verify_user_profile(TEXT, TEXT) TO authenticated;
 
+-- ── get_user_plan RPC ─────────────────────────────────────────────────────────
+-- Returns plan + role for a phone number without requiring a PIN.
+-- SECURITY DEFINER bypasses the no-SELECT RLS on user_profiles so the client
+-- can sync an admin-granted plan on every login without exposing pin_hash.
+-- Used by fetchCloudProfile() in cloud-user-repo.ts.
+
+CREATE OR REPLACE FUNCTION public.get_user_plan(p_phone TEXT)
+RETURNS TABLE (plan TEXT, role TEXT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+    SELECT COALESCE(u.plan, 'free'), COALESCE(u.role, 'scorer')
+    FROM public.user_profiles u
+    WHERE u.phone = p_phone;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_user_plan(TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION public.get_user_plan(TEXT) TO authenticated;
+
 -- ── Realtime Publication ───────────────────────────────────────────────────────
 -- Tables that use Supabase Realtime subscriptions must be added to the
 -- supabase_realtime publication. REPLICA IDENTITY FULL is required for filtered

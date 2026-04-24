@@ -122,18 +122,19 @@ export async function verifyUserProfile(
  * Fetch the plan and role stored in Supabase for the given phone number.
  * Used on login to sync cloud changes (e.g. manual admin upgrades) to the local profile.
  * Returns null if cloud is unavailable or the user has no cloud record.
+ *
+ * Uses the get_user_plan() SECURITY DEFINER RPC instead of a direct SELECT because
+ * user_profiles has no SELECT RLS policy (intentionally, to protect pin_hash).
+ * A direct SELECT from the anon key always returns null due to RLS, which causes
+ * pushUserProfile() to overwrite any manually-granted plan with 'free'.
  */
 export async function fetchCloudProfile(phone: string): Promise<{ plan: string; role: string } | null> {
   if (!isCloudEnabled || !supabase) return null;
   try {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('plan, role')
-      .eq('phone', phone)
-      .single();
+    const { data, error } = await supabase.rpc('get_user_plan', { p_phone: phone });
     if (error || !data) return null;
-    const row = data as { plan?: string; role?: string };
-    if (!row.plan) return null;
+    const row = (Array.isArray(data) ? data[0] : data) as { plan?: string; role?: string } | null;
+    if (!row?.plan) return null;
     return { plan: row.plan, role: row.role ?? 'scorer' };
   } catch {
     return null;
