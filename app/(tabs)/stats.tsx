@@ -218,6 +218,7 @@ export default function StatsScreen() {
             {/* Top Scorers */}
             {runStats.length > 0 && (
               <Surface style={[styles.tableCard, { backgroundColor: theme.colors.surface }, isTablet && { flex: 1 }]} elevation={1}>
+                <View style={{ borderRadius: 12, overflow: 'hidden' }}>
                 <View style={styles.tableHeader}>
                   <MaterialCommunityIcons name="cricket" size={16} color={theme.colors.primary} />
                   <Text variant="titleSmall" style={[styles.tableTitle, { color: theme.colors.onSurface }]}>
@@ -247,12 +248,14 @@ export default function StatsScreen() {
                     {i < runStats.length - 1 && <Divider />}
                   </View>
                 ))}
+                </View>
               </Surface>
             )}
 
             {/* Top Wicket-Takers */}
             {wktStats.length > 0 && (
               <Surface style={[styles.tableCard, { backgroundColor: theme.colors.surface }, isTablet && { flex: 1 }]} elevation={1}>
+                <View style={{ borderRadius: 12, overflow: 'hidden' }}>
                 <View style={styles.tableHeader}>
                   <MaterialCommunityIcons name="baseball" size={16} color={theme.colors.primary} />
                   <Text variant="titleSmall" style={[styles.tableTitle, { color: theme.colors.onSurface }]}>
@@ -282,6 +285,7 @@ export default function StatsScreen() {
                     {i < wktStats.length - 1 && <Divider />}
                   </View>
                 ))}
+                </View>
               </Surface>
             )}
           </View>
@@ -319,7 +323,7 @@ const styles = StyleSheet.create({
   statCard: { width: '47%', borderRadius: 12 },
   statContent: { alignItems: 'center', padding: 10, gap: 4 },
   emptyState: { padding: 32, alignItems: 'center' },
-  tableCard: { borderRadius: 12, overflow: 'hidden' },
+  tableCard: { borderRadius: 12 },
   tableHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingBottom: 10 },
   tableTitle: { fontWeight: '700' },
   columnRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 6 },

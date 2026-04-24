@@ -409,10 +409,10 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   sectionTitle: { fontWeight: '800' },
   liveHeaderDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: LIVE_RED },
-  matchCard: { marginBottom: 10, borderRadius: 16, overflow: 'hidden' },
+  matchCard: { marginBottom: 10, borderRadius: 16 },
   liveMatchCard: { elevation: 4, shadowColor: LIVE_RED, shadowOpacity: 0.15, shadowRadius: 6 },
   // Local live card styles (for matches scored on this device — full card with venue)
-  liveStripe: { height: 4 },
+  liveStripe: { height: 4, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
   liveCardContent: { paddingTop: 10 },
   liveTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },

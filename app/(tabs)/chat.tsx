@@ -154,7 +154,7 @@ export default function ChatTab() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { justifyContent: 'center', alignItems: 'center' },
-  card: { borderRadius: 12, overflow: 'hidden', marginBottom: 10 },
+  card: { borderRadius: 12, marginBottom: 10 },
   separator: { height: StyleSheet.hairlineWidth },
   row: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },

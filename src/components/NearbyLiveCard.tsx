@@ -97,9 +97,9 @@ export function NearbyLiveCard({ match, onPress }: { match: LiveMatchSummary; on
 }
 
 const styles = StyleSheet.create({
-  matchCard: { marginBottom: 10, borderRadius: 14, overflow: 'hidden' },
+  matchCard: { marginBottom: 10, borderRadius: 14 },
   liveMatchCard: { elevation: 3, shadowColor: LIVE_RED, shadowOpacity: 0.12, shadowRadius: 6 },
-  liveStripe: { height: 4 },
+  liveStripe: { height: 4, borderTopLeftRadius: 14, borderTopRightRadius: 14 },
   liveCardContent: { paddingTop: 10, gap: 2 },
   liveTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },

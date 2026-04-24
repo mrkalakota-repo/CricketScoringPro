@@ -142,6 +142,7 @@ export default function ScorecardScreen() {
 
       {/* Batting Card */}
       <Surface style={styles.card} elevation={1}>
+        <View style={styles.cardInner}>
         <Text variant="titleSmall" style={styles.cardTitle}>Batting</Text>
         <View style={styles.headerRow}>
           <Text style={[styles.headerText, { flex: 3 }]}>Batter</Text>
@@ -185,10 +186,12 @@ export default function ScorecardScreen() {
             {' '}(w {innings.extras.wides}, nb {innings.extras.noBalls}, b {innings.extras.byes}, lb {innings.extras.legByes})
           </Text>
         </View>
+        </View>
       </Surface>
 
       {/* Bowling Card */}
       <Surface style={styles.card} elevation={1}>
+        <View style={styles.cardInner}>
         <Text variant="titleSmall" style={styles.cardTitle}>Bowling</Text>
         <View style={styles.headerRow}>
           <Text style={[styles.headerText, { flex: 3 }]}>Bowler</Text>
@@ -218,6 +221,7 @@ export default function ScorecardScreen() {
             {i < innings.bowlers.length - 1 && <Divider />}
           </View>
         ))}
+        </View>
       </Surface>
 
       {/* Fall of Wickets */}
@@ -258,6 +262,7 @@ export default function ScorecardScreen() {
       {/* Ball-by-Ball Commentary — newest over first */}
       {innings.overs.length > 0 && (
         <Surface style={styles.card} elevation={1}>
+          <View style={styles.cardInner}>
           <Text variant="titleSmall" style={styles.cardTitle}>Ball by Ball</Text>
           {[...innings.overs].reverse().map((over, oi, reversedOvers) => {
             const isNewestOver = oi === 0;
@@ -298,6 +303,7 @@ export default function ScorecardScreen() {
               </View>
             );
           })}
+          </View>
         </Surface>
       )}
 
@@ -335,7 +341,8 @@ const styles = StyleSheet.create({
   chartPad: { paddingHorizontal: 8, paddingBottom: 12 },
   summaryCard: { margin: 12, padding: 16, borderRadius: 12 },
   summaryRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4 },
-  card: { margin: 12, marginTop: 0, borderRadius: 12, overflow: 'hidden' },
+  card: { margin: 12, marginTop: 0, borderRadius: 12 },
+  cardInner: { borderRadius: 12, overflow: 'hidden' },
   cardTitle: { fontWeight: 'bold', padding: 12, paddingBottom: 8 },
   headerRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#F5F5F5' },
   headerText: { fontSize: 11, color: '#666', fontWeight: '600' },
