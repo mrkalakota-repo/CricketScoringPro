@@ -91,7 +91,7 @@ function TierCard({ tierPlan, currentPlan, annual, features, onUpgrade, loading 
   const borderColor = isHighlighted ? theme.colors.primary : theme.colors.outlineVariant;
 
   return (
-    <View style={[styles.tierCard, { borderColor }, isHighlighted && styles.tierCardFeatured]}>
+    <View style={[styles.tierCard, { borderColor }, isHighlighted && styles.tierCardFeatured]} testID={`upgrade-tier-${tierPlan}`}>
       {/* Header */}
       <View style={[styles.tierHeader, { backgroundColor: headerBg }]}>
         {isHighlighted && (
@@ -122,7 +122,7 @@ function TierCard({ tierPlan, currentPlan, annual, features, onUpgrade, loading 
 
         {/* CTA */}
         {isCurrent ? (
-          <View style={[styles.currentBadge, { borderColor: theme.colors.outlineVariant }]}>
+          <View testID="upgrade-current-plan-badge" style={[styles.currentBadge, { borderColor: theme.colors.outlineVariant }]}>
             <MaterialCommunityIcons name="check" size={14} color={theme.colors.onSurfaceVariant} />
             <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>Current plan</Text>
           </View>
@@ -130,7 +130,7 @@ function TierCard({ tierPlan, currentPlan, annual, features, onUpgrade, loading 
           <View style={[styles.webNotice, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}>
             <MaterialCommunityIcons name="cellphone" size={16} color={theme.colors.onSurfaceVariant} />
             <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, flex: 1, lineHeight: 18 }}>
-              Download the iOS or Android app to subscribe
+              Subscriptions are managed through the iOS or Android app
             </Text>
           </View>
         ) : (
@@ -140,6 +140,7 @@ function TierCard({ tierPlan, currentPlan, annual, features, onUpgrade, loading 
             disabled={loading}
             style={styles.tierCta}
             icon="crown-outline"
+            testID={`upgrade-${tierPlan}-btn`}
           >
             {loading ? <ActivityIndicator size={16} color={isHighlighted ? '#fff' : theme.colors.primary} /> : `Upgrade to ${PLAN_LABELS[tierPlan]}`}
           </Button>
@@ -242,7 +243,7 @@ export default function UpgradeScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]} testID="upgrade-screen">
       <Stack.Screen options={{
         title: 'Upgrade Plan',
         presentation: 'modal',
@@ -272,8 +273,9 @@ export default function UpgradeScreen() {
         </View>
 
         {/* Billing toggle */}
-        <View style={[styles.billingToggle, { backgroundColor: theme.colors.surfaceVariant, borderRadius: 12 }]}>
+        <View style={[styles.billingToggle, { backgroundColor: theme.colors.surfaceVariant, borderRadius: 12 }]} testID="upgrade-billing-toggle">
           <TouchableOpacity
+            testID="upgrade-billing-monthly"
             style={[styles.billingBtn, !annual && { backgroundColor: theme.colors.surface, borderRadius: 10 }]}
             onPress={() => setAnnual(false)}
             activeOpacity={0.7}
@@ -283,6 +285,7 @@ export default function UpgradeScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
+            testID="upgrade-billing-annual"
             style={[styles.billingBtn, annual && { backgroundColor: theme.colors.surface, borderRadius: 10 }]}
             onPress={() => setAnnual(true)}
             activeOpacity={0.7}
@@ -315,6 +318,7 @@ export default function UpgradeScreen() {
           onPress={handleRestore}
           loading={restoring}
           disabled={restoring}
+          testID="upgrade-restore-btn"
         >
           Restore Purchases
         </Button>

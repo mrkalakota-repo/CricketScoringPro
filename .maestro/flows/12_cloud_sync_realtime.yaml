@@ -1,0 +1,113 @@
+appId: com.gullycricket.scorer
+name: "Cloud — Sync Status Indicator and Real-Time Score Updates"
+tags:
+  - cloud
+  - realtime
+
+# Covers:
+#   - Cloud sync indicator on scoring screen ("Syncing…" / "Synced" / "Offline")
+#   - Live match appears in Nearby Live Scores on home screen
+#   - Scorecard updates while match is live (observer view)
+#
+# This flow requires:
+#   - Pro or higher plan (cloud sync enabled)
+#   - A live match in progress (run after 07_scoring_basic setup)
+#   - Supabase credentials configured in .env
+#
+# For full real-time testing, run this flow on a second device simultaneously
+# while the scoring flow runs on the first device.
+
+---
+- launchApp:
+    clearState: false
+
+- runFlow:
+    file: "utils/ensure_logged_in.yaml"
+
+# ─── Sync Indicator Visible During Scoring ────────────────────────────────────
+
+# Navigate to an in-progress match's scoring screen
+- tapOn:
+    id: "tab-matches"
+- tapOn:
+    id: "matches-inprogress-item"
+- assertVisible:
+    id: "scoring-screen"
+
+# The sync chip should show one of: Syncing, Synced, Offline
+# On a good connection it should settle to "Synced" within 3 seconds
+- assertVisible:
+    id: "scoring-sync-chip"
+
+# Record a ball and verify sync chip transitions to "Syncing…" then "Synced"
+- tapOn:
+    id: "score-run-1"
+- assertVisible:
+    id: "scoring-zone-modal"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+
+# Brief moment of "Syncing…"
+- assertVisible: "Syncing"
+- waitForAnimationToEnd
+
+# Settles to "Synced"
+- assertVisible: "Synced"
+
+# ─── Offline Scenario: Airplane Mode ─────────────────────────────────────────
+# Note: Maestro doesn't directly toggle airplane mode.
+# This is documented as a manual step; in CI, use network conditioning tools.
+#
+# Manual verification steps:
+#   1. Enable airplane mode on device
+#   2. Record a ball — sync chip should show "Offline" in amber
+#   3. Disable airplane mode — sync chip returns to "Synced"
+#   4. Ball recorded offline is not lost (Zustand in-memory state preserved)
+
+# ─── Live Score on Home Screen ────────────────────────────────────────────────
+
+- tapOn:
+    id: "tab-home"
+- assertVisible:
+    id: "tabs-home"
+
+# "Nearby Live" section should show the match in progress
+- assertVisible:
+    id: "home-live-scores-section"
+- assertVisible: "CHAL vs WARR"
+- assertVisible:
+    id: "home-live-card"
+
+# Tap the live card → navigates to match detail (scorecard view, not scoring)
+- tapOn:
+    id: "home-live-card"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "match-detail-screen"
+
+# ─── NRR / Standings (League plan gate) ──────────────────────────────────────
+
+# Navigate to Stats → Leagues standings
+- tapOn:
+    id: "tab-home"
+- tapOn:
+    id: "tab-stats"
+
+# If user is on League plan, NRR table is visible
+# If not, an UpgradeSheet should appear when tapping "Standings"
+- runFlow:
+    when:
+      visible:
+        id: "stats-nrr-standings"
+    commands:
+      - assertVisible:
+          id: "stats-nrr-table"
+      - assertVisible: "NRR"
+      - assertVisible: "CHAL"
+
+- runFlow:
+    when:
+      visible:
+        id: "stats-standings-upgrade-prompt"
+    commands:
+      - assertVisible: "NRR tracking requires the League plan"

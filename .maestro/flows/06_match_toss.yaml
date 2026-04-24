@@ -1,0 +1,87 @@
+appId: com.gullycricket.scorer
+name: "Match — Toss Flow (winner → decision → start scoring)"
+tags:
+  - match
+  - toss
+
+# Covers:
+#   - Select toss winner
+#   - Back navigation from decision to winner step
+#   - Select bat/bowl decision
+#   - Confirm → "Toss Complete" confirmation screen
+#   - Tap "Start Scoring" → lands on scoring screen with opener modal
+# Precondition: A match has been created and the toss screen is visible
+
+---
+# This flow is designed to be called after 05_match_creation.yaml
+# or standalone if a match already exists at the toss stage.
+
+# ── Step 1: Select Toss Winner ────────────────────────────────────────────────
+
+- assertVisible:
+    id: "toss-screen"
+- assertVisible: "Who won the toss?"
+
+# "Next" must be disabled until a winner is chosen
+- assertTrue:
+    id: "toss-winner-next-btn"
+    enabled: false
+
+# Select Challengers XI as toss winner
+- tapOn:
+    id: "toss-team1-card"    # first team card (team1)
+- assertTrue:
+    id: "toss-winner-next-btn"
+    enabled: true
+
+# ── Step 2: Bat or Bowl decision ─────────────────────────────────────────────
+
+- tapOn:
+    id: "toss-winner-next-btn"
+- assertVisible: "elected to..."
+
+# Default is "bat" — verify bat card is highlighted
+- assertVisible:
+    id: "toss-decision-bat"
+- assertVisible:
+    id: "toss-decision-bowl"
+
+# Test back navigation: go back to winner selection
+- tapOn:
+    id: "toss-back-btn"
+- assertVisible: "Who won the toss?"
+
+# Re-select winner and proceed
+- tapOn:
+    id: "toss-team1-card"
+- tapOn:
+    id: "toss-winner-next-btn"
+
+# Select "Bowl" — Challengers XI elect to bowl (Warriors bat first)
+- tapOn:
+    id: "toss-decision-bowl"
+- assertVisible:
+    id: "toss-decision-bowl-selected"
+
+# ── Confirm Toss ──────────────────────────────────────────────────────────────
+
+- tapOn:
+    id: "toss-confirm-btn"
+- waitForAnimationToEnd
+
+# "Toss Complete!" confirmation step
+- assertVisible: "Toss Complete!"
+- assertVisible: "elected to bowl"
+
+# ── Start Scoring ─────────────────────────────────────────────────────────────
+
+- tapOn:
+    id: "toss-start-scoring-btn"
+- waitForAnimationToEnd
+
+# Scoring screen must open with the opener selection modal
+- assertVisible:
+    id: "scoring-screen"
+- assertVisible:
+    id: "scoring-opener-modal"
+- assertVisible: "Select Opening Batters"

@@ -1,0 +1,212 @@
+appId: com.gullycricket.scorer
+name: "Match — Create T20 Match (5-step wizard)"
+tags:
+  - match
+  - smoke
+
+# Covers all 5 wizard steps:
+#   Step 1: Format selection (T20)
+#   Step 2: Team selection (CHAL vs WARR)
+#   Step 3: Playing XI (all 11 per side)
+#   Step 4: Venue entry
+#   Step 5: Confirm & Create → lands on Toss screen
+#
+# Also tests:
+#   - Back navigation between steps
+#   - "Next" disabled when selection is incomplete
+#   - Custom format overs input
+# Precondition: Both teams exist with 11 players each
+
+---
+- launchApp:
+    clearState: false
+
+- runFlow:
+    file: "utils/ensure_logged_in.yaml"
+
+# Navigate to Matches tab and tap Create Match
+- tapOn:
+    id: "tab-matches"
+- assertVisible:
+    id: "matches-screen"
+- tapOn:
+    id: "matches-create-match-btn"
+- assertVisible:
+    id: "match-create-screen"
+
+# ═══════════════════════════════════════════════════════
+# STEP 1: Format
+# ═══════════════════════════════════════════════════════
+
+- assertVisible: "Select Format"
+- assertVisible:
+    id: "match-progress-format"    # progress dot for format step
+
+# Negative: "Next" without selecting a format — T20 is pre-selected, so verify it
+- assertVisible:
+    id: "match-format-t20"
+
+# Explore other formats first to verify they're tappable
+- tapOn:
+    id: "match-format-odi"
+- assertVisible:
+    id: "match-format-odi-selected"    # card has primary border when selected
+
+- tapOn:
+    id: "match-format-test"
+- assertVisible:
+    id: "match-format-test-selected"
+
+# Test Custom format — overs input appears
+- tapOn:
+    id: "match-format-custom"
+- assertVisible:
+    id: "match-format-custom-overs-input"
+- tapOn:
+    id: "match-format-custom-overs-input"
+- clearText
+- inputText: "10"
+
+# Return to T20 for the actual test
+- tapOn:
+    id: "match-format-t20"
+- assertNotVisible:
+    id: "match-format-custom-overs-input"
+
+- tapOn:
+    id: "match-format-next-btn"
+
+# ═══════════════════════════════════════════════════════
+# STEP 2: Team selection
+# ═══════════════════════════════════════════════════════
+
+- assertVisible: "Select Teams"
+- assertVisible:
+    id: "match-progress-teams"
+
+# Verify Next is disabled when no teams selected
+- assertVisible:
+    id: "match-teams-next-btn"
+- assertTrue:
+    id: "match-teams-next-btn"
+    enabled: false
+
+# Select Team 1: Challengers XI
+- tapOn: "Challengers XI"
+- assertVisible:
+    id: "match-team1-selected-chal"
+
+# Verify Challengers XI disappears from Team 2 list (same-team guard)
+- assertNotVisible:
+    id: "match-team2-chal"
+
+# Select Team 2: Warriors CC
+- tapOn: "Warriors CC"
+- assertVisible:
+    id: "match-team2-selected-warr"
+
+# Both selected — Next becomes enabled
+- assertTrue:
+    id: "match-teams-next-btn"
+    enabled: true
+
+# Test back nav (header arrow-left)
+- tapOn:
+    id: "match-step-back-btn"
+- assertVisible: "Select Format"
+
+# Go forward again
+- tapOn:
+    id: "match-format-next-btn"
+- tapOn: "Challengers XI"
+- tapOn: "Warriors CC"
+- tapOn:
+    id: "match-teams-next-btn"
+
+# ═══════════════════════════════════════════════════════
+# STEP 3: Playing XI
+# ═══════════════════════════════════════════════════════
+
+- assertVisible: "Select Playing XI"
+- assertVisible:
+    id: "match-progress-xi"
+
+# Verify the counter shows "0/11 selected" for both teams
+- assertVisible: "0/11"
+
+# T20 requires exactly 11 — Select All shortcut (all 11 players auto-check
+# when team has exactly 11, but we trigger manually here)
+# Select all 11 for Team A
+- tapOn: "Alice"
+- tapOn: "Bob"
+- tapOn: "Charlie"
+- tapOn: "Dave"
+- tapOn: "Eve"
+- tapOn: "Frank"
+- tapOn: "Grace"
+- tapOn: "Harry"
+- tapOn: "Iris"
+- tapOn: "Jack"
+- tapOn: "Kate"
+
+# Counter should read "11/11 selected"
+- assertVisible: "11/11"
+
+# Scroll down to Team B section
+- scrollToBottom
+
+# Select all 11 for Team B
+- tapOn: "Liam"
+- tapOn: "Mia"
+- tapOn: "Noah"
+- tapOn: "Olivia"
+- tapOn: "Paul"
+- tapOn: "Quinn"
+- tapOn: "Ryan"
+- tapOn: "Sara"
+- tapOn: "Tom"
+- tapOn: "Uma"
+- tapOn: "Vince"
+
+- tapOn:
+    id: "match-xi-next-btn"
+
+# ═══════════════════════════════════════════════════════
+# STEP 4: Venue / Match Details
+# ═══════════════════════════════════════════════════════
+
+- assertVisible: "Match Details"
+- assertVisible:
+    id: "match-progress-venue"
+
+- tapOn:
+    id: "match-venue-input"
+- clearText
+- inputText: "Eden Gardens"
+
+- tapOn:
+    id: "match-venue-next-btn"
+
+# ═══════════════════════════════════════════════════════
+# STEP 5: Confirm
+# ═══════════════════════════════════════════════════════
+
+- assertVisible: "Confirm Match"
+- assertVisible:
+    id: "match-progress-confirm"
+
+# Verify summary card contents
+- assertVisible: "T20"
+- assertVisible: "CHAL vs WARR"
+- assertVisible: "11 vs 11"
+- assertVisible: "Eden Gardens"
+
+# Tap "Create Match" → navigates to Toss screen
+- tapOn:
+    id: "match-create-btn"
+- waitForAnimationToEnd
+
+# Must land on Toss screen
+- assertVisible:
+    id: "toss-screen"
+- assertVisible: "Toss"

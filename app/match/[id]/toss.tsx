@@ -66,7 +66,7 @@ export default function TossScreen() {
   const winnerTeam = winnerId === match.team1.id ? match.team1 : match.team2;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]} testID="toss-screen">
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <MaterialCommunityIcons name="circle-outline" size={48} color="#FFFFFF" />
         <Text variant="headlineSmall" style={styles.headerTitle}>Toss</Text>
@@ -80,6 +80,7 @@ export default function TossScreen() {
           <>
             <Text variant="titleMedium" style={styles.question}>Who won the toss?</Text>
             <Card
+              testID="toss-team1-card"
               style={[styles.teamCard, winnerId === match.team1.id && { borderColor: theme.colors.primary, borderWidth: 2 }]}
               onPress={() => setWinnerId(match.team1.id)}
             >
@@ -93,6 +94,7 @@ export default function TossScreen() {
               </Card.Content>
             </Card>
             <Card
+              testID="toss-team2-card"
               style={[styles.teamCard, winnerId === match.team2.id && { borderColor: theme.colors.primary, borderWidth: 2 }]}
               onPress={() => setWinnerId(match.team2.id)}
             >
@@ -110,6 +112,7 @@ export default function TossScreen() {
               onPress={() => setStep('decision')}
               disabled={!winnerId}
               style={styles.nextButton}
+              testID="toss-winner-next-btn"
             >
               Next
             </Button>
@@ -123,6 +126,7 @@ export default function TossScreen() {
             </Text>
             <View style={styles.decisionRow}>
               <Card
+                testID="toss-decision-bat"
                 style={[styles.decisionCard, decision === 'bat' && { borderColor: theme.colors.primary, borderWidth: 2 }]}
                 onPress={() => setDecision('bat')}
               >
@@ -132,6 +136,7 @@ export default function TossScreen() {
                 </Card.Content>
               </Card>
               <Card
+                testID="toss-decision-bowl"
                 style={[styles.decisionCard, decision === 'bowl' && { borderColor: theme.colors.primary, borderWidth: 2 }]}
                 onPress={() => setDecision('bowl')}
               >
@@ -142,8 +147,8 @@ export default function TossScreen() {
               </Card>
             </View>
             <View style={styles.navButtons}>
-              <Button mode="text" onPress={() => setStep('winner')}>Back</Button>
-              <Button mode="contained" onPress={handleConfirm}>Confirm</Button>
+              <Button mode="text" onPress={() => setStep('winner')} testID="toss-back-btn">Back</Button>
+              <Button mode="contained" onPress={handleConfirm} testID="toss-confirm-btn">Confirm</Button>
             </View>
           </>
         )}
@@ -164,6 +169,7 @@ export default function TossScreen() {
               onPress={() => router.replace(`/match/${id}/scoring`)}
               style={styles.nextButton}
               icon="play"
+              testID="toss-start-scoring-btn"
             >
               Start Scoring
             </Button>

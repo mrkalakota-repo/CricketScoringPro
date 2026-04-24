@@ -1,0 +1,132 @@
+appId: com.gullycricket.scorer
+name: "Team — Create Team A and Team B with Admin PIN"
+tags:
+  - team
+  - smoke
+
+# Covers:
+#   - Navigate to Teams tab → Create Team
+#   - Fill name, short name
+#   - Enable and set Admin PIN
+#   - Confirm creation → lands on team detail screen
+#   - Repeat for Team B (no PIN)
+# Precondition: user is logged in as team_admin
+
+---
+- launchApp:
+    clearState: false
+
+- runFlow:
+    file: "utils/ensure_logged_in.yaml"
+
+# ═══════════════════════════════════════════════════════
+# Create TEAM A — Challengers XI (with Admin PIN)
+# ═══════════════════════════════════════════════════════
+
+- tapOn:
+    id: "tab-teams"
+- assertVisible:
+    id: "teams-screen"
+
+# "Create Team" FAB / button on the Teams tab
+- tapOn:
+    id: "teams-create-team-btn"
+- assertVisible:
+    id: "team-create-screen"
+
+# ── Team Info ─────────────────────────────────────────
+
+- tapOn:
+    id: "team-create-name-input"
+- clearText
+- inputText: "Challengers XI"
+
+- tapOn:
+    id: "team-create-short-name-input"
+- clearText
+- inputText: "CHAL"
+
+# ── Admin PIN ─────────────────────────────────────────
+
+- tapOn:
+    id: "team-create-pin-toggle"
+- assertVisible:
+    id: "team-create-pin-input"
+
+- tapOn:
+    id: "team-create-pin-input"
+- inputText: "9999"
+
+- tapOn:
+    id: "team-create-confirm-pin-input"
+- inputText: "9999"
+
+# No error text should be visible
+- assertNotVisible: "PINs do not match"
+
+# ── Submit ────────────────────────────────────────────
+
+- tapOn:
+    id: "team-create-btn"
+- waitForAnimationToEnd
+
+# Should land on team detail screen for Challengers XI
+- assertVisible: "Challengers XI"
+- assertVisible:
+    id: "team-detail-screen"
+
+# ═══════════════════════════════════════════════════════
+# Create TEAM B — Warriors CC (no PIN)
+# ═══════════════════════════════════════════════════════
+
+- tapOn:
+    id: "tab-teams"
+- tapOn:
+    id: "teams-create-team-btn"
+
+- tapOn:
+    id: "team-create-name-input"
+- clearText
+- inputText: "Warriors CC"
+
+- tapOn:
+    id: "team-create-short-name-input"
+- clearText
+- inputText: "WARR"
+
+# Leave PIN toggle OFF
+- assertNotVisible:
+    id: "team-create-pin-input"
+
+- tapOn:
+    id: "team-create-btn"
+- waitForAnimationToEnd
+
+- assertVisible: "Warriors CC"
+- assertVisible:
+    id: "team-detail-screen"
+
+# ═══════════════════════════════════════════════════════
+# Negative: duplicate name is rejected
+# ═══════════════════════════════════════════════════════
+
+- tapOn:
+    id: "tab-teams"
+- tapOn:
+    id: "teams-create-team-btn"
+
+- tapOn:
+    id: "team-create-name-input"
+- inputText: "Challengers XI"
+
+- tapOn:
+    id: "team-create-short-name-input"
+- inputText: "CHAL"
+
+- tapOn:
+    id: "team-create-btn"
+- waitForAnimationToEnd
+
+- assertVisible: "A team with this name already exists"
+- tapOn:
+    id: "team-create-cancel-btn"

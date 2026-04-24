@@ -1,0 +1,134 @@
+appId: com.gullycricket.scorer
+name: "Scoring — Undo Last Ball and Match Abandonment"
+tags:
+  - scoring
+  - undo
+  - abandon
+
+# Covers:
+#   - Undo button disabled when no balls recorded yet
+#   - Record a ball, then undo it — scorecard reverts
+#   - Undo confirmation dialog
+#   - Abandon match — confirmation dialog → navigates to Matches tab
+#   - Abandoned match shows in matches list with correct status
+
+---
+
+# ─── Undo disabled at match start ─────────────────────────────────────────────
+
+- assertVisible:
+    id: "scoring-controls"
+- assertVisible:
+    id: "score-undo-btn"
+
+# Undo must be disabled when the undo stack is empty
+# (No balls have been recorded in this flow yet)
+- assertTrue:
+    id: "score-undo-btn"
+    enabled: false
+
+# ─── Record a ball then undo ──────────────────────────────────────────────────
+
+# Record a boundary (4 runs)
+- tapOn:
+    id: "score-run-4"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- waitForAnimationToEnd
+
+# Score should show 4 runs
+- assertVisible: "4/0"
+
+# Undo is now enabled
+- assertTrue:
+    id: "score-undo-btn"
+    enabled: true
+
+# Tap undo — confirmation dialog appears
+- tapOn:
+    id: "score-undo-btn"
+- assertVisible:
+    id: "scoring-undo-dialog"
+- assertVisible: "Undo last ball?"
+
+# Cancel the undo first
+- tapOn:
+    id: "scoring-undo-cancel-btn"
+- assertNotVisible:
+    id: "scoring-undo-dialog"
+
+# Score unchanged at 4/0
+- assertVisible: "4/0"
+
+# Now confirm the undo
+- tapOn:
+    id: "score-undo-btn"
+- assertVisible:
+    id: "scoring-undo-dialog"
+- tapOn:
+    id: "scoring-undo-confirm-btn"
+- waitForAnimationToEnd
+
+# Score reverted to 0/0
+- assertVisible: "0/0"
+
+# Undo disabled again (stack now empty)
+- assertTrue:
+    id: "score-undo-btn"
+    enabled: false
+
+# ─── Record a six, undo it, re-record ─────────────────────────────────────────
+
+- tapOn:
+    id: "score-run-6"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- waitForAnimationToEnd
+- assertVisible: "6/0"
+
+- tapOn:
+    id: "score-undo-btn"
+- tapOn:
+    id: "scoring-undo-confirm-btn"
+- waitForAnimationToEnd
+- assertVisible: "0/0"
+
+# Re-record to verify scoring resumes normally after undo
+- tapOn:
+    id: "score-run-1"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- waitForAnimationToEnd
+- assertVisible: "1/0"
+
+# ─── Abandon Match ────────────────────────────────────────────────────────────
+
+# Tap Abandon button (shown in the bottom actions row)
+- tapOn:
+    id: "score-abandon-btn"
+- assertVisible:
+    id: "scoring-abandon-dialog"
+- assertVisible: "Abandon"
+
+# Dismiss with Cancel — match continues
+- tapOn:
+    id: "scoring-abandon-cancel-btn"
+- assertNotVisible:
+    id: "scoring-abandon-dialog"
+- assertVisible:
+    id: "scoring-controls"    # Still scoring
+
+# Confirm abandon
+- tapOn:
+    id: "score-abandon-btn"
+- tapOn:
+    id: "scoring-abandon-confirm-btn"
+- waitForAnimationToEnd
+
+# After abandon, navigates to Matches tab
+- assertVisible:
+    id: "matches-screen"
+
+# Abandoned match entry should appear with "Abandoned" status
+- assertVisible: "Abandoned"
+- assertVisible: "CHAL vs WARR"

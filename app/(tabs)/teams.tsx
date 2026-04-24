@@ -449,6 +449,7 @@ export default function TeamsScreen() {
           style={[styles.fab, { backgroundColor: theme.colors.primary, bottom: fabBottom }]}
           color="#FFFFFF"
           onPress={() => router.push('/team/create')}
+          testID="teams-create-team-btn"
         />
       )}
     </View>

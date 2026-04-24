@@ -192,10 +192,11 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} testID="tabs-home">
       {/* Hero */}
       <Surface style={[styles.hero, { backgroundColor: theme.colors.primary, paddingTop: insets.top + 20 }]} elevation={3}>
         <TouchableOpacity
+          testID="home-my-profile-btn"
           onPress={() => router.push('/my-profile')}
           style={[styles.heroProfileButton, { top: insets.top + 8 }]}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

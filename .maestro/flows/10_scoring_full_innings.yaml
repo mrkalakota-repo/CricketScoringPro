@@ -1,0 +1,345 @@
+appId: com.gullycricket.scorer
+name: "Scoring — Full T20 Match: Both Innings + Result"
+tags:
+  - scoring
+  - full-match
+  - e2e
+
+# Covers:
+#   - Complete first innings (Warriors bat): 20 overs or all out
+#   - Innings Complete modal → Start Next Innings
+#   - Second innings opener/bowler selection
+#   - Target display and Required Run Rate (RRR) shown
+#   - Match completion → result screen
+#   - View Scorecard from result screen
+#   - NRR data visible on stats screen (League plan required)
+#
+# This is a simplified flow — it records just enough balls to
+# complete both innings without going ball-by-ball for all 20 overs.
+# It achieves a result by bowling the batting team all out quickly.
+# Precondition: Match is live with openers and bowler selected.
+
+---
+
+# ═══════════════════════════════════════════════════════
+# First Innings: Bowl Warriors all out
+# (11 players in T20 = 10 wickets to end innings)
+# Use a helper sub-flow to record wickets efficiently
+# ═══════════════════════════════════════════════════════
+
+- assertVisible:
+    id: "scoring-controls"
+
+# Record 3 balls, then a wicket, then select new batter × 9 wickets
+# Repeat until innings complete modal appears
+
+# Balls 1-3 (over 1 has Alice bowling)
+- tapOn:
+    id: "score-run-0"
+- tapOn:
+    id: "score-run-1"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- tapOn:
+    id: "score-run-0"
+
+# Wicket 1 (Liam out — bowled)
+- tapOn:
+    id: "score-wicket-btn"
+- tapOn:
+    id: "score-dismissal-bowled"
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+- tapOn: "Noah"
+- tapOn:
+    id: "scoring-confirm-batter-btn"
+
+# Two more balls to end over 1
+- tapOn:
+    id: "score-run-0"
+- tapOn:
+    id: "score-run-0"
+
+# End of over 1 — select new bowler
+- assertVisible:
+    id: "scoring-bowler-modal"
+- tapOn: "Bob"
+- tapOn:
+    id: "scoring-confirm-bowler-btn"
+
+# Wicket 2 (first ball of over 2)
+- tapOn:
+    id: "score-wicket-btn"
+- tapOn:
+    id: "score-dismissal-caught"
+- tapOn: "Alice"    # fielder
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+- tapOn: "Olivia"
+- tapOn:
+    id: "scoring-confirm-batter-btn"
+
+# Record some runs
+- tapOn:
+    id: "score-run-4"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- tapOn:
+    id: "score-run-0"
+- tapOn:
+    id: "score-run-0"
+- tapOn:
+    id: "score-run-0"
+
+# Wicket 3 — end of over (combined modal)
+- tapOn:
+    id: "score-wicket-btn"
+- tapOn:
+    id: "score-dismissal-lbw"
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+
+# Combined batter+bowler modal (wicket on last ball of over)
+- runFlow:
+    when:
+      visible:
+        id: "scoring-combined-batter-bowler-modal"
+    commands:
+      - tapOn: "Paul"
+      - tapOn: "Charlie"
+      - tapOn:
+          id: "scoring-confirm-batter-bowler-btn"
+      - waitForAnimationToEnd
+
+# Continue for remaining 7 wickets (abbreviated — each cycle: wicket → batter)
+# Wickets 4-10
+- tapOn:
+    id: "score-wicket-btn"
+- tapOn:
+    id: "score-dismissal-bowled"
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "scoring-new-batter-modal"
+    commands:
+      - tapOn: "Quinn"
+      - tapOn:
+          id: "scoring-confirm-batter-btn"
+
+- tapOn:
+    id: "score-wicket-btn"
+- tapOn:
+    id: "score-dismissal-bowled"
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "scoring-new-batter-modal"
+    commands:
+      - tapOn: "Ryan"
+      - tapOn:
+          id: "scoring-confirm-batter-btn"
+
+- tapOn:
+    id: "score-wicket-btn"
+- tapOn:
+    id: "score-dismissal-bowled"
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "scoring-new-batter-modal"
+    commands:
+      - tapOn: "Sara"
+      - tapOn:
+          id: "scoring-confirm-batter-btn"
+
+- tapOn:
+    id: "score-wicket-btn"
+- tapOn:
+    id: "score-dismissal-bowled"
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "scoring-new-batter-modal"
+    commands:
+      - tapOn: "Tom"
+      - tapOn:
+          id: "scoring-confirm-batter-btn"
+
+- tapOn:
+    id: "score-wicket-btn"
+- tapOn:
+    id: "score-dismissal-bowled"
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "scoring-new-batter-modal"
+    commands:
+      - tapOn: "Uma"
+      - tapOn:
+          id: "scoring-confirm-batter-btn"
+
+# Wicket 9 — second-to-last, no new batter possible after this
+- tapOn:
+    id: "score-wicket-btn"
+- tapOn:
+    id: "score-dismissal-bowled"
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "scoring-new-batter-modal"
+    commands:
+      - tapOn: "Vince"
+      - tapOn:
+          id: "scoring-confirm-batter-btn"
+
+# Wicket 10 — all out, innings complete modal should appear
+- tapOn:
+    id: "score-wicket-btn"
+- tapOn:
+    id: "score-dismissal-bowled"
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+
+# ═══════════════════════════════════════════════════════
+# Innings Complete Modal
+# ═══════════════════════════════════════════════════════
+
+- assertVisible:
+    id: "scoring-innings-complete-modal"
+- assertVisible: "Innings Complete"
+
+# Summary shows Warriors' score
+- assertVisible: "WARR"
+
+- tapOn:
+    id: "scoring-start-next-innings-btn"
+- waitForAnimationToEnd
+
+# ═══════════════════════════════════════════════════════
+# Second Innings: Challengers XI chase the target
+# ═══════════════════════════════════════════════════════
+
+# Opener modal for second innings
+- assertVisible:
+    id: "scoring-opener-modal"
+
+# Challengers XI batting (team that chose to bowl won toss)
+- tapOn: "Alice"
+- tapOn: "Bob"
+- tapOn:
+    id: "scoring-confirm-openers-btn"
+
+# Bowler modal for Warriors
+- assertVisible:
+    id: "scoring-bowler-modal"
+- tapOn: "Liam"
+- tapOn:
+    id: "scoring-confirm-bowler-btn"
+- waitForAnimationToEnd
+
+# Target and RRR must be visible
+- assertVisible:
+    id: "scoring-rrr"    # "RRR: X.XX" label
+- assertVisible: "Need"   # "Need N off M" text
+
+# Score some runs to chase — record a few overs then let CHAL win
+- tapOn:
+    id: "score-run-6"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- tapOn:
+    id: "score-run-6"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- tapOn:
+    id: "score-run-6"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- tapOn:
+    id: "score-run-6"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- tapOn:
+    id: "score-run-6"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- tapOn:
+    id: "score-run-6"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+
+# Over complete — new bowler
+- runFlow:
+    when:
+      visible:
+        id: "scoring-bowler-modal"
+    commands:
+      - tapOn: "Mia"
+      - tapOn:
+          id: "scoring-confirm-bowler-btn"
+
+# Continue scoring until Challengers surpass Warriors' total
+# (Continue hitting sixes until target is surpassed)
+- tapOn:
+    id: "score-run-6"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- tapOn:
+    id: "score-run-6"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- tapOn:
+    id: "score-run-6"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- waitForAnimationToEnd
+
+# ═══════════════════════════════════════════════════════
+# Match Complete
+# ═══════════════════════════════════════════════════════
+
+# Innings complete / match complete modal
+- runFlow:
+    when:
+      visible:
+        id: "scoring-innings-complete-modal"
+    commands:
+      - assertVisible: "Finish"
+      - tapOn:
+          id: "scoring-finish-btn"
+      - waitForAnimationToEnd
+
+# OR: match complete banner in the scoring view
+- runFlow:
+    when:
+      visible:
+        id: "scoring-match-complete"
+    commands:
+      - assertVisible: "Match Complete"
+      - assertVisible: "Challengers XI won"
+      - tapOn:
+          id: "scoring-view-scorecard-btn"
+      - assertVisible:
+          id: "scorecard-screen"

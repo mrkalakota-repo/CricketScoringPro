@@ -104,7 +104,7 @@ export default function CreateTeamScreen() {
             </Text>
           </View>
           {atLimit && (
-            <Button mode="contained" icon="crown-outline" onPress={() => router.push('/upgrade')} style={styles.button}>
+            <Button mode="contained" icon="crown-outline" onPress={() => router.push('/upgrade')} style={styles.button} testID="team-limit-upgrade-btn">
               Upgrade Plan
             </Button>
           )}
@@ -145,6 +145,7 @@ export default function CreateTeamScreen() {
           style={styles.input}
           placeholder="e.g., Mumbai Indians"
           autoFocus
+          testID="team-create-name-input"
         />
         <TextInput
           label="Short Name (up to 5 chars)"
@@ -155,6 +156,7 @@ export default function CreateTeamScreen() {
           placeholder="e.g., MI"
           maxLength={5}
           autoCapitalize="characters"
+          testID="team-create-short-name-input"
         />
 
         {/* Admin PIN Section */}
@@ -168,7 +170,7 @@ export default function CreateTeamScreen() {
               </Text>
             </View>
           </View>
-          <Switch value={setPinNow} onValueChange={setSetPinNow} />
+          <Switch value={setPinNow} onValueChange={setSetPinNow} testID="team-create-pin-toggle" />
         </View>
 
         {setPinNow && (
@@ -183,6 +185,7 @@ export default function CreateTeamScreen() {
               secureTextEntry
               maxLength={6}
               placeholder="e.g., 1234"
+              testID="team-create-pin-input"
             />
             <TextInput
               label="Confirm PIN"
@@ -195,6 +198,7 @@ export default function CreateTeamScreen() {
               maxLength={6}
               placeholder="Re-enter PIN"
               error={pinMismatch}
+              testID="team-create-confirm-pin-input"
             />
             {pinMismatch && (
               <HelperText type="error">PINs do not match</HelperText>
@@ -222,10 +226,11 @@ export default function CreateTeamScreen() {
           loading={busy}
           disabled={busy}
           icon="check"
+          testID="team-create-btn"
         >
           Create Team
         </Button>
-        <Button mode="text" onPress={() => router.back()} style={styles.button}>
+        <Button mode="text" onPress={() => router.back()} style={styles.button} testID="team-create-cancel-btn">
           Cancel
         </Button>
       </View>

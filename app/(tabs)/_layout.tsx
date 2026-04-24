@@ -48,6 +48,7 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           headerShown: false,
+          tabBarTestID: 'tab-home',
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="home-outline" activeName="home" color={color} size={size} focused={focused} />
           ),
@@ -58,6 +59,7 @@ export default function TabsLayout() {
         options={{
           title: 'Matches',
           tabBarBadge: pendingInvitationCount > 0 ? pendingInvitationCount : undefined,
+          tabBarTestID: 'tab-matches',
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="trophy-outline" activeName="trophy" color={color} size={size} focused={focused} />
           ),
@@ -67,6 +69,7 @@ export default function TabsLayout() {
         name="teams"
         options={{
           title: 'Teams',
+          tabBarTestID: 'tab-teams',
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="shield-account-outline" activeName="shield-account" color={color} size={size} focused={focused} />
           ),
@@ -76,6 +79,7 @@ export default function TabsLayout() {
         name="chat"
         options={{
           title: 'Chat',
+          tabBarTestID: 'tab-chat',
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="chat-outline" activeName="chat" color={color} size={size} focused={focused} />
           ),
@@ -85,6 +89,7 @@ export default function TabsLayout() {
         name="leagues"
         options={{
           title: 'Leagues',
+          tabBarTestID: 'tab-leagues',
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="tournament" activeName="tournament" color={color} size={size} focused={focused} />
           ),
@@ -94,6 +99,7 @@ export default function TabsLayout() {
         name="stats"
         options={{
           title: 'Stats',
+          tabBarTestID: 'tab-stats',
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="chart-bar" activeName="chart-bar" color={color} size={size} focused={focused} />
           ),

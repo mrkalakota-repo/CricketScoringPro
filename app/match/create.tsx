@@ -175,6 +175,7 @@ export default function CreateMatchScreen() {
             {(['t20', 'odi', 'test', 'custom'] as MatchFormat[]).map(f => (
               <Card
                 key={f}
+                testID={`match-format-${f}`}
                 style={[styles.optionCard, format === f && { borderColor: theme.colors.primary, borderWidth: 2 }]}
                 onPress={() => setFormat(f)}
               >
@@ -196,9 +197,10 @@ export default function CreateMatchScreen() {
                 keyboardType="numeric"
                 mode="outlined"
                 style={{ marginTop: 8 }}
+                testID="match-format-custom-overs-input"
               />
             )}
-            <Button mode="contained" onPress={() => setStep('teams')} style={styles.nextButton}>
+            <Button mode="contained" onPress={() => setStep('teams')} style={styles.nextButton} testID="match-format-next-btn">
               Next
             </Button>
           </>
@@ -293,7 +295,7 @@ export default function CreateMatchScreen() {
                 )}
                 <View style={styles.navButtons}>
                   <Button mode="text" onPress={() => setStep('format')}>Back</Button>
-                  <Button mode="contained" onPress={() => {
+                  <Button mode="contained" testID="match-teams-next-btn" onPress={() => {
                     if (canProceedTeams) {
                       // Auto-select all players only when team has exactly the required count
                       if (team1 && team1.players.length === 11) setTeam1XI(new Set(team1.players.map(p => p.id)));
@@ -356,7 +358,7 @@ export default function CreateMatchScreen() {
 
             <View style={styles.navButtons}>
               <Button mode="text" onPress={() => setStep('teams')}>Back</Button>
-              <Button mode="contained" onPress={() => setStep('venue')} disabled={!canProceedXI}>
+              <Button mode="contained" testID="match-xi-next-btn" onPress={() => setStep('venue')} disabled={!canProceedXI}>
                 Next
               </Button>
             </View>
@@ -374,10 +376,11 @@ export default function CreateMatchScreen() {
               mode="outlined"
               style={styles.input}
               placeholder="e.g., Wankhede Stadium"
+              testID="match-venue-input"
             />
             <View style={styles.navButtons}>
               <Button mode="text" onPress={() => setStep('playing_xi')}>Back</Button>
-              <Button mode="contained" onPress={() => setStep('confirm')}>Next</Button>
+              <Button mode="contained" testID="match-venue-next-btn" onPress={() => setStep('confirm')}>Next</Button>
             </View>
           </>
         )}
@@ -414,7 +417,7 @@ export default function CreateMatchScreen() {
 
             <View style={styles.navButtons}>
               <Button mode="text" onPress={() => setStep('venue')}>Back</Button>
-              <Button mode="contained" onPress={handleCreate}>Create Match</Button>
+              <Button mode="contained" testID="match-create-btn" onPress={handleCreate}>Create Match</Button>
             </View>
           </>
         )}

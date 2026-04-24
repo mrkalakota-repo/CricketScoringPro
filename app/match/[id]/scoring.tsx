@@ -417,12 +417,12 @@ export default function ScoringScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.background }]} testID="scoring-screen">
       {/* Mini Scorecard */}
-      <Surface style={[styles.scorecard, { backgroundColor: innings?.isSuperOver ? '#E65100' : theme.colors.primary }]} elevation={3}>
+      <Surface testID="scoring-scorecard" style={[styles.scorecard, { backgroundColor: innings?.isSuperOver ? '#E65100' : theme.colors.primary }]} elevation={3}>
         {/* Sync status chip — top-right corner, only when cloud is enabled */}
         {isCloudEnabled && (
-          <View style={styles.syncChip} pointerEvents="none">
+          <View style={styles.syncChip} pointerEvents="none" testID="scoring-sync-chip">
             {syncStatus === 'syncing' && (
               <>
                 <MaterialCommunityIcons name="cloud-upload-outline" size={11} color="rgba(255,255,255,0.85)" />
@@ -458,8 +458,8 @@ export default function ScoringScreen() {
           </Text>
         </View>
         <View style={styles.rateRow}>
-          <Text style={styles.rateText}>CRR: {crr.toFixed(2)}</Text>
-          {rrr !== null && <Text style={styles.rateText}>RRR: {rrr.toFixed(2)}</Text>}
+          <Text testID="scoring-crr" style={styles.rateText}>CRR: {crr.toFixed(2)}</Text>
+          {rrr !== null && <Text testID="scoring-rrr" style={styles.rateText}>RRR: {rrr.toFixed(2)}</Text>}
           {innings?.target && (
             <Text style={styles.rateText}>
               Need {innings.target - innings.totalRuns} off {
@@ -703,28 +703,32 @@ export default function ScoringScreen() {
 
       {/* Scoring Controls */}
       {canScore && isHost && !isMatchComplete && !isInningsComplete && (
-        <View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, 16) }]} testID="scoring-controls">
           {/* Extra Toggles */}
           <View style={styles.extrasRow}>
             <Pressable
+              testID="score-extra-wide"
               style={[styles.extraButton, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface }, isWide && styles.extraActive]}
               onPress={() => { setIsWide(!isWide); setIsBye(false); setIsLegBye(false); }}
             >
               <Text style={[styles.extraText, { color: theme.colors.onSurfaceVariant }, isWide && styles.extraTextActive]}>Wide</Text>
             </Pressable>
             <Pressable
+              testID="score-extra-noball"
               style={[styles.extraButton, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface }, isNoBall && styles.extraActive]}
               onPress={() => { setIsNoBall(!isNoBall); setIsWide(false); }}
             >
               <Text style={[styles.extraText, { color: theme.colors.onSurfaceVariant }, isNoBall && styles.extraTextActive]}>NB</Text>
             </Pressable>
             <Pressable
+              testID="score-extra-bye"
               style={[styles.extraButton, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface }, isBye && styles.extraActive]}
               onPress={() => { setIsBye(!isBye); setIsLegBye(false); setIsWide(false); }}
             >
               <Text style={[styles.extraText, { color: theme.colors.onSurfaceVariant }, isBye && styles.extraTextActive]}>Bye</Text>
             </Pressable>
             <Pressable
+              testID="score-extra-legbye"
               style={[styles.extraButton, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface }, isLegBye && styles.extraActive]}
               onPress={() => { setIsLegBye(!isLegBye); setIsBye(false); setIsWide(false); }}
             >
@@ -737,6 +741,7 @@ export default function ScoringScreen() {
             {[0, 1, 2, 3].map(runs => (
               <Pressable
                 key={runs}
+                testID={`score-run-${runs}`}
                 disabled={recording}
                 style={[styles.runButton, { backgroundColor: runs === 0 ? theme.colors.surfaceVariant : theme.colors.primaryContainer, opacity: recording ? 0.5 : 1 }]}
                 onPress={() => handleRun(runs)}
@@ -749,6 +754,7 @@ export default function ScoringScreen() {
             {[4, 5, 6].map(runs => (
               <Pressable
                 key={runs}
+                testID={`score-run-${runs}`}
                 disabled={recording}
                 style={[styles.runButton, {
                   backgroundColor: runs === 4 ? colors.four : runs === 6 ? colors.six : theme.colors.primaryContainer,
@@ -760,6 +766,7 @@ export default function ScoringScreen() {
               </Pressable>
             ))}
             <Pressable
+              testID="score-wicket-btn"
               disabled={recording}
               style={[styles.runButton, { backgroundColor: '#FFCDD2', opacity: recording ? 0.5 : 1 }]}
               onPress={handleWicket}
@@ -776,6 +783,7 @@ export default function ScoringScreen() {
               onPress={handleUndo}
               disabled={!engine.canUndo()}
               compact
+              testID="score-undo-btn"
             >
               Undo
             </Button>
@@ -817,6 +825,7 @@ export default function ScoringScreen() {
               onPress={() => setShowAbandonDialog(true)}
               compact
               textColor={theme.colors.error}
+              testID="score-abandon-btn"
             >
               Abandon
             </Button>
@@ -833,7 +842,7 @@ export default function ScoringScreen() {
 
       {/* Match Complete */}
       {isMatchComplete && (
-        <View style={styles.matchComplete}>
+        <View style={styles.matchComplete} testID="scoring-match-complete">
           <MaterialCommunityIcons name="trophy" size={48} color={colors.secondary} />
           <Text variant="titleLarge" style={{ fontWeight: 'bold', marginTop: 16, color: theme.colors.onSurface }}>
             Match Complete
@@ -842,7 +851,7 @@ export default function ScoringScreen() {
             {match.result}
           </Text>
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 24 }}>
-            <Button mode="contained" onPress={() => router.push(`/match/${id}/scorecard`)}>
+            <Button mode="contained" testID="scoring-view-scorecard-btn" onPress={() => router.push(`/match/${id}/scorecard`)}>
               View Scorecard
             </Button>
             <Button mode="outlined" onPress={async () => { await saveMatch(); router.replace('/'); }}>
@@ -856,13 +865,14 @@ export default function ScoringScreen() {
 
       {/* Opener Selection Modal */}
       <Portal>
-        <Modal visible={openerModal} dismissable={false} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
+        <Modal visible={openerModal} dismissable={false} testID="scoring-opener-modal" contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
           <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16, color: theme.colors.onSurface }}>Select Opening Batters</Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>Striker</Text>
-          <ScrollView style={{ maxHeight: screenHeight * 0.22 }}>
+          <ScrollView testID="scoring-striker-section" style={{ maxHeight: screenHeight * 0.22 }}>
             {(battingTeamPlayers ?? []).map(p => (
               <Pressable
                 key={`o1-${p.id}`}
+                testID={`scoring-opener1-${p.id}`}
                 style={[styles.selectionRow, selectedOpener1 === p.id && { backgroundColor: theme.colors.primaryContainer }]}
                 onPress={() => { setSelectedOpener1(p.id); if (selectedOpener2 === p.id) setSelectedOpener2(null); }}
               >
@@ -872,10 +882,11 @@ export default function ScoringScreen() {
             ))}
           </ScrollView>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, marginBottom: 8 }}>Non-Striker</Text>
-          <ScrollView style={{ maxHeight: screenHeight * 0.22 }}>
+          <ScrollView testID="scoring-nonstriker-section" style={{ maxHeight: screenHeight * 0.22 }}>
             {(battingTeamPlayers ?? []).filter(p => p.id !== selectedOpener1).map(p => (
               <Pressable
                 key={`o2-${p.id}`}
+                testID={`scoring-opener2-${p.id}`}
                 style={[styles.selectionRow, selectedOpener2 === p.id && { backgroundColor: theme.colors.primaryContainer }]}
                 onPress={() => setSelectedOpener2(p.id)}
               >
@@ -884,7 +895,7 @@ export default function ScoringScreen() {
               </Pressable>
             ))}
           </ScrollView>
-          <Button mode="contained" onPress={handleSelectOpeners} disabled={!selectedOpener1 || !selectedOpener2} style={{ marginTop: 16 }}>
+          <Button mode="contained" onPress={handleSelectOpeners} disabled={!selectedOpener1 || !selectedOpener2} style={{ marginTop: 16 }} testID="scoring-confirm-openers-btn">
             Confirm
           </Button>
         </Modal>
@@ -892,7 +903,7 @@ export default function ScoringScreen() {
 
       {/* Bowler Selection Modal */}
       <Portal>
-        <Modal visible={bowlerModal} dismissable={false} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
+        <Modal visible={bowlerModal} dismissable={false} testID="scoring-bowler-modal" contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
           <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16, color: theme.colors.onSurface }}>Select Bowler</Text>
           <ScrollView style={{ maxHeight: screenHeight * 0.45 }}>
             {(bowlingTeamPlayers ?? []).map(p => {
@@ -907,6 +918,7 @@ export default function ScoringScreen() {
               return (
                 <Pressable
                   key={p.id}
+                  testID={`scoring-bowler-${p.id}`}
                   style={[styles.selectionRow, selectedBowler === p.id && { backgroundColor: theme.colors.primaryContainer }, isDisabled && { opacity: 0.4 }]}
                   onPress={() => !isDisabled && setSelectedBowler(p.id)}
                   disabled={isDisabled}
@@ -927,7 +939,7 @@ export default function ScoringScreen() {
               );
             })}
           </ScrollView>
-          <Button mode="contained" onPress={handleSelectBowler} disabled={!selectedBowler} style={{ marginTop: 16 }}>
+          <Button mode="contained" onPress={handleSelectBowler} disabled={!selectedBowler} style={{ marginTop: 16 }} testID="scoring-confirm-bowler-btn">
             Confirm
           </Button>
         </Modal>
@@ -935,18 +947,20 @@ export default function ScoringScreen() {
 
       {/* Wicket Modal */}
       <Portal>
-        <Modal visible={wicketModal} onDismiss={() => setWicketModal(false)} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
+        <Modal visible={wicketModal} onDismiss={() => setWicketModal(false)} testID="scoring-wicket-modal" contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
           <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16, color: theme.colors.onSurface }}>Wicket!</Text>
 
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>Dismissed Batter</Text>
           <View style={styles.dismissedRow}>
             <Pressable
+              testID="scoring-dismissed-striker"
               style={[styles.selectionRow, { flex: 1 }, dismissedBatsmanId === innings?.currentStrikerId && { backgroundColor: theme.colors.primaryContainer }]}
               onPress={() => setDismissedBatsmanId(innings?.currentStrikerId ?? null)}
             >
               <Text style={[styles.modalName, { color: theme.colors.onSurface }]}>{getPlayerName(innings?.currentStrikerId ?? null)}{'\n'}<Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant, fontWeight: '400' }}>Striker</Text></Text>
             </Pressable>
             <Pressable
+              testID="scoring-dismissed-nonstriker"
               style={[styles.selectionRow, { flex: 1 }, dismissedBatsmanId === innings?.currentNonStrikerId && { backgroundColor: theme.colors.primaryContainer }]}
               onPress={() => setDismissedBatsmanId(innings?.currentNonStrikerId ?? null)}
             >
@@ -959,6 +973,7 @@ export default function ScoringScreen() {
             {DISMISSAL_TYPES.map(d => (
               <Pressable
                 key={d.type}
+                testID={`score-dismissal-${d.type}`}
                 style={[styles.dismissalButton, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface }, selectedDismissal === d.type && { backgroundColor: colors.wicket, borderColor: colors.wicket }]}
                 onPress={() => setSelectedDismissal(d.type)}
               >
@@ -972,10 +987,11 @@ export default function ScoringScreen() {
           {(selectedDismissal === 'caught' || selectedDismissal === 'run_out' || selectedDismissal === 'stumped') && (
             <>
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12, marginBottom: 8 }}>Fielder</Text>
-              <ScrollView style={{ maxHeight: screenHeight * 0.18 }}>
+              <ScrollView testID="scoring-fielder-section" style={{ maxHeight: screenHeight * 0.18 }}>
                 {(bowlingTeamPlayers ?? []).map(p => (
                   <Pressable
                     key={p.id}
+                    testID={`scoring-fielder-${p.id}`}
                     style={[styles.selectionRow, selectedFielder === p.id && { backgroundColor: theme.colors.primaryContainer }]}
                     onPress={() => setSelectedFielder(p.id)}
                   >
@@ -987,20 +1003,21 @@ export default function ScoringScreen() {
           )}
 
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-            <Button mode="text" onPress={() => setWicketModal(false)}>Cancel</Button>
-            <Button mode="contained" buttonColor={colors.wicket} onPress={confirmWicket}>Confirm</Button>
+            <Button mode="text" onPress={() => setWicketModal(false)} testID="scoring-wicket-cancel-btn">Cancel</Button>
+            <Button mode="contained" buttonColor={colors.wicket} onPress={confirmWicket} testID="score-confirm-wicket-btn">Confirm</Button>
           </View>
         </Modal>
       </Portal>
 
       {/* New Batter Modal */}
       <Portal>
-        <Modal visible={newBatterModal} dismissable={false} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
+        <Modal visible={newBatterModal} dismissable={false} testID="scoring-new-batter-modal" contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
           <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16, color: theme.colors.onSurface }}>Select New Batter</Text>
           <ScrollView style={{ maxHeight: screenHeight * 0.45 }}>
             {availableBatters.map(p => (
               <Pressable
                 key={p.id}
+                testID={`scoring-new-batter-${p.id}`}
                 style={[styles.selectionRow, selectedNewBatter === p.id && { backgroundColor: theme.colors.primaryContainer }]}
                 onPress={() => setSelectedNewBatter(p.id)}
               >
@@ -1009,7 +1026,7 @@ export default function ScoringScreen() {
               </Pressable>
             ))}
           </ScrollView>
-          <Button mode="contained" onPress={handleSelectNewBatter} disabled={!selectedNewBatter} style={{ marginTop: 16 }}>
+          <Button mode="contained" onPress={handleSelectNewBatter} disabled={!selectedNewBatter} style={{ marginTop: 16 }} testID="scoring-confirm-batter-btn">
             Confirm
           </Button>
         </Modal>
@@ -1017,7 +1034,7 @@ export default function ScoringScreen() {
 
       {/* Combined Batter + Bowler Modal — shown when a wicket falls on the last ball of an over */}
       <Portal>
-        <Modal visible={batterAndBowlerModal} dismissable={false} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
+        <Modal visible={batterAndBowlerModal} dismissable={false} testID="scoring-combined-batter-bowler-modal" contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 500, alignSelf: 'center' as const }]}>
           <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 4, color: theme.colors.onSurface }}>Wicket — End of Over</Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 16 }}>Select the next batter and bowler to continue.</Text>
 
@@ -1071,7 +1088,7 @@ export default function ScoringScreen() {
             })}
           </ScrollView>
 
-          <Button mode="contained" onPress={handleConfirmBatterAndBowler} disabled={!selectedNewBatter || !selectedBowler} style={{ marginTop: 16 }}>
+          <Button mode="contained" onPress={handleConfirmBatterAndBowler} disabled={!selectedNewBatter || !selectedBowler} style={{ marginTop: 16 }} testID="scoring-confirm-batter-bowler-btn">
             Confirm
           </Button>
         </Modal>
@@ -1079,13 +1096,13 @@ export default function ScoringScreen() {
 
       {/* Innings Complete Modal */}
       <Portal>
-        <Modal visible={inningsCompleteModal} dismissable={false} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}>
+        <Modal visible={inningsCompleteModal} dismissable={false} testID="scoring-innings-complete-modal" contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}>
           <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 8, color: theme.colors.onSurface }}>Innings Complete</Text>
           <Text variant="bodyMedium" style={{ marginBottom: 16, color: theme.colors.onSurfaceVariant }}>
             {battingTeamName}: {innings?.totalRuns}/{innings?.totalWickets} ({formatOvers(innings?.totalOvers ?? 0, innings?.totalBalls ?? 0)})
           </Text>
           {!isMatchComplete && match.innings.length < match.config.maxInnings ? (
-            <Button mode="contained" onPress={handleNextInnings}>Start Next Innings</Button>
+            <Button mode="contained" onPress={handleNextInnings} testID="scoring-start-next-innings-btn">Start Next Innings</Button>
           ) : !isMatchComplete && innings?.isSuperOver ? (
             // Between super over innings 1 and 2
             <Button mode="contained" onPress={() => { startNextInnings(); setInningsCompleteModal(false); }}>
@@ -1100,7 +1117,7 @@ export default function ScoringScreen() {
                   Play Super Over
                 </Button>
               )}
-              <Button mode="contained" onPress={async () => { await saveMatch(); setInningsCompleteModal(false); router.replace('/'); }}>
+              <Button mode="contained" testID="scoring-finish-btn" onPress={async () => { await saveMatch(); setInningsCompleteModal(false); router.replace('/'); }}>
                 Finish
               </Button>
             </View>
@@ -1171,21 +1188,21 @@ export default function ScoringScreen() {
 
       {/* Undo Confirmation Dialog */}
       <Portal>
-        <Dialog visible={showUndoDialog} onDismiss={() => setShowUndoDialog(false)}>
+        <Dialog visible={showUndoDialog} onDismiss={() => setShowUndoDialog(false)} testID="scoring-undo-dialog">
           <Dialog.Title>Undo Last Ball</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">Undo the last ball recorded?</Text>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setShowUndoDialog(false)}>Cancel</Button>
-            <Button onPress={confirmUndo}>Undo</Button>
+            <Button onPress={() => setShowUndoDialog(false)} testID="scoring-undo-cancel-btn">Cancel</Button>
+            <Button onPress={confirmUndo} testID="scoring-undo-confirm-btn">Undo</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
 
       {/* Abandon Match Dialog */}
       <Portal>
-        <Dialog visible={showAbandonDialog} onDismiss={() => setShowAbandonDialog(false)}>
+        <Dialog visible={showAbandonDialog} onDismiss={() => setShowAbandonDialog(false)} testID="scoring-abandon-dialog">
           <Dialog.Icon icon="flag-off" />
           <Dialog.Title>Abandon Match?</Dialog.Title>
           <Dialog.Content>
@@ -1195,8 +1212,8 @@ export default function ScoringScreen() {
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setShowAbandonDialog(false)}>Cancel</Button>
-            <Button textColor={theme.colors.error} onPress={confirmAbandon}>Abandon</Button>
+            <Button onPress={() => setShowAbandonDialog(false)} testID="scoring-abandon-cancel-btn">Cancel</Button>
+            <Button textColor={theme.colors.error} onPress={confirmAbandon} testID="scoring-abandon-confirm-btn">Abandon</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -1206,6 +1223,7 @@ export default function ScoringScreen() {
         <Modal
           visible={zoneModal}
           onDismiss={() => handleZoneSelect(null)}
+          testID="scoring-zone-modal"
           contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }, isTablet && { maxWidth: 420, alignSelf: 'center' as const }]}
         >
           <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 4, color: theme.colors.onSurface }}>
@@ -1218,6 +1236,7 @@ export default function ScoringScreen() {
             {ZONE_LABELS.map((label, idx) => (
               <Pressable
                 key={idx}
+                testID={`scoring-zone-${idx}`}
                 style={[styles.zoneButton, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}
                 onPress={() => handleZoneSelect(idx)}
               >
@@ -1226,7 +1245,7 @@ export default function ScoringScreen() {
               </Pressable>
             ))}
           </View>
-          <Button mode="text" onPress={() => handleZoneSelect(null)} style={{ marginTop: 8 }}>
+          <Button mode="text" onPress={() => handleZoneSelect(null)} style={{ marginTop: 8 }} testID="scoring-zone-skip-btn">
             Skip
           </Button>
         </Modal>

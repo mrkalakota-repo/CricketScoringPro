@@ -1,0 +1,71 @@
+appId: com.gullycricket.scorer
+name: "Full E2E Smoke Test — Register → Teams → Match → Score → Upgrade"
+tags:
+  - e2e
+  - smoke
+  - full
+
+# Master flow that chains all individual flows in order.
+# Run this as the primary CI/CD gate.
+#
+# Total estimated runtime: ~8 minutes on a fast simulator
+#
+# Execution order:
+#   01 Register new account
+#   02 Verify login works
+#   03 Create two teams
+#   04 Add 11 players to each team
+#   05 Create a T20 match (5-step wizard)
+#   06 Complete the toss
+#   07 Record basic balls (runs, extras, over change)
+#   08 Record wickets (all dismissal types)
+#   09 Undo and abandon flows
+#   11 Subscription upgrade screen
+
+---
+- launchApp:
+    clearState: true   # Fresh state for each full run
+
+# Step 1: Register
+- runFlow:
+    file: "01_auth_registration.yaml"
+
+# Step 2: Re-login (validates the PIN login path independently)
+- runFlow:
+    file: "02_auth_login.yaml"
+
+# Step 3: Create teams
+- runFlow:
+    file: "03_team_creation.yaml"
+
+# Step 4: Build rosters (11 players per team — required for T20)
+- runFlow:
+    file: "04_roster_management.yaml"
+
+# Step 5: Create match
+- runFlow:
+    file: "05_match_creation.yaml"
+
+# Step 6: Toss
+- runFlow:
+    file: "06_match_toss.yaml"
+
+# Step 7: Basic scoring (dots, runs, extras, over changes)
+- runFlow:
+    file: "07_scoring_basic.yaml"
+
+# Step 8: Wicket flows (all dismissal types, combined modal)
+- runFlow:
+    file: "08_scoring_wicket.yaml"
+
+# Step 9: Undo and abandon
+- runFlow:
+    file: "09_scoring_undo_abandon.yaml"
+
+# Step 11: Subscription screen (plan gating, upgrade prompts)
+# Run after match is abandoned so we're back on the home screen
+- runFlow:
+    file: "11_subscription_upgrade.yaml"
+
+- assertVisible:
+    id: "tabs-home"

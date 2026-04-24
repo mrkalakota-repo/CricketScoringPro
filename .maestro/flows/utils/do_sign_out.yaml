@@ -1,0 +1,21 @@
+appId: com.gullycricket.scorer
+name: "Utility — Sign out from My Profile screen"
+
+---
+- tapOn:
+    id: "tab-home"
+- tapOn:
+    id: "home-my-profile-btn"
+- assertVisible:
+    id: "my-profile-screen"
+- scrollToBottom
+- tapOn:
+    id: "my-profile-signout-btn"
+# Confirm sign out dialog
+- assertVisible:
+    id: "signout-confirm-dialog"
+- tapOn:
+    id: "signout-confirm-btn"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "login-screen"

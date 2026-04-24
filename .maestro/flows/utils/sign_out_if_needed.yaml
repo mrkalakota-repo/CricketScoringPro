@@ -1,0 +1,12 @@
+appId: com.gullycricket.scorer
+name: "Utility — Sign out if currently logged in"
+
+# Called as a setup helper before login tests.
+# If the user is already on the home tabs, navigate to My Profile and sign out.
+
+---
+- runFlow:
+    when:
+      visible:
+        id: "tabs-home"
+    file: "do_sign_out.yaml"

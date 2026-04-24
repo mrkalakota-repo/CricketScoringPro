@@ -1,0 +1,20 @@
+appId: com.gullycricket.scorer
+---
+# Global Maestro configuration for Inningsly / CricketScoringPro
+#
+# Prerequisites:
+#   brew install maestro
+#   maestro test .maestro/flows/
+#
+# Test environment assumptions:
+#   - App is installed on the target device/simulator
+#   - Supabase is configured (can be local or remote)
+#   - OTP for test phone 9191919191 is always "123456" in staging env
+#     (configure via Twilio Verify test numbers, or use the bypass flow)
+#   - RevenueCat is in sandbox mode for subscription tests
+#
+# Running individual flows:
+#   maestro test .maestro/flows/03_team_creation.yaml
+#
+# Running the full suite:
+#   maestro test .maestro/flows/00_full_e2e.yaml

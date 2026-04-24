@@ -1,0 +1,205 @@
+appId: com.gullycricket.scorer
+name: "Scoring — Wicket Modal Chain and New Batter Selection"
+tags:
+  - scoring
+  - wicket
+
+# Covers:
+#   - Tap W button → Wicket modal opens
+#   - Toggle between Striker/Non-striker as dismissed batter
+#   - Select dismissal type (Bowled, Caught, LBW, Run Out, Stumped, Hit Wicket)
+#   - For Caught/Run Out/Stumped: fielder selection section appears
+#   - Confirm wicket → New Batter modal opens (mid-over wicket path)
+#   - Select new batter → scoring resumes
+#   - Wicket on last ball of over → Combined Batter+Bowler modal
+# Precondition: Scoring screen is active with openers and bowler set
+
+---
+
+# ─── Mid-over wicket (Bowled) ─────────────────────────────────────────────────
+
+- assertVisible:
+    id: "scoring-controls"
+
+# Tap wicket button
+- tapOn:
+    id: "score-wicket-btn"
+- assertVisible:
+    id: "scoring-wicket-modal"
+- assertVisible: "Wicket!"
+
+# Default dismissed batter is the Striker
+- assertVisible:
+    id: "scoring-dismissed-striker"
+
+# Switch to Non-Striker then back to Striker
+- tapOn:
+    id: "scoring-dismissed-nonstriker"
+- tapOn:
+    id: "scoring-dismissed-striker"
+
+# Verify all dismissal types are visible
+- assertVisible:
+    id: "score-dismissal-bowled"
+- assertVisible:
+    id: "score-dismissal-caught"
+- assertVisible:
+    id: "score-dismissal-lbw"
+- assertVisible:
+    id: "score-dismissal-run_out"
+- assertVisible:
+    id: "score-dismissal-stumped"
+- assertVisible:
+    id: "score-dismissal-hit_wicket"
+
+# Select "Bowled" (default)
+- tapOn:
+    id: "score-dismissal-bowled"
+
+# No fielder section for Bowled
+- assertNotVisible:
+    id: "scoring-fielder-section"
+
+# Confirm the wicket
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+
+# New Batter modal must appear (mid-over — bowler stays)
+- assertVisible:
+    id: "scoring-new-batter-modal"
+- assertVisible: "Select New Batter"
+
+# Select next batter (Noah — Warriors CC)
+- tapOn: "Noah"
+- tapOn:
+    id: "scoring-confirm-batter-btn"
+- waitForAnimationToEnd
+
+# Score shows 1 wicket
+- assertVisible: "1"    # wicket count in scorecard
+
+# ─── Wicket: Caught (requires fielder) ────────────────────────────────────────
+
+- tapOn:
+    id: "score-wicket-btn"
+- assertVisible:
+    id: "scoring-wicket-modal"
+
+- tapOn:
+    id: "score-dismissal-caught"
+
+# Fielder selection section must appear
+- assertVisible:
+    id: "scoring-fielder-section"
+- assertVisible: "Fielder"
+
+# Select fielder from the bowling team (Challengers XI)
+- tapOn: "Charlie"    # fielder in Challengers XI
+- assertVisible:
+    id: "scoring-fielder-selected"
+
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+
+# New batter modal
+- assertVisible:
+    id: "scoring-new-batter-modal"
+- tapOn: "Olivia"
+- tapOn:
+    id: "scoring-confirm-batter-btn"
+
+# ─── Wicket: LBW ──────────────────────────────────────────────────────────────
+
+- tapOn:
+    id: "score-wicket-btn"
+- tapOn:
+    id: "score-dismissal-lbw"
+- assertNotVisible:
+    id: "scoring-fielder-section"
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "scoring-new-batter-modal"
+- tapOn: "Paul"
+- tapOn:
+    id: "scoring-confirm-batter-btn"
+
+# ─── Wicket: Run Out (requires fielder) ───────────────────────────────────────
+
+- tapOn:
+    id: "score-wicket-btn"
+- tapOn:
+    id: "score-dismissal-run_out"
+- assertVisible:
+    id: "scoring-fielder-section"
+- tapOn: "Dave"
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "scoring-new-batter-modal"
+- tapOn: "Quinn"
+- tapOn:
+    id: "scoring-confirm-batter-btn"
+
+# ─── Cancel wicket modal ──────────────────────────────────────────────────────
+
+- tapOn:
+    id: "score-wicket-btn"
+- assertVisible:
+    id: "scoring-wicket-modal"
+- tapOn:
+    id: "scoring-wicket-cancel-btn"
+- assertNotVisible:
+    id: "scoring-wicket-modal"
+
+# ─── Wicket on last ball of over → Combined Batter+Bowler modal ───────────────
+# This is a complex scenario: bowl 5 legal balls first, then wicket on ball 6.
+# Since we don't know exact over state, we record this as a conditional check.
+# The combined modal appears ONLY when the over ends at the same ball as a wicket.
+
+# Record 5 balls to approach over end
+- tapOn:
+    id: "score-run-0"
+- tapOn:
+    id: "score-run-0"
+- tapOn:
+    id: "score-run-0"
+- tapOn:
+    id: "score-run-0"
+- tapOn:
+    id: "score-run-0"
+
+# Ball 6 — wicket
+- tapOn:
+    id: "score-wicket-btn"
+- tapOn:
+    id: "score-dismissal-bowled"
+- tapOn:
+    id: "score-confirm-wicket-btn"
+- waitForAnimationToEnd
+
+# Combined modal appears (wicket + over end in same ball)
+- assertVisible:
+    id: "scoring-combined-batter-bowler-modal"
+- assertVisible: "Wicket — End of Over"
+
+# Select new batter
+- tapOn: "Ryan"
+
+# Select new bowler (current bowler is disabled — bowled last over)
+- assertVisible: "(bowled last over)"
+- tapOn: "Charlie"    # Next eligible bowler from CHAL
+
+- tapOn:
+    id: "scoring-confirm-batter-bowler-btn"
+- waitForAnimationToEnd
+
+# Scoring resumes normally
+- assertVisible:
+    id: "scoring-controls"

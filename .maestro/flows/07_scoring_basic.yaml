@@ -1,0 +1,187 @@
+appId: com.gullycricket.scorer
+name: "Scoring — Basic Ball-by-Ball: Runs, Extras, Over Completion"
+tags:
+  - scoring
+  - smoke
+
+# Covers:
+#   - Select openers (striker + non-striker)
+#   - Select opening bowler
+#   - Record dot ball, singles, boundaries (4, 6)
+#   - Record wide extra (does not count as a legal delivery)
+#   - Record no-ball + runs
+#   - Record leg-bye
+#   - Over completion → bowler selection modal auto-appears
+#   - Scorecard mini-display updates (runs/wickets/overs)
+# Precondition: Scoring screen is open with opener modal visible (after toss)
+
+---
+
+# ═══════════════════════════════════════════════════════
+# Select Openers
+# ═══════════════════════════════════════════════════════
+
+- assertVisible:
+    id: "scoring-opener-modal"
+
+# Pick striker (Liam — Warriors CC batting first after CHAL chose to bowl)
+- tapOn:
+    id: "scoring-striker-section"
+- tapOn: "Liam"    # First player in batting team list
+- assertVisible:
+    id: "scoring-opener1-selected"
+
+# Pick non-striker
+- tapOn:
+    id: "scoring-nonstriker-section"
+- tapOn: "Mia"
+- assertVisible:
+    id: "scoring-opener2-selected"
+
+# Confirm openers
+- tapOn:
+    id: "scoring-confirm-openers-btn"
+- waitForAnimationToEnd
+
+# ═══════════════════════════════════════════════════════
+# Select Opening Bowler
+# ═══════════════════════════════════════════════════════
+
+- assertVisible:
+    id: "scoring-bowler-modal"
+- assertVisible: "Select Bowler"
+
+# Select Alice (Challengers XI — bowling team)
+- tapOn: "Alice"
+- tapOn:
+    id: "scoring-confirm-bowler-btn"
+- waitForAnimationToEnd
+
+# Scoring controls must now be visible
+- assertVisible:
+    id: "scoring-controls"
+- assertVisible:
+    id: "score-run-0"
+- assertVisible:
+    id: "score-run-4"
+- assertVisible:
+    id: "score-run-6"
+- assertVisible:
+    id: "score-wicket-btn"
+
+# ═══════════════════════════════════════════════════════
+# OVER 1: Record 6 balls — mix of outcomes
+# ═══════════════════════════════════════════════════════
+
+# Ball 1: Dot ball
+- tapOn:
+    id: "score-run-0"
+# Zone modal appears for runs >= 1 only, so no zone needed for dot
+- assertVisible:
+    id: "scoring-scorecard"    # mini scorecard stays visible
+
+# Ball 2: Single (1 run) — zone modal should appear
+- tapOn:
+    id: "score-run-1"
+- assertVisible:
+    id: "scoring-zone-modal"
+- tapOn:
+    id: "scoring-zone-skip-btn"    # Skip zone selection
+- waitForAnimationToEnd
+
+# Verify score is now 1/0 (1 run, 0 wickets)
+- assertVisible: "1/0"
+
+# Ball 3: Four (boundary)
+- tapOn:
+    id: "score-run-4"
+- assertVisible:
+    id: "scoring-zone-modal"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- waitForAnimationToEnd
+
+# Score: 5/0
+- assertVisible: "5/0"
+
+# Ball 4: Six
+- tapOn:
+    id: "score-run-6"
+- assertVisible:
+    id: "scoring-zone-modal"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- waitForAnimationToEnd
+
+# Score: 11/0
+- assertVisible: "11/0"
+
+# Ball 5: Wide extra
+- tapOn:
+    id: "score-extra-wide"
+- assertVisible:
+    id: "score-extra-wide-active"    # toggle highlighted
+- tapOn:
+    id: "score-run-0"
+# Wide does NOT need zone modal — assert it did NOT appear
+- assertNotVisible:
+    id: "scoring-zone-modal"
+- waitForAnimationToEnd
+# Score: 12/0 (wide = 1 extra), over ball count stays at 4 legal balls
+
+# Ball 5 (redo — wide was extras only): Two runs off a regular delivery
+- tapOn:
+    id: "score-run-2"
+- assertVisible:
+    id: "scoring-zone-modal"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- waitForAnimationToEnd
+
+# Ball 6 (last legal ball): No-ball + 1 run
+- tapOn:
+    id: "score-extra-noball"
+- tapOn:
+    id: "score-run-1"
+- assertVisible:
+    id: "scoring-zone-modal"
+- tapOn:
+    id: "scoring-zone-skip-btn"
+- waitForAnimationToEnd
+
+# ── Over Complete → Bowler Selection Modal ────────────────────────────────────
+
+# After 6 legal balls the over ends; bowler modal must auto-appear
+- assertVisible:
+    id: "scoring-bowler-modal"
+- assertVisible: "Select Bowler"
+
+# Alice bowled the previous over — she should be greyed out / disabled
+- assertVisible: "Alice"
+- assertVisible: "(bowled last over)"
+
+# Select Bob as next bowler
+- tapOn: "Bob"
+- tapOn:
+    id: "scoring-confirm-bowler-btn"
+- waitForAnimationToEnd
+
+# Overs counter should show (1.0 / 1) → updated to show end of over 1
+- assertVisible:
+    id: "scoring-scorecard"
+
+# ═══════════════════════════════════════════════════════
+# OVER 2 Ball 1: Leg-bye
+# ═══════════════════════════════════════════════════════
+
+- tapOn:
+    id: "score-extra-legbye"
+- tapOn:
+    id: "score-run-1"
+- assertNotVisible:
+    id: "scoring-zone-modal"   # leg-byes don't trigger zone modal
+- waitForAnimationToEnd
+
+# ── Verify CRR display ────────────────────────────────────────────────────────
+- assertVisible:
+    id: "scoring-crr"    # "CRR: X.XX" label

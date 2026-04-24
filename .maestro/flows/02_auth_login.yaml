@@ -1,0 +1,52 @@
+appId: com.gullycricket.scorer
+name: "Auth — Returning User PIN Login"
+tags:
+  - auth
+  - smoke
+
+# Precondition: account for 9191919191 exists (run 01_auth_registration first)
+# Tests the login tab path: phone pre-filled → PIN entry → home tabs
+
+---
+- launchApp:
+    clearState: false   # Keep persisted profile
+
+# If already logged in, sign out first to test the login path
+- runFlow:
+    file: "utils/sign_out_if_needed.yaml"
+
+# Should be on login screen — switch to Login tab if not default
+- tapOn:
+    id: "login-login-tab"
+- assertVisible:
+    id: "login-login-step"
+
+# Phone number should be pre-filled from the stored profile
+- assertVisible:
+    id: "login-phone-chip"     # The chip showing "+91 9191919191"
+
+# Enter PIN via numeric keypad
+- assertVisible:
+    id: "login-pin-dots"       # The PinDots visual feedback
+- tapOn:
+    id: "login-pinpad-1"
+- tapOn:
+    id: "login-pinpad-2"
+- tapOn:
+    id: "login-pinpad-3"
+- tapOn:
+    id: "login-pinpad-4"
+
+# Login button activates after 4 digits
+- assertVisible:
+    id: "login-btn"
+- tapOn:
+    id: "login-btn"
+
+- waitForAnimationToEnd
+
+# Authenticated — home tabs must be visible
+- assertVisible:
+    id: "tabs-home"
+- assertVisible:
+    id: "tab-teams"

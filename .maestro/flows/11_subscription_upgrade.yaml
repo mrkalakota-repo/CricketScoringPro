@@ -1,0 +1,198 @@
+appId: com.gullycricket.scorer
+name: "Subscription — Upgrade Screen and Plan Gating"
+tags:
+  - subscription
+  - iap
+
+# Covers:
+#   - Navigate to Upgrade screen from multiple entry points
+#   - Annual / Monthly billing toggle
+#   - Tier card content (feature lists)
+#   - Current plan badge on the user's active tier
+#   - Tapping "Upgrade to Pro" / "Upgrade to League" triggers RevenueCat
+#     (sandbox purchase on iOS/Android; web shows informational notice)
+#   - Restore Purchases button visible
+#   - Plan gate enforcement: trying to create >1 team on free plan
+#     shows UpgradeSheet modal, tapping it navigates to /upgrade
+#
+# RevenueCat sandbox:
+#   - Set RC dashboard to "Sandbox" environment before running
+#   - On iOS Simulator, use a Sandbox Apple ID configured in App Store Connect
+#   - On Android, use a Sandbox Google Play account
+#   - After purchase, plan updates to "pro" (real-time RC webhook → Supabase)
+#
+# Note: This flow verifies UI state. Actual payment is not completed
+# deterministically in automation — the test stops at the system purchase sheet.
+
+---
+- launchApp:
+    clearState: false
+
+- runFlow:
+    file: "utils/ensure_logged_in.yaml"
+
+# ═══════════════════════════════════════════════════════
+# ENTRY POINT 1: Via team limit gate (free plan: 1 team max)
+# ═══════════════════════════════════════════════════════
+
+- tapOn:
+    id: "tab-teams"
+- tapOn:
+    id: "teams-create-team-btn"
+
+# Free plan already has Challengers XI → "Team Limit Reached" screen
+- assertVisible: "Team Limit Reached"
+- tapOn:
+    id: "team-limit-upgrade-btn"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "upgrade-screen"
+
+# ── Billing Toggle ────────────────────────────────────────────────────────────
+
+# Default: Monthly selected
+- assertVisible:
+    id: "upgrade-billing-monthly"
+- assertVisible:
+    id: "upgrade-billing-toggle"
+
+# Switch to Annual
+- tapOn:
+    id: "upgrade-billing-toggle"
+- assertVisible: "billed annually"
+- assertVisible:
+    id: "upgrade-billing-annual"
+
+# Prices update — verify "save X%" badge or annual pricing appears
+- assertVisible: "/mo · billed annually"
+
+# Switch back to monthly
+- tapOn:
+    id: "upgrade-billing-toggle"
+- assertVisible:
+    id: "upgrade-billing-monthly"
+
+# ── Tier Card: Free ───────────────────────────────────────────────────────────
+
+- assertVisible:
+    id: "upgrade-tier-free"
+- assertVisible: "Free forever"
+- assertVisible: "1 team (up to 15 players)"
+- assertVisible: "Unlimited match scoring"
+
+# Current plan badge is on Free (user is on free plan)
+- assertVisible:
+    id: "upgrade-current-plan-badge"
+
+# ── Tier Card: Pro ────────────────────────────────────────────────────────────
+
+- assertVisible:
+    id: "upgrade-tier-pro"
+- assertVisible: "MOST POPULAR"
+- assertVisible: "Up to 3 teams"
+- assertVisible: "Cloud sync"
+- assertVisible: "Real-time team chat"
+
+# Upgrade button is present (not the "Current Plan" badge)
+- assertVisible:
+    id: "upgrade-pro-btn"
+- assertNotVisible:
+    id: "upgrade-tier-pro-current-badge"
+
+# ── Tier Card: League ─────────────────────────────────────────────────────────
+
+- scrollToBottom
+- assertVisible:
+    id: "upgrade-tier-league"
+- assertVisible: "Unlimited teams"
+- assertVisible: "NRR tracking"
+- assertVisible: "Data export"
+- assertVisible:
+    id: "upgrade-league-btn"
+
+# ── Restore Purchases ─────────────────────────────────────────────────────────
+
+- assertVisible:
+    id: "upgrade-restore-btn"
+
+# ═══════════════════════════════════════════════════════
+# ENTRY POINT 2: Back to upgrade from a separate back-nav check
+# ═══════════════════════════════════════════════════════
+
+# Dismiss the upgrade screen and verify we return to teams
+- tapOn:
+    id: "upgrade-back-btn"
+- waitForAnimationToEnd
+- assertVisible: "Team Limit Reached"
+
+# Navigate back to upgrade to continue tests
+- tapOn:
+    id: "team-limit-upgrade-btn"
+- assertVisible:
+    id: "upgrade-screen"
+
+# ── Trigger Pro purchase (stops at system sheet) ──────────────────────────────
+
+- scrollToBottom
+- tapOn:
+    id: "upgrade-pro-btn"
+- waitForAnimationToEnd
+
+# iOS: App Store purchase sheet / Android: Google Play sheet appears
+# Dismiss for test purposes (we don't complete the sandbox purchase in CI)
+- runFlow:
+    when:
+      visible: "Subscribe"    # App Store sheet heading
+    commands:
+      - back    # Dismiss the system purchase sheet
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible: "Google Play"
+    commands:
+      - back
+      - waitForAnimationToEnd
+
+# After dismissing, still on upgrade screen
+- assertVisible:
+    id: "upgrade-screen"
+
+# ═══════════════════════════════════════════════════════
+# ENTRY POINT 3: UpgradeSheet from feature gate (team chat)
+# ═══════════════════════════════════════════════════════
+
+- tapOn:
+    id: "upgrade-back-btn"
+- tapOn:
+    id: "tab-teams"
+- tapOn: "Challengers XI"
+- tapOn:
+    id: "team-detail-chat-btn"
+
+# Free users should see the UpgradeSheet dialog for team chat
+- assertVisible:
+    id: "upgrade-sheet-dialog"
+- assertVisible: "Team Chat"    # Feature name in dialog
+- assertVisible: "Upgrade to Pro"
+
+# Dismiss dialog
+- tapOn:
+    id: "upgrade-sheet-dismiss-btn"
+- assertNotVisible:
+    id: "upgrade-sheet-dialog"
+
+# ═══════════════════════════════════════════════════════
+# Web platform: no IAP, informational notice shown
+# (Only runs on web — native skips this section)
+# ═══════════════════════════════════════════════════════
+
+# If running on web, verify that IAP buttons are replaced with a notice
+# This is a conditional block; on native devices it's a no-op.
+- runFlow:
+    when:
+      visible: "Subscriptions are managed through"
+    commands:
+      - assertVisible: "Subscriptions are managed through"
+      - assertNotVisible:
+          id: "upgrade-pro-btn"

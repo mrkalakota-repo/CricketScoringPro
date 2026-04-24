@@ -1,0 +1,25 @@
+appId: com.gullycricket.scorer
+name: "Utility — Ensure user is logged in before running a flow"
+
+# If already on home tabs, does nothing.
+# If on login screen, performs PIN login with the test account.
+
+---
+- runFlow:
+    when:
+      visible:
+        id: "login-screen"
+    commands:
+      - tapOn:
+          id: "login-login-tab"
+      - tapOn:
+          id: "login-pinpad-1"
+      - tapOn:
+          id: "login-pinpad-2"
+      - tapOn:
+          id: "login-pinpad-3"
+      - tapOn:
+          id: "login-pinpad-4"
+      - tapOn:
+          id: "login-btn"
+      - waitForAnimationToEnd

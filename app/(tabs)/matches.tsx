@@ -248,7 +248,7 @@ export default function MatchesScreen() {
   const fabBottom = Math.max(insets.bottom, 8) + 16;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]} testID="matches-screen">
       {/* ── Pending Invitations (team2 admin sees this) ── */}
       {pendingInvitations.length > 0 && (
         <View style={[styles.invSection, { borderBottomColor: theme.colors.outlineVariant }]}>
@@ -425,6 +425,7 @@ export default function MatchesScreen() {
           style={[styles.fab, { backgroundColor: theme.colors.primary, bottom: fabBottom }]}
           color="#FFFFFF"
           onPress={() => router.push('/match/create')}
+          testID="matches-create-match-btn"
         />
       )}
     </View>

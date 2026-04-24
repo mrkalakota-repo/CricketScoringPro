@@ -1,0 +1,127 @@
+appId: com.gullycricket.scorer
+name: "Auth — New User Registration (5-step wizard)"
+tags:
+  - auth
+  - smoke
+
+# Covers: phone → OTP → name → role selection → PIN → account created → home tabs
+# Precondition: clean app state (first launch or logged-out)
+# OTP: uses Twilio Verify test number — fixed code 123456
+
+---
+- launchApp:
+    clearState: true
+
+# ── Step 1: Phone entry ───────────────────────────────────────────────────────
+
+# The login screen defaults to Register mode on first launch
+- assertVisible:
+    id: "login-register-tab"
+
+# Verify country picker defaults to India
+- assertVisible:
+    id: "login-country-picker"
+- tapOn:
+    id: "login-country-picker"
+- assertVisible: "India"
+- tapOn: "India"
+
+# Enter test phone number
+- tapOn:
+    id: "login-phone-input"
+- clearText
+- inputText: "9191919191"
+
+# Send OTP — disabled until phone is valid length
+- assertVisible:
+    id: "login-send-otp-btn"
+- tapOn:
+    id: "login-send-otp-btn"
+
+# Phone confirmation dialog — confirm the number
+- assertVisible:
+    id: "login-confirm-phone-dialog"
+- tapOn:
+    id: "login-confirm-phone-btn"
+
+# ── Step 2: OTP verification ──────────────────────────────────────────────────
+
+- assertVisible:
+    id: "login-otp-step"
+- waitForAnimationToEnd
+
+# Enter the 6-digit OTP (Twilio test number returns 123456)
+- tapOn:
+    id: "login-otp-input"
+- inputText: "123456"
+
+# Auto-advances on 6 digits — wait for name step to appear
+- waitForAnimationToEnd
+- assertVisible:
+    id: "login-name-step"
+
+# ── Step 3: Name entry ────────────────────────────────────────────────────────
+
+- tapOn:
+    id: "login-name-input"
+- clearText
+- inputText: "Test Scorer"
+- tapOn:
+    id: "login-name-next-btn"
+
+# ── Step 4: Role selection ────────────────────────────────────────────────────
+
+- assertVisible:
+    id: "login-role-step"
+
+# Select "Team Admin" role
+- tapOn:
+    id: "login-role-team_admin"
+- assertVisible:
+    id: "login-role-next-btn"
+- tapOn:
+    id: "login-role-next-btn"
+
+# ── Step 5: PIN creation ──────────────────────────────────────────────────────
+
+- assertVisible:
+    id: "login-pin-step"
+
+# Enter PIN via the numeric keypad (each digit is a separate button)
+- tapOn:
+    id: "login-pinpad-1"
+- tapOn:
+    id: "login-pinpad-2"
+- tapOn:
+    id: "login-pinpad-3"
+- tapOn:
+    id: "login-pinpad-4"
+
+# Confirm PIN
+- assertVisible:
+    id: "login-pin-confirm-step"
+- tapOn:
+    id: "login-pinpad-1"
+- tapOn:
+    id: "login-pinpad-2"
+- tapOn:
+    id: "login-pinpad-3"
+- tapOn:
+    id: "login-pinpad-4"
+
+# ── Account created → home screen ─────────────────────────────────────────────
+
+- assertVisible:
+    id: "login-create-account-btn"
+- tapOn:
+    id: "login-create-account-btn"
+
+- waitForAnimationToEnd
+- assertVisible:
+    id: "tabs-home"
+
+# Verify the tab bar is visible (authenticated state)
+- assertVisible:
+    id: "tab-teams"
+- assertVisible:
+    id: "tab-matches"

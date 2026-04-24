@@ -1,0 +1,301 @@
+appId: com.gullycricket.scorer
+name: "Team — Add 11 Players to Each Team (Roster Management)"
+tags:
+  - team
+  - roster
+
+# Covers:
+#   - Open roster screen for each team
+#   - Enter Admin PIN to unlock (for Team A)
+#   - Add 11 players with varied batting/bowling styles
+#   - Assign captain and wicket-keeper roles
+#   - Delete a player and confirm
+# Precondition: Team A "Challengers XI" and Team B "Warriors CC" exist
+
+---
+- launchApp:
+    clearState: false
+
+- runFlow:
+    file: "utils/ensure_logged_in.yaml"
+
+# ═══════════════════════════════════════════════════════
+# Add players to TEAM A — Challengers XI
+# ═══════════════════════════════════════════════════════
+
+- tapOn:
+    id: "tab-teams"
+- tapOn: "Challengers XI"
+- assertVisible:
+    id: "team-detail-screen"
+
+# Tap Roster/Manage button — may need PIN unlock
+- tapOn:
+    id: "team-detail-roster-btn"
+
+# Admin PIN modal — Team A has PIN "9999"
+- assertVisible:
+    id: "admin-pin-modal"
+- tapOn:
+    id: "admin-pin-input"
+- inputText: "9999"
+- tapOn:
+    id: "admin-pin-confirm-btn"
+- assertVisible:
+    id: "roster-screen"
+
+# Helper macro: add a player
+# ── Player 1: Alice (Captain, WK, RHB) ───────────────
+- tapOn:
+    id: "roster-add-player-btn"
+- assertVisible:
+    id: "roster-player-form"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Alice"
+- tapOn:
+    id: "roster-batting-right"    # Right-hand bat (default)
+- tapOn:
+    id: "roster-keeper-switch"    # Is Wicket Keeper
+- tapOn:
+    id: "roster-captain-switch"   # Is Captain
+- tapOn:
+    id: "roster-save-player-btn"
+- assertVisible: "Alice"
+
+# ── Player 2: Bob (RHB, Fast) ────────────────────────
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Bob"
+- tapOn:
+    id: "roster-save-player-btn"
+- assertVisible: "Bob"
+
+# ── Player 3: Charlie ────────────────────────────────
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Charlie"
+- tapOn:
+    id: "roster-vice-captain-switch"
+- tapOn:
+    id: "roster-save-player-btn"
+
+# ── Player 4: Dave ───────────────────────────────────
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Dave"
+- tapOn:
+    id: "roster-save-player-btn"
+
+# ── Player 5: Eve (Left-hand bat) ────────────────────
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Eve"
+- tapOn:
+    id: "roster-batting-left"
+- tapOn:
+    id: "roster-save-player-btn"
+
+# ── Player 6: Frank ──────────────────────────────────
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Frank"
+- tapOn:
+    id: "roster-save-player-btn"
+
+# ── Player 7: Grace ──────────────────────────────────
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Grace"
+- tapOn:
+    id: "roster-save-player-btn"
+
+# ── Player 8: Harry ──────────────────────────────────
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Harry"
+- tapOn:
+    id: "roster-save-player-btn"
+
+# ── Player 9: Iris ───────────────────────────────────
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Iris"
+- tapOn:
+    id: "roster-save-player-btn"
+
+# ── Player 10: Jack ──────────────────────────────────
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Jack"
+- tapOn:
+    id: "roster-save-player-btn"
+
+# ── Player 11: Kate ──────────────────────────────────
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Kate"
+- tapOn:
+    id: "roster-save-player-btn"
+
+# Verify all 11 players are listed
+- assertVisible: "Alice"
+- assertVisible: "Kate"
+
+# ── Negative: delete a player and confirm ────────────
+# Add a temp player to delete
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "TempPlayer"
+- tapOn:
+    id: "roster-save-player-btn"
+- assertVisible: "TempPlayer"
+
+# Long-press or tap delete icon on TempPlayer card
+- longPressOn: "TempPlayer"
+- tapOn:
+    id: "roster-delete-player-btn"
+- assertVisible:
+    id: "roster-delete-confirm-dialog"
+- tapOn:
+    id: "roster-delete-confirm-btn"
+- waitForAnimationToEnd
+- assertNotVisible: "TempPlayer"
+
+# ═══════════════════════════════════════════════════════
+# Add players to TEAM B — Warriors CC (no PIN required)
+# ═══════════════════════════════════════════════════════
+
+- tapOn:
+    id: "tab-teams"
+- tapOn: "Warriors CC"
+- tapOn:
+    id: "team-detail-roster-btn"
+- assertVisible:
+    id: "roster-screen"
+
+# No PIN prompt for Team B
+- assertNotVisible:
+    id: "admin-pin-modal"
+
+# Add 11 players quickly
+- script: |
+    const players = ["Liam", "Mia", "Noah", "Olivia", "Paul", "Quinn", "Ryan", "Sara", "Tom", "Uma", "Vince"];
+    // Maestro script blocks don't run JS natively — use sequential taps below
+
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Liam"
+- tapOn:
+    id: "roster-keeper-switch"
+- tapOn:
+    id: "roster-captain-switch"
+- tapOn:
+    id: "roster-save-player-btn"
+
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Mia"
+- tapOn:
+    id: "roster-save-player-btn"
+
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Noah"
+- tapOn:
+    id: "roster-save-player-btn"
+
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Olivia"
+- tapOn:
+    id: "roster-save-player-btn"
+
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Paul"
+- tapOn:
+    id: "roster-save-player-btn"
+
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Quinn"
+- tapOn:
+    id: "roster-save-player-btn"
+
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Ryan"
+- tapOn:
+    id: "roster-save-player-btn"
+
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Sara"
+- tapOn:
+    id: "roster-save-player-btn"
+
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Tom"
+- tapOn:
+    id: "roster-save-player-btn"
+
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Uma"
+- tapOn:
+    id: "roster-save-player-btn"
+
+- tapOn:
+    id: "roster-add-player-btn"
+- tapOn:
+    id: "roster-player-name-input"
+- inputText: "Vince"
+- tapOn:
+    id: "roster-save-player-btn"
+
+- assertVisible: "Liam"
+- assertVisible: "Vince"
