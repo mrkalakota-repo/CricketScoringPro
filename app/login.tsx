@@ -560,6 +560,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
 
   return (
     <KeyboardAvoidingView
+      testID="login-screen"
       style={[styles.root, { backgroundColor: theme.colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >

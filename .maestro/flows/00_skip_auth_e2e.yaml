@@ -1,0 +1,73 @@
+appId: com.gullycricket.scorer
+name: "E2E Suite — Skip Auth (flows 03–11)"
+tags:
+  - e2e
+  - skip-auth
+
+# Use this runner when flows 01/02 (OTP registration/login) are not yet set up.
+#
+# Precondition: a test account must already exist on the device with:
+#   PIN: 1234
+#   Role: team_admin
+#
+# One-time setup (do this manually before running this suite):
+#   1. Build and install the app on the simulator/device
+#   2. Register using your real phone number or a Twilio test number
+#   3. Choose role "Team Admin" and set PIN 1234
+#   4. Stay logged in (or the ensure_logged_in helper will re-login with PIN 1234)
+#
+# Execution order:
+#   03 Create two teams
+#   04 Add 11 players to each team
+#   05 Create a T20 match
+#   06 Toss
+#   07 Basic scoring
+#   08 Wickets
+#   09 Undo / abandon
+#   11 Subscription upgrade screen
+
+---
+- launchApp:
+    clearState: false   # Preserve the pre-registered session
+
+# Ensure we are logged in before starting
+- runFlow:
+    file: "utils/ensure_logged_in.yaml"
+
+- assertVisible:
+    id: "tabs-home"
+
+# Step 3: Create teams
+- runFlow:
+    file: "03_team_creation.yaml"
+
+# Step 4: Build rosters
+- runFlow:
+    file: "04_roster_management.yaml"
+
+# Step 5: Create match
+- runFlow:
+    file: "05_match_creation.yaml"
+
+# Step 6: Toss
+- runFlow:
+    file: "06_match_toss.yaml"
+
+# Step 7: Basic scoring
+- runFlow:
+    file: "07_scoring_basic.yaml"
+
+# Step 8: Wickets
+- runFlow:
+    file: "08_scoring_wicket.yaml"
+
+# Step 9: Undo and abandon
+- runFlow:
+    file: "09_scoring_undo_abandon.yaml"
+
+# Step 11: Subscription screen
+- runFlow:
+    file: "11_subscription_upgrade.yaml"
+
+- assertVisible:
+    id: "tabs-home"
