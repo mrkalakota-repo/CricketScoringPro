@@ -66,9 +66,11 @@ export default function RootLayout() {
       // Associate this device's RC anonymous user with the phone number
       loginPurchasesUser(profile.phone);
 
-      // Background plan sync: if RC disagrees with stored plan, reconcile
+      // Background plan sync: apply RC plan only if it's higher than the stored plan.
+      // Never downgrade a Supabase admin-granted plan via RC returning 'free'.
       getCurrentPlan().then(rcPlan => {
-        if (rcPlan !== profile.plan) {
+        const rank: Record<string, number> = { free: 0, pro: 1, league: 2 };
+        if ((rank[rcPlan] ?? 0) > (rank[profile.plan] ?? 0)) {
           updateProfile(profile.name, undefined, undefined, rcPlan).catch(() => {});
         }
       });
