@@ -29,7 +29,7 @@ tags:
 # Enter test phone number
 - tapOn:
     id: "login-phone-input"
-- clearText
+- eraseText: 15
 - inputText: "9191919191"
 
 # Send OTP — disabled until phone is valid length
@@ -64,7 +64,7 @@ tags:
 
 - tapOn:
     id: "login-name-input"
-- clearText
+- eraseText: 50
 - inputText: "Test Scorer"
 - tapOn:
     id: "login-name-next-btn"

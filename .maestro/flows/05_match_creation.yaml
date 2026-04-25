@@ -64,7 +64,7 @@ tags:
     id: "match-format-custom-overs-input"
 - tapOn:
     id: "match-format-custom-overs-input"
-- clearText
+- eraseText: 10
 - inputText: "10"
 
 # Return to T20 for the actual test
@@ -181,7 +181,7 @@ tags:
 
 - tapOn:
     id: "match-venue-input"
-- clearText
+- eraseText: 50
 - inputText: "Eden Gardens"
 
 - tapOn:

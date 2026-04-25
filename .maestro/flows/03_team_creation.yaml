@@ -38,12 +38,12 @@ tags:
 
 - tapOn:
     id: "team-create-name-input"
-- clearText
+- eraseText: 50
 - inputText: "Challengers XI"
 
 - tapOn:
     id: "team-create-short-name-input"
-- clearText
+- eraseText: 50
 - inputText: "CHAL"
 
 # ── Admin PIN ─────────────────────────────────────────
@@ -86,12 +86,12 @@ tags:
 
 - tapOn:
     id: "team-create-name-input"
-- clearText
+- eraseText: 50
 - inputText: "Warriors CC"
 
 - tapOn:
     id: "team-create-short-name-input"
-- clearText
+- eraseText: 50
 - inputText: "WARR"
 
 # Leave PIN toggle OFF
