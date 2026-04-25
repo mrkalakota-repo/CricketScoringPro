@@ -24,6 +24,12 @@ npm test -- --testPathPattern=functional          # Run a single test file by na
 npm test -- --testNamePattern="strike rotation"   # Run tests matching a name pattern
 npm test -- --coverage                            # Coverage report
 npx expo install <pkg> # Add Expo package (add --legacy-peer-deps if it fails)
+
+# Maestro E2E tests (requires `brew install maestro` and a running simulator/device)
+maestro test .maestro/flows/03_team_creation.yaml   # Run a single flow
+maestro test .maestro/flows/00_full_e2e.yaml        # Run the full suite
+maestro test --include-tags smoke .maestro/flows/   # Run by tag
+
 supabase functions deploy send-otp --no-verify-jwt   # Deploy Edge Functions — --no-verify-jwt is REQUIRED
 supabase functions deploy verify-otp --no-verify-jwt  # Without it, Supabase re-enables JWT auth and returns 401
 supabase functions deploy rc-webhook --no-verify-jwt  # RevenueCat webhook — called by RC, not user JWTs
@@ -56,6 +62,12 @@ Required secrets (set in Supabase dashboard → Edge Functions → Secrets):
 
 **Always deploy with `--no-verify-jwt`** — these functions are called with the anon key (not a user JWT).
 Without this flag Supabase re-enables JWT verification on every deploy and returns 401 to all clients.
+
+**Android autolinking** — `@react-native-community/cli` must be installed separately; RN 0.83 ships `@react-native/community-cli-plugin` (Metro only) which does not provide the `react-native config` command that Gradle autolinking requires. If you see `RNGP - Autolinking: Could not find project.android.packageName`, run:
+```bash
+npx expo install @react-native-community/cli@15 -- --legacy-peer-deps
+npx expo prebuild --clean
+```
 
 ---
 
@@ -364,6 +376,12 @@ Run `supabase-setup.sql` in the SQL Editor (idempotent — safe to re-run).
 Tables: `cloud_teams`, `cloud_players`, `delegate_codes`, `chat_messages`, `live_matches`, `user_profiles`, `cloud_leagues`, `cloud_league_fixtures`.
 Credentials go in `.env` as `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
 
+`user_profiles` has **no SELECT RLS policy** — direct table reads from the anon key are intentionally blocked to protect `pin_hash`. All reads must go through SECURITY DEFINER RPCs:
+- `get_user_plan(p_phone)` → returns `{plan, role}` without PIN — used by `fetchCloudProfile()` on every login to sync admin-granted plans
+- `verify_user_profile(p_phone, p_pin_hash)` → PIN verification + returns `{name, role, plan}` — used by restore flow
+
+Do **not** add direct `SELECT` queries on `user_profiles` from client code; they silently return empty due to RLS and will cause `pushUserProfile()` to overwrite any manually-granted plan with 'free'.
+
 `user_profiles` stores phone, name, pin_hash, role, plan. User PIN is hashed client-side as `SHA256("${phone}:${pin}")` — the phone acts as a per-user salt, preventing cross-user hash correlation. The hash is sent to `verify_user_profile()` RPC (SECURITY DEFINER) for server-side comparison; the stored hash is never returned to clients. `login()` and `restoreFromCloud()` both transparently fall back to the legacy unsalted hash (`SHA256(pin)`) for existing accounts and re-hash on success — transparent migration with no user action required.
 
 `cloud_leagues` / `cloud_league_fixtures` are owner-scoped (`owner_phone` column). `league-store` pushes on every mutation and pulls on `loadLeagues` when authenticated.
@@ -445,6 +463,25 @@ npx expo prebuild --clean
 
 ---
 
+## Maestro E2E Test Suite
+
+`.maestro/flows/` — 13 YAML flows covering auth, team/roster, match creation, toss, scoring, subscription, and cloud sync. `00_full_e2e.yaml` chains all flows. See `.maestro/README.md` for the full testID reference (100+ IDs) and dependency order.
+
+**testID convention**: `screen-element-variant` (e.g. `score-run-4`, `toss-decision-bat`, `upgrade-tier-pro`). All testIDs are listed in `.maestro/README.md`; keep that file updated when adding new testIDs.
+
+**Native build required** — Maestro does not work with Expo Go. Run `npx expo run:ios` or use an EAS build before executing flows.
+
+**`ensure_logged_in.yaml`** signs out (if already on the home tabs) then signs back in via PIN every run. This forces a fresh `fetchCloudProfile()` call so Supabase plan/role changes are picked up without a manual sign-out.
+
+**Twilio test number**: `+919191919191` with fixed OTP `123456` (configured in Twilio Console → Verify → Test Numbers). Use this for auth flows in CI.
+
+**Pending testIDs** (flows exist but source not yet instrumented):
+- `app/login.tsx` — auth flows `01`/`02`
+- `app/team/[id]/roster.tsx` — roster flow `04`
+- `app/team/[id]/index.tsx` — flows `04`/`11`
+
+---
+
 ## Things to Avoid
 
 - **Do not** call repo functions directly from UI — always go through the store
@@ -474,3 +511,7 @@ npx expo prebuild --clean
 - **Do not** use `profile!.name` or `profile!.phone` non-null assertions in UI — use `profile?.name` / `profile?.phone`; in private/incognito browser `profile` is null while the login screen is visible
 - **Do not** pass `initialMode='login'` to `LoginScreen` when `profile` is null — the `defaultMode` logic already guards this, but never add code that assumes `profile` is non-null on web before authentication completes
 - **Do not** call the removed `fetchCloudPlan()` — it was replaced by `fetchCloudProfile()` which returns both `plan` and `role`
+- **Do not** add a direct `SELECT` on `user_profiles` from client code — RLS blocks it (no SELECT policy by design); use `get_user_plan()` RPC for plan/role reads
+- **Do not** remove the `__DEV__` guard in `app/upgrade.tsx` `handleUpgrade` — the no-package fallback that calls `applyPlan()` directly is intentionally dev-only; in production a missing RC package must surface an error, not silently grant the plan
+- **Do not** use `getCurrentPlan()` (RC) to downgrade a stored plan — the client-side RC sync in `app/_layout.tsx` only applies upgrades (`rcRank > storedRank`). Downgrades happen exclusively via the `rc-webhook` Edge Function on EXPIRATION. Admin-granted plans have no RC subscription and would be wiped on every login otherwise.
+- **Do not** use `tabBarTestID` for tab bar button testIDs — React Navigation v7 / Expo Router 55 silently ignores it. Use `tabBarButtonTestID` in the screen `options` object in `app/(tabs)/_layout.tsx`.

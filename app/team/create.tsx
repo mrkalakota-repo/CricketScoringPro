@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { TextInput, Button, Text, useTheme, Switch, HelperText } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,6 +25,8 @@ export default function CreateTeamScreen() {
   const { plan, canCreateTeam } = usePlan();
   const [showUpgrade, setShowUpgrade] = useState(false);
 
+  const confirmPinRef = useRef<any>(null);
+
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
   const [setPinNow, setSetPinNow] = useState(false);
@@ -48,7 +50,7 @@ export default function CreateTeamScreen() {
   }, []);
 
   const pinMismatch = setPinNow && confirmPin.length > 0 && pin !== confirmPin;
-  const pinTooShort = setPinNow && pin.length > 0 && pin.length < 4;
+  const pinTooShort = setPinNow && pin.length > 0 && pin.length < 4;  // maxLength=4, so this guards partial entry
 
   const handleCreate = async () => {
     setError('');
@@ -120,105 +122,134 @@ export default function CreateTeamScreen() {
   }
 
   return (
-    <ScrollView testID="team-create-screen" style={[styles.container, { backgroundColor: theme.colors.background }]} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}>
-      <View style={styles.form}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={[styles.headerIcon, { backgroundColor: theme.colors.primary + '18' }]}>
-            <MaterialCommunityIcons name="shield-account" size={32} color={theme.colors.primary} />
-          </View>
-          <Text variant="headlineSmall" style={[styles.title, { color: theme.colors.primary }]}>
-            Create Team
-          </Text>
-          <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-            Set up your team name and optionally protect it with an admin PIN
-          </Text>
-        </View>
-
-        {/* Team Info */}
-        <Text variant="labelLarge" style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}>Team Info</Text>
-        <TextInput
-          label="Team Name"
-          value={name}
-          onChangeText={(t) => { setName(t); setError(''); }}
-          mode="outlined"
-          style={styles.input}
-          placeholder="e.g., Mumbai Indians"
-          autoFocus
-          testID="team-create-name-input"
-        />
-        <TextInput
-          label="Short Name (up to 5 chars)"
-          value={shortName}
-          onChangeText={(t) => { setShortName(t.toUpperCase()); setError(''); }}
-          mode="outlined"
-          style={styles.input}
-          placeholder="e.g., MI"
-          maxLength={5}
-          autoCapitalize="characters"
-          testID="team-create-short-name-input"
-        />
-
-        {/* Admin PIN Section */}
-        <View style={[styles.pinToggleRow, { borderColor: theme.colors.outlineVariant }]}>
-          <View style={styles.pinToggleText}>
-            <MaterialCommunityIcons name="shield-lock-outline" size={20} color={theme.colors.primary} />
-            <View style={{ flex: 1 }}>
-              <Text variant="bodyMedium" style={{ fontWeight: '600' }}>Set Admin PIN</Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                Protect team edits with a PIN. Only admins can modify the roster.
-              </Text>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        testID="team-create-screen"
+        style={styles.container}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 8 }}
+      >
+        <View style={styles.form}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={[styles.headerIcon, { backgroundColor: theme.colors.primary + '18' }]}>
+              <MaterialCommunityIcons name="shield-account" size={32} color={theme.colors.primary} />
             </View>
+            <Text variant="headlineSmall" style={[styles.title, { color: theme.colors.primary }]}>
+              Create Team
+            </Text>
+            <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
+              Set up your team name and optionally protect it with an admin PIN
+            </Text>
           </View>
-          <Switch value={setPinNow} onValueChange={setSetPinNow} testID="team-create-pin-toggle" />
-        </View>
 
-        {setPinNow && (
-          <View style={styles.pinFields}>
-            <TextInput
-              label="Admin PIN (4–6 digits)"
-              value={pin}
-              onChangeText={t => { setPin(t.replace(/[^0-9]/g, '')); setError(''); }}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="numeric"
-              secureTextEntry
-              maxLength={6}
-              placeholder="e.g., 1234"
-              testID="team-create-pin-input"
-            />
-            <TextInput
-              label="Confirm PIN"
-              value={confirmPin}
-              onChangeText={t => { setConfirmPin(t.replace(/[^0-9]/g, '')); setError(''); }}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="numeric"
-              secureTextEntry
-              maxLength={6}
-              placeholder="Re-enter PIN"
-              error={pinMismatch}
-              testID="team-create-confirm-pin-input"
-            />
-            {pinMismatch && (
-              <HelperText type="error">PINs do not match</HelperText>
-            )}
-            {pinTooShort && (
-              <HelperText type="error">PIN must be at least 4 digits</HelperText>
-            )}
-            <View style={[styles.pinHint, { backgroundColor: theme.colors.primaryContainer, borderRadius: 10 }]}>
-              <MaterialCommunityIcons name="information-outline" size={16} color={theme.colors.onPrimaryContainer} />
-              <Text variant="bodySmall" style={{ color: theme.colors.onPrimaryContainer, flex: 1 }}>
-                You'll be automatically logged in as admin after creating the team. Share the PIN only with other admins.
-              </Text>
+          {/* Team Info */}
+          <Text variant="labelLarge" style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}>Team Info</Text>
+          <TextInput
+            label="Team Name"
+            value={name}
+            onChangeText={(t) => { setName(t); setError(''); }}
+            mode="outlined"
+            style={styles.input}
+            placeholder="e.g., Mumbai Indians"
+            autoFocus
+            returnKeyType="next"
+            testID="team-create-name-input"
+          />
+          <TextInput
+            label="Short Name (up to 5 chars)"
+            value={shortName}
+            onChangeText={(t) => { setShortName(t.toUpperCase()); setError(''); }}
+            mode="outlined"
+            style={styles.input}
+            placeholder="e.g., MI"
+            maxLength={5}
+            autoCapitalize="characters"
+            returnKeyType="done"
+            testID="team-create-short-name-input"
+          />
+
+          {/* Admin PIN Section */}
+          <View style={[styles.pinToggleRow, { borderColor: theme.colors.outlineVariant }]}>
+            <View style={styles.pinToggleText}>
+              <MaterialCommunityIcons name="shield-lock-outline" size={20} color={theme.colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text variant="bodyMedium" style={{ fontWeight: '600' }}>Set Admin PIN</Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  Protect team edits with a PIN. Only admins can modify the roster.
+                </Text>
+              </View>
             </View>
+            <Switch value={setPinNow} onValueChange={setSetPinNow} testID="team-create-pin-toggle" />
           </View>
-        )}
 
-        {error ? (
-          <Text variant="bodySmall" style={{ color: theme.colors.error, marginBottom: 8 }}>{error}</Text>
-        ) : null}
+          {setPinNow && (
+            <View style={styles.pinFields}>
+              <TextInput
+                label="Admin PIN (4 digits)"
+                value={pin}
+                onChangeText={t => {
+                  const cleaned = t.replace(/[^0-9]/g, '');
+                  setPin(cleaned);
+                  setError('');
+                  if (cleaned.length === 4) confirmPinRef.current?.focus();
+                }}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+                secureTextEntry
+                maxLength={4}
+                placeholder="e.g., 1234"
+                returnKeyType="next"
+                onSubmitEditing={() => confirmPinRef.current?.focus()}
+                testID="team-create-pin-input"
+              />
+              <TextInput
+                ref={confirmPinRef}
+                label="Confirm PIN"
+                value={confirmPin}
+                onChangeText={t => {
+                  const cleaned = t.replace(/[^0-9]/g, '');
+                  setConfirmPin(cleaned);
+                  setError('');
+                  if (cleaned.length === 4) Keyboard.dismiss();
+                }}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+                secureTextEntry
+                maxLength={4}
+                placeholder="Re-enter PIN"
+                returnKeyType="done"
+                error={pinMismatch}
+                testID="team-create-confirm-pin-input"
+              />
+              {pinMismatch && (
+                <HelperText type="error">PINs do not match</HelperText>
+              )}
+              {pinTooShort && (
+                <HelperText type="error">PIN must be at least 4 digits</HelperText>
+              )}
+              <View style={[styles.pinHint, { backgroundColor: theme.colors.primaryContainer, borderRadius: 10 }]}>
+                <MaterialCommunityIcons name="information-outline" size={16} color={theme.colors.onPrimaryContainer} />
+                <Text variant="bodySmall" style={{ color: theme.colors.onPrimaryContainer, flex: 1 }}>
+                  You'll be automatically logged in as admin after creating the team. Share the PIN only with other admins.
+                </Text>
+              </View>
+            </View>
+          )}
 
+          {error ? (
+            <Text variant="bodySmall" style={{ color: theme.colors.error, marginBottom: 8 }}>{error}</Text>
+          ) : null}
+        </View>
+      </ScrollView>
+
+      {/* Sticky footer — always visible above keyboard */}
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16), backgroundColor: theme.colors.background }]}>
         <Button
           mode="contained"
           onPress={handleCreate}
@@ -234,7 +265,7 @@ export default function CreateTeamScreen() {
           Cancel
         </Button>
       </View>
-    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -266,4 +297,5 @@ const styles = StyleSheet.create({
   pinFields: { marginBottom: 8 },
   pinHint: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 12, marginBottom: 12 },
   button: { marginTop: 8 },
+  footer: { paddingHorizontal: 24, paddingTop: 8 },
 });

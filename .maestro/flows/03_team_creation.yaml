@@ -29,7 +29,6 @@ tags:
 - assertVisible:
     id: "teams-screen"
 
-# Only create if it doesn't already exist from a previous run
 - runFlow:
     when:
       notVisible: "Challengers XI"
@@ -48,6 +47,7 @@ tags:
           id: "team-create-short-name-input"
       - eraseText: 50
       - inputText: "CHAL"
+      - pressKey: Enter
 
       - tapOn:
           id: "team-create-pin-toggle"
@@ -57,10 +57,10 @@ tags:
       - tapOn:
           id: "team-create-pin-input"
       - inputText: "9999"
-
-      - tapOn:
-          id: "team-create-confirm-pin-input"
+      # 4 digits → focus auto-moves to confirm PIN
       - inputText: "9999"
+      # 4 digits in confirm PIN → keyboard auto-dismissed
+      - waitForAnimationToEnd
 
       - assertNotVisible: "PINs do not match"
 
@@ -69,8 +69,12 @@ tags:
       - extendedWaitUntil:
           visible:
             id: "team-detail-screen"
-          timeout: 5000
+          timeout: 10000
       - assertVisible: "Challengers XI"
+      # team detail is a stack screen (no tab bar) — navigate back to teams list
+      - tapOn: "Back"
+      - assertVisible:
+          id: "teams-screen"
 
 # ═══════════════════════════════════════════════════════
 # Create TEAM B — Warriors CC (no PIN)
@@ -78,6 +82,8 @@ tags:
 
 - tapOn:
     id: "tab-teams"
+- assertVisible:
+    id: "teams-screen"
 
 - runFlow:
     when:
@@ -85,6 +91,8 @@ tags:
     commands:
       - tapOn:
           id: "teams-create-team-btn"
+      - assertVisible:
+          id: "team-create-screen"
 
       - tapOn:
           id: "team-create-name-input"
@@ -104,8 +112,12 @@ tags:
       - extendedWaitUntil:
           visible:
             id: "team-detail-screen"
-          timeout: 5000
+          timeout: 10000
       - assertVisible: "Warriors CC"
+      # team detail is a stack screen (no tab bar) — navigate back to teams list
+      - tapOn: "Back"
+      - assertVisible:
+          id: "teams-screen"
 
 # ═══════════════════════════════════════════════════════
 # Negative: duplicate name is rejected
@@ -113,8 +125,12 @@ tags:
 
 - tapOn:
     id: "tab-teams"
+- assertVisible:
+    id: "teams-screen"
 - tapOn:
     id: "teams-create-team-btn"
+- assertVisible:
+    id: "team-create-screen"
 
 - tapOn:
     id: "team-create-name-input"
