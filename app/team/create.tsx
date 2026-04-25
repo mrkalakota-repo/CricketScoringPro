@@ -120,7 +120,7 @@ export default function CreateTeamScreen() {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}>
+    <ScrollView testID="team-create-screen" style={[styles.container, { backgroundColor: theme.colors.background }]} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}>
       <View style={styles.form}>
         {/* Header */}
         <View style={styles.header}>

@@ -344,7 +344,7 @@ export default function TeamsScreen() {
     teamsWithDist.filter(t => !t.isMyTeam && !t.isPlayerTeam && t.distance > RADIUS_KM).length > 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View testID="teams-screen" style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Searchbar
         placeholder="Search all teams by name…"
         value={query}

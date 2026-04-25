@@ -137,7 +137,7 @@ export default function CreateMatchScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 16 }}>
+    <ScrollView testID="match-create-screen" style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 16 }}>
       <Stack.Screen
         options={{
           title: STEP_TITLES[step],
