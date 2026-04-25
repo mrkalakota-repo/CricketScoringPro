@@ -10,7 +10,8 @@ tags:
 #   - Enable and set Admin PIN
 #   - Confirm creation → lands on team detail screen
 #   - Repeat for Team B (no PIN)
-# Precondition: user is logged in as team_admin
+# Precondition: user is logged in as team_admin (pro plan or higher)
+# Idempotent: skips creation if the team already exists from a previous run
 
 ---
 - launchApp:
@@ -28,51 +29,48 @@ tags:
 - assertVisible:
     id: "teams-screen"
 
-# "Create Team" FAB / button on the Teams tab
-- tapOn:
-    id: "teams-create-team-btn"
-- assertVisible:
-    id: "team-create-screen"
+# Only create if it doesn't already exist from a previous run
+- runFlow:
+    when:
+      notVisible: "Challengers XI"
+    commands:
+      - tapOn:
+          id: "teams-create-team-btn"
+      - assertVisible:
+          id: "team-create-screen"
 
-# ── Team Info ─────────────────────────────────────────
+      - tapOn:
+          id: "team-create-name-input"
+      - eraseText: 50
+      - inputText: "Challengers XI"
 
-- tapOn:
-    id: "team-create-name-input"
-- eraseText: 50
-- inputText: "Challengers XI"
+      - tapOn:
+          id: "team-create-short-name-input"
+      - eraseText: 50
+      - inputText: "CHAL"
 
-- tapOn:
-    id: "team-create-short-name-input"
-- eraseText: 50
-- inputText: "CHAL"
+      - tapOn:
+          id: "team-create-pin-toggle"
+      - assertVisible:
+          id: "team-create-pin-input"
 
-# ── Admin PIN ─────────────────────────────────────────
+      - tapOn:
+          id: "team-create-pin-input"
+      - inputText: "9999"
 
-- tapOn:
-    id: "team-create-pin-toggle"
-- assertVisible:
-    id: "team-create-pin-input"
+      - tapOn:
+          id: "team-create-confirm-pin-input"
+      - inputText: "9999"
 
-- tapOn:
-    id: "team-create-pin-input"
-- inputText: "9999"
+      - assertNotVisible: "PINs do not match"
 
-- tapOn:
-    id: "team-create-confirm-pin-input"
-- inputText: "9999"
-
-# No error text should be visible
-- assertNotVisible: "PINs do not match"
-
-# ── Submit ────────────────────────────────────────────
-
-- tapOn:
-    id: "team-create-btn"
-- extendedWaitUntil:
-    visible:
-      id: "team-detail-screen"
-    timeout: 5000
-- assertVisible: "Challengers XI"
+      - tapOn:
+          id: "team-create-btn"
+      - extendedWaitUntil:
+          visible:
+            id: "team-detail-screen"
+          timeout: 5000
+      - assertVisible: "Challengers XI"
 
 # ═══════════════════════════════════════════════════════
 # Create TEAM B — Warriors CC (no PIN)
@@ -80,30 +78,34 @@ tags:
 
 - tapOn:
     id: "tab-teams"
-- tapOn:
-    id: "teams-create-team-btn"
 
-- tapOn:
-    id: "team-create-name-input"
-- eraseText: 50
-- inputText: "Warriors CC"
+- runFlow:
+    when:
+      notVisible: "Warriors CC"
+    commands:
+      - tapOn:
+          id: "teams-create-team-btn"
 
-- tapOn:
-    id: "team-create-short-name-input"
-- eraseText: 50
-- inputText: "WARR"
+      - tapOn:
+          id: "team-create-name-input"
+      - eraseText: 50
+      - inputText: "Warriors CC"
 
-# Leave PIN toggle OFF
-- assertNotVisible:
-    id: "team-create-pin-input"
+      - tapOn:
+          id: "team-create-short-name-input"
+      - eraseText: 50
+      - inputText: "WARR"
 
-- tapOn:
-    id: "team-create-btn"
-- extendedWaitUntil:
-    visible:
-      id: "team-detail-screen"
-    timeout: 5000
-- assertVisible: "Warriors CC"
+      - assertNotVisible:
+          id: "team-create-pin-input"
+
+      - tapOn:
+          id: "team-create-btn"
+      - extendedWaitUntil:
+          visible:
+            id: "team-detail-screen"
+          timeout: 5000
+      - assertVisible: "Warriors CC"
 
 # ═══════════════════════════════════════════════════════
 # Negative: duplicate name is rejected

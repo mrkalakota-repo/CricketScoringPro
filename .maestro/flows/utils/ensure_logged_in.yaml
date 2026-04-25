@@ -1,25 +1,32 @@
 appId: com.gullycricket.scorer
 name: "Utility — Ensure user is logged in before running a flow"
 
-# If already on home tabs, does nothing.
-# If on login screen, performs PIN login with the test account.
+# Always signs out (if logged in) then signs back in with PIN 1234.
+# This guarantees the latest plan/role is fetched from Supabase on every flow run.
 
 ---
+# Sign out if currently on home tabs
 - runFlow:
     when:
       visible:
-        id: "login-screen"
-    commands:
-      - tapOn:
-          id: "login-login-tab"
-      - tapOn:
-          id: "login-pinpad-1"
-      - tapOn:
-          id: "login-pinpad-2"
-      - tapOn:
-          id: "login-pinpad-3"
-      - tapOn:
-          id: "login-pinpad-4"
-      - tapOn:
-          id: "login-btn"
-      - waitForAnimationToEnd
+        id: "tabs-home"
+    file: "do_sign_out.yaml"
+
+# Now on login screen — log in with PIN 1234
+- assertVisible:
+    id: "login-screen"
+- tapOn:
+    id: "login-login-tab"
+- tapOn:
+    id: "login-pinpad-1"
+- tapOn:
+    id: "login-pinpad-2"
+- tapOn:
+    id: "login-pinpad-3"
+- tapOn:
+    id: "login-pinpad-4"
+- tapOn:
+    id: "login-btn"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "tabs-home"
