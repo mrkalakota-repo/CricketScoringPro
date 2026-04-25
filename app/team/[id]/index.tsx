@@ -67,7 +67,7 @@ export default function TeamDetailScreen() {
 
   if (!team) {
     return (
-      <View style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
+      <View testID="team-detail-screen" style={[styles.container, styles.center, { backgroundColor: theme.colors.background }]}>
         <MaterialCommunityIcons name="shield-off-outline" size={48} color={theme.colors.outlineVariant} />
         <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>Team not found</Text>
       </View>

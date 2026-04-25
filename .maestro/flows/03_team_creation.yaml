@@ -68,12 +68,11 @@ tags:
 
 - tapOn:
     id: "team-create-btn"
-- waitForAnimationToEnd
-
-# Should land on team detail screen for Challengers XI
+- extendedWaitUntil:
+    visible:
+      id: "team-detail-screen"
+    timeout: 5000
 - assertVisible: "Challengers XI"
-- assertVisible:
-    id: "team-detail-screen"
 
 # ═══════════════════════════════════════════════════════
 # Create TEAM B — Warriors CC (no PIN)
@@ -100,11 +99,11 @@ tags:
 
 - tapOn:
     id: "team-create-btn"
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "team-detail-screen"
+    timeout: 5000
 - assertVisible: "Warriors CC"
-- assertVisible:
-    id: "team-detail-screen"
 
 # ═══════════════════════════════════════════════════════
 # Negative: duplicate name is rejected
