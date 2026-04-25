@@ -48,6 +48,7 @@ export function AdminPinModal({ visible, teamId, adminPinHash, onSuccess, onDism
         onDismiss={handleDismiss}
         contentContainerStyle={[styles.container, { backgroundColor: theme.colors.surface }]}
       >
+        <View testID="admin-pin-modal">
         <View style={[styles.iconRow, { backgroundColor: theme.colors.primary + '18' }]}>
           <Text style={[styles.lockIcon]}>🔒</Text>
         </View>
@@ -59,6 +60,7 @@ export function AdminPinModal({ visible, teamId, adminPinHash, onSuccess, onDism
         </Text>
 
         <TextInput
+          testID="admin-pin-input"
           label="Admin PIN"
           value={pin}
           onChangeText={t => { setPin(t); setError(''); }}
@@ -82,6 +84,7 @@ export function AdminPinModal({ visible, teamId, adminPinHash, onSuccess, onDism
             Cancel
           </Button>
           <Button
+            testID="admin-pin-confirm-btn"
             mode="contained"
             onPress={handleSubmit}
             loading={checking}
@@ -89,6 +92,7 @@ export function AdminPinModal({ visible, teamId, adminPinHash, onSuccess, onDism
           >
             Unlock
           </Button>
+        </View>
         </View>
       </Modal>
     </Portal>

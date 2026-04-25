@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import {
   View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView,
-  TouchableOpacity, TextInput as RNTextInput,
+  TouchableOpacity, TextInput as RNTextInput, Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -65,11 +65,38 @@ function detectDefaultCountry(): CountryEntry {
 
 // ── Small shared components ───────────────────────────────────────────────────
 
-function PinDots({ count, max, color, dimColor }: { count: number; max: number; color: string; dimColor: string }) {
+function PinDots({ count, max, color, dimColor, testID }: { count: number; max: number; color: string; dimColor: string; testID?: string }) {
   return (
-    <View style={styles.pinDots}>
+    <View testID={testID} style={styles.pinDots}>
       {Array.from({ length: max }).map((_, i) => (
         <View key={i} style={[styles.pinDot, { backgroundColor: i < count ? color : dimColor }]} />
+      ))}
+    </View>
+  );
+}
+
+const PINPAD_ROWS = [['1','2','3'], ['4','5','6'], ['7','8','9'], ['backspace','0','']];
+
+function PinPad({ onPress, onBackspace }: { onPress: (d: string) => void; onBackspace: () => void }) {
+  const theme = useTheme();
+  return (
+    <View style={styles.pinPad}>
+      {PINPAD_ROWS.map((row, ri) => (
+        <View key={ri} style={styles.pinPadRow}>
+          {row.map((digit, ci) => {
+            if (!digit) return <View key={`empty-${ci}`} style={styles.pinPadBtn} />;
+            if (digit === 'backspace') return (
+              <Pressable key="bs" testID="login-pinpad-backspace" onPress={onBackspace} style={({ pressed }) => [styles.pinPadBtn, styles.pinPadDigitBtn, { backgroundColor: pressed ? theme.colors.surfaceVariant : 'transparent' }]}>
+                <MaterialCommunityIcons name="backspace-outline" size={22} color={theme.colors.onSurface} />
+              </Pressable>
+            );
+            return (
+              <Pressable key={digit} testID={`login-pinpad-${digit}`} onPress={() => onPress(digit)} style={({ pressed }) => [styles.pinPadBtn, styles.pinPadDigitBtn, { backgroundColor: pressed ? theme.colors.surfaceVariant : 'transparent' }]}>
+                <Text style={[styles.pinPadDigit, { color: theme.colors.onSurface }]}>{digit}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       ))}
     </View>
   );
@@ -97,6 +124,7 @@ function OtpInput({
     <TouchableOpacity activeOpacity={1} onPress={() => inputRef.current?.focus()} style={styles.otpWrap}>
       {/* Hidden real input */}
       <RNTextInput
+        testID="login-otp-input"
         ref={inputRef}
         value={value}
         onChangeText={handleChange}
@@ -147,6 +175,7 @@ function CountryPicker({
   return (
     <>
       <TouchableOpacity
+        testID="login-country-picker"
         onPress={() => setVisible(true)}
         style={[styles.countryRow, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}
         activeOpacity={0.7}
@@ -240,8 +269,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
   const [regRole, setRegRole] = useState<UserRole>('scorer');
   const [regPin, setRegPin] = useState('');
   const [regConfirmPin, setRegConfirmPin] = useState('');
-  const [showRegPin, setShowRegPin] = useState(false);
-  const [showRegConfirmPin, setShowRegConfirmPin] = useState(false);
+  const [regPinPhase, setRegPinPhase] = useState<'create' | 'confirm'>('create');
   const [regError, setRegError] = useState('');
   const [regBusy, setRegBusy] = useState(false);
   // Countdown for OTP resend
@@ -250,7 +278,6 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
 
   // ── Login state ───────────────────────────────────────────────────────────
   const [loginPin, setLoginPin] = useState('');
-  const [showLoginPin, setShowLoginPin] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [loginBusy, setLoginBusy] = useState(false);
 
@@ -309,7 +336,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
     setMode(next);
     setRegStep('phone');
     setRegPhone(''); setRegOtp(''); setRegName('');
-    setRegRole('scorer'); setRegPin(''); setRegConfirmPin('');
+    setRegRole('scorer'); setRegPin(''); setRegConfirmPin(''); setRegPinPhase('create');
     setRegError('');
     setLoginPin(''); setLoginError('');
     setRestoreCountry(detectDefaultCountry());
@@ -538,7 +565,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
     >
       {/* Phone confirmation — register */}
       <Portal>
-        <Dialog visible={showPhoneConfirm} onDismiss={() => setShowPhoneConfirm(false)}>
+        <Dialog testID="login-confirm-phone-dialog" visible={showPhoneConfirm} onDismiss={() => setShowPhoneConfirm(false)}>
           <Dialog.Icon icon="message-text-outline" />
           <Dialog.Title>Send verification code?</Dialog.Title>
           <Dialog.Content>
@@ -550,7 +577,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setShowPhoneConfirm(false)}>Change Number</Button>
-            <Button onPress={confirmAndSendOtp} loading={otpSending}>Send Code</Button>
+            <Button testID="login-confirm-phone-btn" onPress={confirmAndSendOtp} loading={otpSending}>Send Code</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -645,6 +672,32 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
           </Text>
         </View>
 
+        {/* Mode tab bar — Register / Login */}
+        {(mode === 'register' || mode === 'login') && (
+          <View style={[styles.modeTabs, { borderColor: theme.colors.outlineVariant }]}>
+            <TouchableOpacity
+              testID="login-register-tab"
+              onPress={() => switchMode('register')}
+              style={[styles.modeTab, mode === 'register' && { backgroundColor: theme.colors.primaryContainer }]}
+              activeOpacity={0.7}
+            >
+              <Text variant="labelMedium" style={{ color: mode === 'register' ? theme.colors.primary : theme.colors.onSurfaceVariant }}>
+                Register
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="login-login-tab"
+              onPress={() => switchMode(profile && !sessionExpired ? 'login' : 'login')}
+              style={[styles.modeTab, mode === 'login' && { backgroundColor: theme.colors.primaryContainer }]}
+              activeOpacity={0.7}
+            >
+              <Text variant="labelMedium" style={{ color: mode === 'login' ? theme.colors.primary : theme.colors.onSurfaceVariant }}>
+                Log In
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* ── REGISTER wizard ── */}
         {mode === 'register' && (
           <View style={styles.form}>
@@ -658,6 +711,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
                 </Text>
                 <CountryPicker value={regCountry} onChange={c => { setRegCountry(c); setRegPhone(''); }} />
                 <TextInput
+                  testID="login-phone-input"
                   label="Phone Number"
                   value={regPhone}
                   onChangeText={t => { setRegPhone(t.replace(/\D/g, '')); setRegError(''); }}
@@ -680,6 +734,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
                   />
                 )}
                 <Button
+                  testID="login-send-otp-btn"
                   mode="contained"
                   onPress={handleSendOtp}
                   loading={otpSending}
@@ -698,7 +753,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
 
             {/* Step: OTP */}
             {regStep === 'otp' && (
-              <View style={styles.stepBlock}>
+              <View testID="login-otp-step" style={styles.stepBlock}>
                 <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
                   Verify your phone number
                 </Text>
@@ -739,11 +794,12 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
 
             {/* Step: name */}
             {regStep === 'name' && (
-              <View style={styles.stepBlock}>
+              <View testID="login-name-step" style={styles.stepBlock}>
                 <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
                   What's your name?
                 </Text>
                 <TextInput
+                  testID="login-name-input"
                   label="Your Name"
                   value={regName}
                   onChangeText={t => { setRegName(t); setRegError(''); }}
@@ -761,6 +817,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
                 />
                 {regError ? <HelperText type="error" style={styles.helper}>{regError}</HelperText> : null}
                 <Button
+                  testID="login-name-next-btn"
                   mode="contained"
                   onPress={() => {
                     if (!regName.trim()) { setRegError('Name is required'); return; }
@@ -780,7 +837,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
 
             {/* Step: role */}
             {regStep === 'role' && (
-              <View style={styles.stepBlock}>
+              <View testID="login-role-step" style={styles.stepBlock}>
                 <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
                   How will you use Inningsly?
                 </Text>
@@ -797,6 +854,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
                     return (
                       <TouchableOpacity
                         key={r.value}
+                        testID={`login-role-${r.value}`}
                         onPress={() => setRegRole(r.value)}
                         style={[
                           styles.roleCard,
@@ -830,6 +888,7 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
                   })}
                 </View>
                 <Button
+                  testID="login-role-next-btn"
                   mode="contained"
                   onPress={() => setRegStep('pin')}
                   style={[styles.button, { borderRadius: 12 }]}
@@ -843,64 +902,70 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
               </View>
             )}
 
-            {/* Step: pin + confirm (merged) */}
+            {/* Step: pin — phase 1: create, phase 2: confirm */}
             {regStep === 'pin' && (
               <View style={styles.stepBlock}>
                 <Text variant="titleMedium" style={[styles.stepTitle, { color: theme.colors.onSurface }]}>
-                  Create your app PIN
+                  {regPinPhase === 'create' ? 'Create your app PIN' : 'Confirm your PIN'}
                 </Text>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 12 }}>
-                  You'll enter this PIN every time you open Inningsly.{'\n'}It's separate from the SMS code you just received.
+                  {regPinPhase === 'create'
+                    ? "You'll enter this PIN every time you open Inningsly."
+                    : 'Enter the same PIN again to confirm.'}
                 </Text>
-                <TextInput
-                  label="Create PIN (4–6 digits)"
-                  value={regPin}
-                  onChangeText={t => { setRegPin(t.replace(/\D/g, '')); setRegError(''); }}
-                  mode="outlined"
-                  style={styles.input}
-                  keyboardType="numeric"
-                  secureTextEntry={!showRegPin}
-                  maxLength={6}
-                  error={!!regError}
-                  left={<TextInput.Icon icon="lock" />}
-                  right={<TextInput.Icon icon={showRegPin ? 'eye-off' : 'eye'} onPress={() => setShowRegPin(v => !v)} />}
-                  autoFocus
-                  returnKeyType="next"
-                />
-                <PinDots count={regPin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
-                <TextInput
-                  label="Confirm PIN"
-                  value={regConfirmPin}
-                  onChangeText={t => { setRegConfirmPin(t.replace(/\D/g, '')); setRegError(''); }}
-                  mode="outlined"
-                  style={[styles.input, { marginTop: 8 }]}
-                  keyboardType="numeric"
-                  secureTextEntry={!showRegConfirmPin}
-                  maxLength={6}
-                  error={!!regError}
-                  left={<TextInput.Icon icon="lock-check" />}
-                  right={<TextInput.Icon icon={showRegConfirmPin ? 'eye-off' : 'eye'} onPress={() => setShowRegConfirmPin(v => !v)} />}
-                  returnKeyType="done"
-                  onSubmitEditing={handleFinishRegister}
-                />
-                <PinDots
-                  count={regConfirmPin.length}
-                  max={6}
-                  color={regConfirmPin.length > 0 && regPin !== regConfirmPin ? theme.colors.error : theme.colors.primary}
-                  dimColor={theme.colors.outlineVariant}
-                />
-                {regError ? <HelperText type="error" style={styles.helper}>{regError}</HelperText> : null}
-                <Button
-                  mode="contained"
-                  onPress={handleFinishRegister}
-                  loading={regBusy}
-                  disabled={regBusy}
-                  style={[styles.button, { borderRadius: 12 }]}
-                  icon="account-plus"
-                >
-                  Create Account
-                </Button>
-                <Button mode="text" icon="arrow-left" onPress={() => { setRegStep('role'); setRegPin(''); setRegConfirmPin(''); setRegError(''); }} style={[styles.linkBtn, { marginTop: 8 }]}>
+
+                {regPinPhase === 'create' ? (
+                  <View testID="login-pin-step">
+                    <PinDots count={regPin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
+                    <PinPad
+                      onPress={d => {
+                        if (regPin.length >= 6) return;
+                        const next = regPin + d;
+                        setRegPin(next);
+                        setRegError('');
+                        if (next.length >= 4) setRegPinPhase('confirm');
+                      }}
+                      onBackspace={() => setRegPin(p => p.slice(0, -1))}
+                    />
+                  </View>
+                ) : (
+                  <View testID="login-pin-confirm-step">
+                    <PinDots
+                      count={regConfirmPin.length}
+                      max={6}
+                      color={regConfirmPin.length > 0 && regPin !== regConfirmPin.slice(0, regConfirmPin.length) ? theme.colors.error : theme.colors.primary}
+                      dimColor={theme.colors.outlineVariant}
+                    />
+                    <PinPad
+                      onPress={d => {
+                        if (regConfirmPin.length >= 6) return;
+                        setRegConfirmPin(p => p + d);
+                        setRegError('');
+                      }}
+                      onBackspace={() => {
+                        if (regConfirmPin.length === 0) { setRegPinPhase('create'); setRegPin(p => p.slice(0, -1)); }
+                        else setRegConfirmPin(p => p.slice(0, -1));
+                      }}
+                    />
+                    {regError ? <HelperText type="error" style={styles.helper}>{regError}</HelperText> : null}
+                    <Button
+                      testID="login-create-account-btn"
+                      mode="contained"
+                      onPress={handleFinishRegister}
+                      loading={regBusy}
+                      disabled={regBusy || regConfirmPin.length < 4}
+                      style={[styles.button, { borderRadius: 12 }]}
+                      icon="account-plus"
+                    >
+                      Create Account
+                    </Button>
+                  </View>
+                )}
+
+                <Button mode="text" icon="arrow-left" onPress={() => {
+                  if (regPinPhase === 'confirm') { setRegPinPhase('create'); setRegConfirmPin(''); setRegError(''); }
+                  else { setRegStep('role'); setRegPin(''); setRegConfirmPin(''); setRegError(''); }
+                }} style={[styles.linkBtn, { marginTop: 8 }]}>
                   Back
                 </Button>
               </View>
@@ -910,8 +975,8 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
 
         {/* ── LOGIN ── */}
         {mode === 'login' && (
-          <View style={styles.form}>
-            <View style={[styles.profileChip, { backgroundColor: theme.colors.primaryContainer }]}>
+          <View testID="login-login-step" style={styles.form}>
+            <View testID="login-phone-chip" style={[styles.profileChip, { backgroundColor: theme.colors.primaryContainer }]}>
               <MaterialCommunityIcons name="account-circle" size={32} color={theme.colors.primary} />
               <View style={{ flex: 1 }}>
                 <Text variant="titleSmall" style={{ color: theme.colors.onPrimaryContainer, fontWeight: '700' }}>
@@ -923,30 +988,19 @@ export default function LoginScreen({ initialMode }: { initialMode?: Mode }) {
               </View>
             </View>
 
-            <TextInput
-              label="Enter PIN"
-              value={loginPin}
-              onChangeText={t => { setLoginPin(t.replace(/\D/g, '')); setLoginError(''); }}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="numeric"
-              secureTextEntry={!showLoginPin}
-              maxLength={6}
-              error={!!loginError}
-              left={<TextInput.Icon icon="lock" />}
-              right={<TextInput.Icon icon={showLoginPin ? 'eye-off' : 'eye'} onPress={() => setShowLoginPin(v => !v)} />}
-              onSubmitEditing={handleLogin}
-              returnKeyType="done"
-              autoFocus
+            <PinDots testID="login-pin-dots" count={loginPin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
+            {loginError ? <HelperText type="error" style={[styles.helper, { textAlign: 'center' }]}>{loginError}</HelperText> : null}
+            <PinPad
+              onPress={d => { if (loginPin.length < 6) setLoginPin(p => p + d); setLoginError(''); }}
+              onBackspace={() => setLoginPin(p => p.slice(0, -1))}
             />
-            <PinDots count={loginPin.length} max={6} color={theme.colors.primary} dimColor={theme.colors.outlineVariant} />
-            {loginError ? <HelperText type="error" style={styles.helper}>{loginError}</HelperText> : null}
 
             <Button
+              testID="login-btn"
               mode="contained"
               onPress={handleLogin}
               loading={loginBusy}
-              disabled={loginBusy}
+              disabled={loginBusy || loginPin.length < 4}
               style={[styles.button, { borderRadius: 12 }]}
               icon="login"
             >
@@ -1245,4 +1299,11 @@ const styles = StyleSheet.create({
   otpWrap:       { flexDirection: 'row', gap: 8, justifyContent: 'center', marginBottom: 8 },
   otpHidden:     { position: 'absolute', width: 1, height: 1, opacity: 0 },
   otpBox:        { width: 44, height: 54, borderWidth: 2, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  modeTabs:      { flexDirection: 'row', borderWidth: 1, borderRadius: 12, overflow: 'hidden', marginBottom: 24 },
+  modeTab:       { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
+  pinPad:        { gap: 4, marginTop: 8, marginBottom: 4 },
+  pinPadRow:     { flexDirection: 'row', justifyContent: 'center', gap: 4 },
+  pinPadBtn:     { width: 80, height: 56, justifyContent: 'center', alignItems: 'center' },
+  pinPadDigitBtn:{ borderRadius: 12 },
+  pinPadDigit:   { fontSize: 24, fontWeight: '600' },
 });

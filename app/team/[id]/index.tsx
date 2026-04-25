@@ -138,7 +138,7 @@ export default function TeamDetailScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View testID="team-detail-screen" style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen options={{ title: team.name }} />
 
       {/* PIN Modals */}
@@ -304,6 +304,7 @@ export default function TeamDetailScreen() {
       <View style={styles.actions}>
         {hasEditAccess && (
           <Button
+            testID="team-detail-roster-btn"
             mode="contained"
             icon="account-plus"
             onPress={() => isDelegate ? router.push(`/team/${teamId}/roster`) : requireAdmin('roster', () => router.push(`/team/${teamId}/roster`))}
@@ -325,6 +326,7 @@ export default function TeamDetailScreen() {
           )}
           {isCloudEnabled && isMember && Platform.OS !== 'web' && (
             <Button
+              testID="team-detail-chat-btn"
               mode="outlined"
               icon="chat"
               onPress={() => router.push(`/chat/${teamId}`)}

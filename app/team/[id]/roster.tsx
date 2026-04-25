@@ -137,7 +137,7 @@ export default function RosterScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View testID="roster-screen" style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen options={{ title: `${team.name} — Roster` }} />
 
       {team.adminPinHash && (
@@ -153,6 +153,7 @@ export default function RosterScreen() {
       {/* Add Player */}
       {!showForm ? (
         <Button
+          testID="roster-add-player-btn"
           mode="contained"
           icon="account-plus"
           onPress={() => adminUnlocked ? setShowForm(true) : setShowPinModal(true)}
@@ -161,13 +162,14 @@ export default function RosterScreen() {
           Add Player
         </Button>
       ) : (
-        <Card style={styles.formCard}>
+        <Card testID="roster-player-form" style={styles.formCard}>
           <Card.Content>
             <Text variant="titleSmall" style={{ fontWeight: 'bold', marginBottom: 12, color: theme.colors.onSurface }}>
               New Player
             </Text>
 
             <TextInput
+              testID="roster-player-name-input"
               label="Player Name"
               value={name}
               onChangeText={t => { setName(t.substring(0, MAX_NAME_LENGTH)); setAddError(null); }}
@@ -178,6 +180,7 @@ export default function RosterScreen() {
             />
 
             <TextInput
+              testID="roster-player-phone-input"
               label="Phone Number"
               value={phone}
               onChangeText={t => { setPhone(t); setAddError(null); }}
@@ -195,8 +198,8 @@ export default function RosterScreen() {
               value={battingStyle}
               onValueChange={setBattingStyle}
               buttons={[
-                { value: 'right', label: 'Right Hand' },
-                { value: 'left', label: 'Left Hand' },
+                { value: 'right', label: 'Right Hand', testID: 'roster-batting-right' },
+                { value: 'left', label: 'Left Hand', testID: 'roster-batting-left' },
               ]}
               style={styles.input}
             />
@@ -224,27 +227,27 @@ export default function RosterScreen() {
             {/* Captain / VC — mutually exclusive */}
             <View style={styles.toggleRow}>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Captain</Text>
-              <Switch value={isCaptain} onValueChange={handleCaptainToggle} />
+              <Switch testID="roster-captain-switch" value={isCaptain} onValueChange={handleCaptainToggle} />
             </View>
             <View style={styles.toggleRow}>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Vice Captain</Text>
-              <Switch value={isViceCaptain} onValueChange={handleViceCaptainToggle} />
+              <Switch testID="roster-vice-captain-switch" value={isViceCaptain} onValueChange={handleViceCaptainToggle} />
             </View>
             <View style={styles.toggleRow}>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Wicket Keeper</Text>
-              <Switch value={isKeeper} onValueChange={setIsKeeper} />
+              <Switch testID="roster-keeper-switch" value={isKeeper} onValueChange={setIsKeeper} />
             </View>
             <View style={styles.toggleRow}>
               <View>
                 <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>All-Rounder</Text>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Bats and bowls</Text>
               </View>
-              <Switch value={isAllRounder} onValueChange={setIsAllRounder} />
+              <Switch testID="roster-allrounder-switch" value={isAllRounder} onValueChange={setIsAllRounder} />
             </View>
 
             <View style={styles.formActions}>
               <Button mode="text" onPress={resetForm}>Cancel</Button>
-              <Button mode="contained" onPress={handleAdd} disabled={!name.trim() || addBusy} loading={addBusy}>
+              <Button testID="roster-save-player-btn" mode="contained" onPress={handleAdd} disabled={!name.trim() || addBusy} loading={addBusy}>
                 Add
               </Button>
             </View>
@@ -312,6 +315,7 @@ export default function RosterScreen() {
               </View>
               {adminUnlocked && (
                 <IconButton
+                  testID="roster-delete-player-btn"
                   icon="delete-outline"
                   iconColor={theme.colors.error}
                   size={20}
@@ -334,7 +338,7 @@ export default function RosterScreen() {
 
       {/* Delete Dialog */}
       <Portal>
-        <Dialog visible={!!deleteDialogPlayer} onDismiss={() => { setDeleteDialogPlayer(null); setDeleteError(null); }}>
+        <Dialog testID="roster-delete-confirm-dialog" visible={!!deleteDialogPlayer} onDismiss={() => { setDeleteDialogPlayer(null); setDeleteError(null); }}>
           <Dialog.Title>Remove Player</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">Remove {deleteDialogPlayer?.name} from the team?</Text>
@@ -344,7 +348,7 @@ export default function RosterScreen() {
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => { setDeleteDialogPlayer(null); setDeleteError(null); }}>Cancel</Button>
-            <Button textColor={theme.colors.error} onPress={confirmDelete}>Remove</Button>
+            <Button testID="roster-delete-confirm-btn" textColor={theme.colors.error} onPress={confirmDelete}>Remove</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

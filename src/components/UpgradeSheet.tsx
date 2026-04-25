@@ -43,7 +43,7 @@ export function UpgradeSheet({ visible, feature, requiredPlan, onDismiss }: Upgr
 
   return (
     <Portal>
-      <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
+      <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog} testID="upgrade-sheet-dialog">
         <View style={[styles.iconRow, { backgroundColor: theme.colors.primaryContainer }]}>
           <MaterialCommunityIcons
             name={copy.icon as any}
@@ -66,7 +66,7 @@ export function UpgradeSheet({ visible, feature, requiredPlan, onDismiss }: Upgr
           </View>
         </Dialog.Content>
         <Dialog.Actions style={styles.actions}>
-          <Button onPress={onDismiss} textColor={theme.colors.onSurfaceVariant}>
+          <Button testID="upgrade-sheet-dismiss-btn" onPress={onDismiss} textColor={theme.colors.onSurfaceVariant}>
             Maybe later
           </Button>
           <Button mode="contained" onPress={handleUpgrade} icon="crown-outline">
