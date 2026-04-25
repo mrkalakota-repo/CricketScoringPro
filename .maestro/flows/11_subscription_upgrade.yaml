@@ -101,7 +101,7 @@ tags:
 
 # ── Tier Card: League ─────────────────────────────────────────────────────────
 
-- scrollToBottom
+- scroll
 - assertVisible:
     id: "upgrade-tier-league"
 - assertVisible: "Unlimited teams"
@@ -133,7 +133,7 @@ tags:
 
 # ── Trigger Pro purchase (stops at system sheet) ──────────────────────────────
 
-- scrollToBottom
+- scroll
 - tapOn:
     id: "upgrade-pro-btn"
 - waitForAnimationToEnd

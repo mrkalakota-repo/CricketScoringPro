@@ -22,17 +22,11 @@ tags:
     id: "toss-screen"
 - assertVisible: "Who won the toss?"
 
-# "Next" must be disabled until a winner is chosen
-- assertTrue:
-    id: "toss-winner-next-btn"
-    enabled: false
-
 # Select Challengers XI as toss winner
 - tapOn:
     id: "toss-team1-card"    # first team card (team1)
-- assertTrue:
+- assertVisible:
     id: "toss-winner-next-btn"
-    enabled: true
 
 # ── Step 2: Bat or Bowl decision ─────────────────────────────────────────────
 

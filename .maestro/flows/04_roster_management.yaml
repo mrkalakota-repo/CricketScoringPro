@@ -200,11 +200,7 @@ tags:
 - assertNotVisible:
     id: "admin-pin-modal"
 
-# Add 11 players quickly
-- script: |
-    const players = ["Liam", "Mia", "Noah", "Olivia", "Paul", "Quinn", "Ryan", "Sara", "Tom", "Uma", "Vince"];
-    // Maestro script blocks don't run JS natively — use sequential taps below
-
+# Add 11 players
 - tapOn:
     id: "roster-add-player-btn"
 - tapOn:

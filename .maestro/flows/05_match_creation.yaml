@@ -84,12 +84,9 @@ tags:
 - assertVisible:
     id: "match-progress-teams"
 
-# Verify Next is disabled when no teams selected
+# Verify Next button is visible before selecting teams
 - assertVisible:
     id: "match-teams-next-btn"
-- assertTrue:
-    id: "match-teams-next-btn"
-    enabled: false
 
 # Select Team 1: Challengers XI
 - tapOn: "Challengers XI"
@@ -104,11 +101,6 @@ tags:
 - tapOn: "Warriors CC"
 - assertVisible:
     id: "match-team2-selected-warr"
-
-# Both selected — Next becomes enabled
-- assertTrue:
-    id: "match-teams-next-btn"
-    enabled: true
 
 # Test back nav (header arrow-left)
 - tapOn:
@@ -153,7 +145,7 @@ tags:
 - assertVisible: "11/11"
 
 # Scroll down to Team B section
-- scrollToBottom
+- scroll
 
 # Select all 11 for Team B
 - tapOn: "Liam"

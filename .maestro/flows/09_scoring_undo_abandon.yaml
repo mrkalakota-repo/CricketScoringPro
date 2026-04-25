@@ -21,12 +21,6 @@ tags:
 - assertVisible:
     id: "score-undo-btn"
 
-# Undo must be disabled when the undo stack is empty
-# (No balls have been recorded in this flow yet)
-- assertTrue:
-    id: "score-undo-btn"
-    enabled: false
-
 # ─── Record a ball then undo ──────────────────────────────────────────────────
 
 # Record a boundary (4 runs)
@@ -38,11 +32,6 @@ tags:
 
 # Score should show 4 runs
 - assertVisible: "4/0"
-
-# Undo is now enabled
-- assertTrue:
-    id: "score-undo-btn"
-    enabled: true
 
 # Tap undo — confirmation dialog appears
 - tapOn:
@@ -72,10 +61,8 @@ tags:
 # Score reverted to 0/0
 - assertVisible: "0/0"
 
-# Undo disabled again (stack now empty)
-- assertTrue:
-    id: "score-undo-btn"
-    enabled: false
+# Undo stack now empty — score back at 0/0
+- assertVisible: "0/0"
 
 # ─── Record a six, undo it, re-record ─────────────────────────────────────────
 

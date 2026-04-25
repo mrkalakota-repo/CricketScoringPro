@@ -8,7 +8,7 @@ name: "Utility — Sign out from My Profile screen"
     id: "home-my-profile-btn"
 - assertVisible:
     id: "my-profile-screen"
-- scrollToBottom
+- scroll
 - tapOn:
     id: "my-profile-signout-btn"
 # Confirm sign out dialog
