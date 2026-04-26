@@ -10,7 +10,7 @@ import {
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getLocales } from 'expo-localization';
-import Constants from 'expo-constants';
+import Device from 'expo-device';
 import { useUserAuth } from '../src/hooks/useUserAuth';
 import type { UserRole } from '../src/engine/types';
 import { TurnstileWidget } from '../src/components/TurnstileWidget';
@@ -41,7 +41,7 @@ const COUNTRY_CODES = [
 ];
 
 // Flag emojis don't render on iOS simulator — use ISO code as fallback
-const FLAG_RENDERS = Platform.OS === 'ios' && !Constants.isDevice;
+const FLAG_RENDERS = Platform.OS === 'ios' && !Device.isDevice;
 type CountryEntry = typeof COUNTRY_CODES[number];
 
 const REGION_TO_DIAL: Record<string, string> = {

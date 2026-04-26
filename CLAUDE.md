@@ -281,7 +281,7 @@ Haversine, 50-mile radius. "My Teams" section shows owned + player-member teams.
 1. `getLastKnownPositionAsync({ maxAge: 5 * 60 * 1000 })` — instant cache hit, use immediately if available
 2. `Promise.race([getCurrentPositionAsync({ accuracy: Balanced }), new Promise((_, reject) => setTimeout(() => reject(), 10_000))])` — fresh fix with hard 10 s timeout
 3. `getLastKnownPositionAsync()` (no maxAge) in the catch block — stale is better than nothing
-4. iOS simulator fallback: `if (Platform.OS === 'ios' && !Constants.isDevice)` → use `SIMULATOR_DEFAULT_LOC`
+4. iOS simulator fallback: `if (Platform.OS === 'ios' && !Device.isDevice)` → use `SIMULATOR_DEFAULT_LOC` — import `Device` from `expo-device`, **not** `Constants.isDevice` (that property was removed in expo-constants SDK 55)
 
 **Proximity re-trigger pattern** — use a `needsSync` state (not a ref) as the trigger for the cloud fetch effect. The `useFocusEffect` sets `setNeedsSync(true)` when the cooldown has elapsed; the fetch `useEffect` depends on `[userLoc, needsSync]` and sets `setNeedsSync(false)` immediately to prevent double-fire. Using a ref instead of state means re-renders don't re-run the effect.
 
@@ -515,3 +515,4 @@ npx expo prebuild --clean
 - **Do not** remove the `__DEV__` guard in `app/upgrade.tsx` `handleUpgrade` — the no-package fallback that calls `applyPlan()` directly is intentionally dev-only; in production a missing RC package must surface an error, not silently grant the plan
 - **Do not** use `getCurrentPlan()` (RC) to downgrade a stored plan — the client-side RC sync in `app/_layout.tsx` only applies upgrades (`rcRank > storedRank`). Downgrades happen exclusively via the `rc-webhook` Edge Function on EXPIRATION. Admin-granted plans have no RC subscription and would be wiped on every login otherwise.
 - **Do not** use `tabBarTestID` for tab bar button testIDs — React Navigation v7 / Expo Router 55 silently ignores it. Use `tabBarButtonTestID` in the screen `options` object in `app/(tabs)/_layout.tsx`.
+- **Do not** use `Constants.isDevice` from `expo-constants` — the property was removed in expo-constants SDK 55 and always returns `undefined`. Use `Device.isDevice` from `expo-device` instead. `Constants.isDevice` returning `undefined` caused RC to never initialize (blocking all in-app purchases) and location simulator fallbacks to fire on real devices.

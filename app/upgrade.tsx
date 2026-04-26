@@ -14,7 +14,7 @@ import {
   purchasePackage,
   restorePurchases,
 } from '../src/services/purchases';
-import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
+import type { PurchasesOffering } from 'react-native-purchases';
 import type { UserPlan } from '../src/engine/types';
 
 // ── Feature list per tier ─────────────────────────────────────────────────────
@@ -187,23 +187,23 @@ export default function UpgradeScreen() {
     useTeamStore.setState({ teamPlanCache: updatedCache });
   };
 
-  /**
-   * Find the matching RC package for the selected plan + billing cycle.
-   * Product ID convention: inningsly_{plan}_{monthly|annual}
-   */
-  const findPackage = (targetPlan: Exclude<UserPlan, 'free'>): PurchasesPackage | null => {
-    if (!offering) return null;
-    const suffix = annual ? 'annual' : 'monthly';
-    const prefix = `inningsly_${targetPlan}_${suffix}`;
-    return offering.availablePackages.find(p => p.product.identifier.startsWith(prefix)) ?? null;
-  };
-
   const handleUpgrade = async (targetPlan: UserPlan) => {
     if (!profile || targetPlan === 'free') return;
     setLoading(true);
     setError('');
     try {
-      const pkg = findPackage(targetPlan as Exclude<UserPlan, 'free'>);
+      // Re-fetch offerings if the mount-time fetch failed or returned nothing
+      let activeOffering = offering;
+      if (!activeOffering) {
+        activeOffering = await getOfferings();
+        if (activeOffering) setOffering(activeOffering);
+      }
+      const pkg = activeOffering
+        ? activeOffering.availablePackages.find(p => {
+            const suffix = annual ? 'annual' : 'monthly';
+            return p.product.identifier.startsWith(`inningsly_${targetPlan}_${suffix}`);
+          }) ?? null
+        : null;
       if (pkg) {
         // Real RevenueCat purchase
         const result = await purchasePackage(pkg);

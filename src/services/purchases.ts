@@ -17,7 +17,6 @@
  */
 
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
 import Purchases, {
   type CustomerInfo,
   type PurchasesOffering,
@@ -44,10 +43,6 @@ export function configurePurchases(userId?: string): void {
   const apiKey = Platform.OS === 'ios' ? RC_API_KEY_IOS : RC_API_KEY_ANDROID;
   if (!apiKey) {
     // No API key provided — purchases disabled (dev / web builds)
-    return;
-  }
-  if (!Constants.isDevice) {
-    // Simulator has no real StoreKit session — skip RC init to avoid noisy errors
     return;
   }
   Purchases.configure({ apiKey, appUserID: userId ?? null });
@@ -87,8 +82,15 @@ export async function getCurrentPlan(): Promise<UserPlan> {
 export async function getOfferings(): Promise<PurchasesOffering | null> {
   try {
     const offerings = await Purchases.getOfferings();
+    if (!offerings.current) {
+      console.warn('[RC] getOfferings: no current offering configured in RC dashboard');
+    } else {
+      console.log('[RC] getOfferings: current =', offerings.current.identifier,
+        '| packages:', offerings.current.availablePackages.map(p => p.product.identifier));
+    }
     return offerings.current ?? null;
-  } catch {
+  } catch (err) {
+    console.error('[RC] getOfferings failed:', err);
     return null;
   }
 }

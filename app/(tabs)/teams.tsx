@@ -9,7 +9,7 @@ import { useRole } from '../../src/hooks/useRole';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Team } from '../../src/engine/types';
 import * as Location from 'expo-location';
-import Constants from 'expo-constants';
+import Device from 'expo-device';
 
 // Xcode default simulated location — used when running on iOS simulator with no GPS fix
 const SIMULATOR_DEFAULT_LOC = { lat: 37.3318, lng: -122.0312 };
@@ -187,7 +187,7 @@ export default function TeamsScreen() {
 
         // 4. iOS simulator has no real GPS — fall back to Xcode default location
         //    so nearby cloud sync still runs during development.
-        if (Platform.OS === 'ios' && !Constants.isDevice) {
+        if (Platform.OS === 'ios' && !Device.isDevice) {
           setUserLoc(SIMULATOR_DEFAULT_LOC);
           setLocState('granted');
           return;

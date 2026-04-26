@@ -16,7 +16,7 @@ import { useRole } from '../../src/hooks/useRole';
 import { LIVE_RED } from '../../src/components/NearbyLiveCard';
 import { formatOvers } from '../../src/utils/formatters';
 import * as Location from 'expo-location';
-import Constants from 'expo-constants';
+import Device from 'expo-device';
 
 const SIMULATOR_DEFAULT_LOC = { lat: 37.3318, lng: -122.0312 };
 const RADIUS_KM = 80.47; // 50 miles
@@ -143,7 +143,7 @@ export default function HomeScreen() {
           const fallback = await Location.getLastKnownPositionAsync();
           if (fallback) { setUserLoc({ lat: fallback.coords.latitude, lng: fallback.coords.longitude }); return; }
         } catch {}
-        if (Platform.OS === 'ios' && !Constants.isDevice) setUserLoc(SIMULATOR_DEFAULT_LOC);
+        if (Platform.OS === 'ios' && !Device.isDevice) setUserLoc(SIMULATOR_DEFAULT_LOC);
       }
     })();
   }, []);
