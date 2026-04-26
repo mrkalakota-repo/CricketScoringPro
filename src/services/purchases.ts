@@ -1,11 +1,14 @@
 /**
  * RevenueCat purchases service for Inningsly.
  *
- * Product IDs (must match exactly in App Store Connect / Google Play Console):
- *   inningsly_pro_monthly    — Pro Team $6/mo
- *   inningsly_pro_annual     — Pro Team $50/yr
- *   inningsly_league_monthly — League Pro $29/mo
- *   inningsly_league_annual  — League Pro $250/yr
+ * Product IDs:
+ *   iOS (App Store Connect) — use _v2 suffix; originals were deleted and Apple blocks reuse:
+ *     inningsly_pro_monthly_v2 / inningsly_pro_annual_v2
+ *     inningsly_league_monthly_v2 / inningsly_league_annual_v2
+ *   Android (Play Console) — originals without _v2:
+ *     inningsly_pro_monthly / inningsly_pro_annual
+ *     inningsly_league_monthly / inningsly_league_annual
+ *   The startsWith() matching in upgrade.tsx handles both automatically.
  *
  * Entitlements (configured in RevenueCat dashboard):
  *   pro_entitlement    — granted by any pro product
@@ -45,7 +48,11 @@ export function configurePurchases(userId?: string): void {
     // No API key provided — purchases disabled (dev / web builds)
     return;
   }
-  Purchases.configure({ apiKey, appUserID: userId ?? null });
+  try {
+    Purchases.configure({ apiKey, appUserID: userId ?? null });
+  } catch (err) {
+    console.error('[RC] configure failed:', err);
+  }
 }
 
 // ── Plan helpers ──────────────────────────────────────────────────────────────
