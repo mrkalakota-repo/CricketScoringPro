@@ -1,13 +1,13 @@
 # Local-only scripts — not needed for EAS Build
 scripts/
 
-# iOS native — not needed for Android builds
+# Native directories — EAS regenerates these via expo prebuild from app.json.
+# Excluding them ensures versionCode/versionName always come from app.json.
 ios/
+android/
 
 # Build artifacts and caches
 dist/
-android/build/
-android/.gradle/
 
 # Local dev caches
 .expo/
