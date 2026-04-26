@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "10",
+      "buildNumber": "11",
       "bundleIdentifier": "com.gullycricket.scorer",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Used to show nearby cricket teams first.",
@@ -24,7 +24,7 @@
     },
     "android": {
       "package": "com.gullycricket.scorer",
-      "versionCode": 18,
+      "versionCode": 19,
       "adaptiveIcon": {
         "backgroundColor": "#00695C",
         "foregroundImage": "./assets/android-icon-foreground.png",
