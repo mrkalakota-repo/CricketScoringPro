@@ -45,13 +45,7 @@ const LEAGUE_ENTITLEMENT = 'league_entitlement';
 export function configurePurchases(userId?: string): void {
   const apiKey = Platform.OS === 'ios' ? RC_API_KEY_IOS : RC_API_KEY_ANDROID;
   if (!apiKey) {
-    return;
-  }
-  // RC v10.0.1 throws an NSException from configure() on iOS 26.x that
-  // propagates through the TurboModule bridge and crashes the app (SIGABRT).
-  // Skip init on iOS 26+ until RC releases a fix.
-  if (Platform.OS === 'ios' && parseInt(String(Platform.Version), 10) >= 26) {
-    console.warn('[RC] Skipping configure on iOS 26 (NSException crash — awaiting RC fix)');
+    // No API key provided — purchases disabled (dev / web builds)
     return;
   }
   try {

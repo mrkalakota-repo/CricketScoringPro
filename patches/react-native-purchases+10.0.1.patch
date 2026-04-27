@@ -1,0 +1,65 @@
+diff --git a/node_modules/react-native-purchases/ios/RNPurchases.m b/node_modules/react-native-purchases/ios/RNPurchases.m
+index eb76986..5945808 100644
+--- a/node_modules/react-native-purchases/ios/RNPurchases.m
++++ b/node_modules/react-native-purchases/ios/RNPurchases.m
+@@ -67,20 +67,46 @@ - (void)sendEventWithName:(NSString *)name body:(id)body {
+                   diagnosticsEnabled:(BOOL)diagnosticsEnabled
+                   automaticDeviceIdentifierCollectionEnabled:(BOOL)automaticDeviceIdentifierCollectionEnabled
+                   preferredUILocaleOverride:(nullable NSString *)preferredUILocaleOverride) {
+-    RCPurchases *purchases = [RCPurchases configureWithAPIKey:apiKey.mappingNSNullToNil
+-                                                    appUserID:appUserID.mappingNSNullToNil
+-                                      purchasesAreCompletedBy:purchasesAreCompletedBy.mappingNSNullToNil
+-                                        userDefaultsSuiteName:userDefaultsSuiteName.mappingNSNullToNil
+-                                               platformFlavor:self.platformFlavor
+-                                        platformFlavorVersion:self.platformFlavorVersion
+-                                              storeKitVersion:storeKitVersion.mappingNSNullToNil
+-                                            dangerousSettings:nil
+-                         shouldShowInAppMessagesAutomatically:shouldShowInAppMessagesAutomatically
+-                                             verificationMode:entitlementVerificationMode.mappingNSNullToNil
+-                                           diagnosticsEnabled:diagnosticsEnabled
+-                   automaticDeviceIdentifierCollectionEnabled:automaticDeviceIdentifierCollectionEnabled
+-                                              preferredLocale:preferredUILocaleOverride.mappingNSNullToNil];
+-    purchases.delegate = self;
++    // iOS 26: SKPaymentQueue APIs require the main thread. The New Architecture
++    // TurboModule bridge dispatches void methods on a background workqueue, ignoring
++    // methodQueue = dispatch_get_main_queue(). Force main-thread execution here to
++    // prevent an NSException from propagating through the bridge and crashing (SIGABRT).
++    __weak RNPurchases *weakSelf = self;
++    NSString *capturedApiKey = apiKey;
++    NSString *capturedAppUserID = appUserID;
++    NSString *capturedPurchasesAreCompletedBy = purchasesAreCompletedBy;
++    NSString *capturedUserDefaultsSuiteName = userDefaultsSuiteName;
++    NSString *capturedStoreKitVersion = storeKitVersion;
++    NSString *capturedVerificationMode = entitlementVerificationMode;
++    NSString *capturedPreferredLocale = preferredUILocaleOverride;
++    BOOL capturedShowMessages = shouldShowInAppMessagesAutomatically;
++    BOOL capturedDiagnostics = diagnosticsEnabled;
++    BOOL capturedAutoDeviceId = automaticDeviceIdentifierCollectionEnabled;
++
++    void (^configureBlock)(void) = ^{
++        RNPurchases *strongSelf = weakSelf;
++        if (!strongSelf) return;
++        RCPurchases *purchases = [RCPurchases configureWithAPIKey:capturedApiKey.mappingNSNullToNil
++                                                        appUserID:capturedAppUserID.mappingNSNullToNil
++                                          purchasesAreCompletedBy:capturedPurchasesAreCompletedBy.mappingNSNullToNil
++                                            userDefaultsSuiteName:capturedUserDefaultsSuiteName.mappingNSNullToNil
++                                                   platformFlavor:strongSelf.platformFlavor
++                                            platformFlavorVersion:strongSelf.platformFlavorVersion
++                                                  storeKitVersion:capturedStoreKitVersion.mappingNSNullToNil
++                                                dangerousSettings:nil
++                             shouldShowInAppMessagesAutomatically:capturedShowMessages
++                                                 verificationMode:capturedVerificationMode.mappingNSNullToNil
++                                               diagnosticsEnabled:capturedDiagnostics
++                       automaticDeviceIdentifierCollectionEnabled:capturedAutoDeviceId
++                                                  preferredLocale:capturedPreferredLocale.mappingNSNullToNil];
++        purchases.delegate = strongSelf;
++    };
++
++    if ([NSThread isMainThread]) {
++        configureBlock();
++    } else {
++        dispatch_async(dispatch_get_main_queue(), configureBlock);
++    }
+ }
+
+ RCT_EXPORT_METHOD(setAllowSharingStoreAccount:(BOOL)allowSharingStoreAccount) {
