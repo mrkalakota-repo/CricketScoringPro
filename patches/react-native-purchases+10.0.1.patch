@@ -1,8 +1,180 @@
+diff --git a/node_modules/react-native-purchases/android/src/main/java/com/revenuecat/purchases/react/GoogleUpgradeInfo.java b/node_modules/react-native-purchases/android/src/main/java/com/revenuecat/purchases/react/GoogleUpgradeInfo.java
+deleted file mode 100644
+index b90de11..0000000
+--- a/node_modules/react-native-purchases/android/src/main/java/com/revenuecat/purchases/react/GoogleUpgradeInfo.java
++++ /dev/null
+@@ -1,19 +0,0 @@
+-package com.revenuecat.purchases.react;
+-
+-class GoogleUpgradeInfo {
+-    private final String oldProductIdentifier;
+-    private final Integer prorationMode;
+-
+-    public GoogleUpgradeInfo(String oldProductIdentifier, Integer prorationMode) {
+-        this.oldProductIdentifier = oldProductIdentifier;
+-        this.prorationMode = prorationMode;
+-    }
+-
+-    public String getOldProductIdentifier() {
+-        return oldProductIdentifier;
+-    }
+-
+-    public Integer getProrationMode() {
+-        return prorationMode;
+-    }
+-}
+diff --git a/node_modules/react-native-purchases/android/src/main/java/com/revenuecat/purchases/react/RNPurchasesConverters.kt b/node_modules/react-native-purchases/android/src/main/java/com/revenuecat/purchases/react/RNPurchasesConverters.kt
+deleted file mode 100644
+index 10f5d16..0000000
+--- a/node_modules/react-native-purchases/android/src/main/java/com/revenuecat/purchases/react/RNPurchasesConverters.kt
++++ /dev/null
+@@ -1,95 +0,0 @@
+-package com.revenuecat.purchases.react
+-
+-import com.facebook.react.bridge.ReadableArray
+-import com.facebook.react.bridge.ReadableMap
+-import com.facebook.react.bridge.ReadableType
+-import com.facebook.react.bridge.WritableArray
+-import com.facebook.react.bridge.WritableMap
+-import com.facebook.react.bridge.WritableNativeArray
+-import com.facebook.react.bridge.WritableNativeMap
+-import org.json.JSONArray
+-import org.json.JSONException
+-import org.json.JSONObject
+-
+-internal object RNPurchasesConverters {
+-    @JvmStatic
+-    @Throws(JSONException::class)
+-    fun convertReadableMapToJson(readableMap: ReadableMap?): JSONObject {
+-        val jsonObject = JSONObject()
+-        val iterator = readableMap!!.keySetIterator()
+-        while (iterator.hasNextKey()) {
+-            val key = iterator.nextKey()
+-            when (readableMap.getType(key)) {
+-                ReadableType.Null -> jsonObject.put(key, JSONObject.NULL)
+-                ReadableType.Boolean -> jsonObject.put(key, readableMap.getBoolean(key))
+-                ReadableType.Number -> jsonObject.put(key, readableMap.getDouble(key))
+-                ReadableType.String -> jsonObject.put(key, readableMap.getString(key))
+-                ReadableType.Map -> jsonObject.put(
+-                    key,
+-                    convertReadableMapToJson(readableMap.getMap(key))
+-                )
+-
+-                ReadableType.Array -> jsonObject.put(
+-                    key,
+-                    convertReadableArrayToJson(readableMap.getArray(key))
+-                )
+-            }
+-        }
+-        return jsonObject
+-    }
+-
+-    @Throws(JSONException::class)
+-    fun convertReadableArrayToJson(readableArray: ReadableArray?): JSONArray {
+-        val array = JSONArray()
+-        for (i in 0 until readableArray!!.size()) {
+-            when (readableArray.getType(i)) {
+-                ReadableType.Null -> {}
+-                ReadableType.Boolean -> array.put(readableArray.getBoolean(i))
+-                ReadableType.Number -> array.put(readableArray.getDouble(i))
+-                ReadableType.String -> array.put(readableArray.getString(i))
+-                ReadableType.Map -> array.put(convertReadableMapToJson(readableArray.getMap(i)))
+-                ReadableType.Array -> array.put(convertReadableArrayToJson(readableArray.getArray(i)))
+-            }
+-        }
+-        return array
+-    }
+-
+-    @Suppress("UNCHECKED_CAST")
+-    private fun convertArrayToWritableArray(array: Array<Any?>): WritableArray {
+-        val writableArray: WritableArray = WritableNativeArray()
+-        for (item in array) {
+-            when (item) {
+-                null -> writableArray.pushNull()
+-                is Boolean -> writableArray.pushBoolean(item)
+-                is Int -> writableArray.pushInt(item)
+-                is Long -> writableArray.pushDouble(item.toDouble())
+-                is Double -> writableArray.pushDouble(item)
+-                is String -> writableArray.pushString(item)
+-                is Map<*, *> -> writableArray.pushMap(convertMapToWriteableMap(item as Map<String, *>))
+-                is Array<*> -> writableArray.pushArray(convertArrayToWritableArray(item as Array<Any?>))
+-                is List<*> -> writableArray.pushArray(convertArrayToWritableArray(item.toTypedArray()))
+-            }
+-        }
+-        return writableArray
+-    }
+-
+-    @JvmStatic
+-    @Suppress("UNCHECKED_CAST")
+-    fun convertMapToWriteableMap(map: Map<String, *>): WritableMap {
+-        val writableMap: WritableMap = WritableNativeMap()
+-        for ((key, value) in map) {
+-            when (value) {
+-                null -> writableMap.putNull(key)
+-                is Boolean -> writableMap.putBoolean(key, value)
+-                is Int -> writableMap.putInt(key, value)
+-                is Long -> writableMap.putDouble(key, value.toDouble())
+-                is Double -> writableMap.putDouble(key, value)
+-                is String -> writableMap.putString(key, value)
+-                is Map<*, *> -> writableMap.putMap(key, convertMapToWriteableMap(value as Map<String, *>))
+-                is Array<*> -> writableMap.putArray(key, convertArrayToWritableArray(value as Array<Any?>))
+-                is List<*> -> writableMap.putArray(key, convertArrayToWritableArray(value.toTypedArray()))
+-            }
+-        }
+-        return writableMap
+-    }
+-}
+diff --git a/node_modules/react-native-purchases/android/src/main/java/com/revenuecat/purchases/react/RNPurchasesModule.java b/node_modules/react-native-purchases/android/src/main/java/com/revenuecat/purchases/react/RNPurchasesModule 2.java
+similarity index 100%
+rename from node_modules/react-native-purchases/android/src/main/java/com/revenuecat/purchases/react/RNPurchasesModule.java
+rename to node_modules/react-native-purchases/android/src/main/java/com/revenuecat/purchases/react/RNPurchasesModule 2.java
+diff --git a/node_modules/react-native-purchases/android/src/main/java/com/revenuecat/purchases/react/RNPurchasesPackage.java b/node_modules/react-native-purchases/android/src/main/java/com/revenuecat/purchases/react/RNPurchasesPackage.java
+deleted file mode 100644
+index 9c25a46..0000000
+--- a/node_modules/react-native-purchases/android/src/main/java/com/revenuecat/purchases/react/RNPurchasesPackage.java
++++ /dev/null
+@@ -1,36 +0,0 @@
+-
+-package com.revenuecat.purchases.react;
+-
+-import androidx.annotation.NonNull;
+-
+-import java.util.Arrays;
+-import java.util.Collections;
+-import java.util.List;
+-
+-import com.facebook.react.ReactPackage;
+-import com.facebook.react.bridge.NativeModule;
+-import com.facebook.react.bridge.ReactApplicationContext;
+-import com.facebook.react.uimanager.ViewManager;
+-import com.facebook.react.bridge.JavaScriptModule;
+-
+-
+-public class RNPurchasesPackage implements ReactPackage {
+-    @NonNull
+-    @Override
+-    public List<NativeModule> createNativeModules(@NonNull ReactApplicationContext reactContext) {
+-        return Arrays.<NativeModule>asList(
+-            new RNPurchasesModule(reactContext)
+-        );
+-    }
+-
+-    // Deprecated from RN 0.47
+-    public List<Class<? extends JavaScriptModule>> createJSModules() {
+-        return Collections.emptyList();
+-    }
+-
+-    @NonNull
+-    @Override
+-    public List<ViewManager> createViewManagers(@NonNull ReactApplicationContext reactContext) {
+-        return Collections.emptyList();
+-    }
+-}
 diff --git a/node_modules/react-native-purchases/ios/RNPurchases.m b/node_modules/react-native-purchases/ios/RNPurchases.m
-index eb76986..7a3c2e1 100644
+index eb76986..5ecb0a3 100644
 --- a/node_modules/react-native-purchases/ios/RNPurchases.m
 +++ b/node_modules/react-native-purchases/ios/RNPurchases.m
-@@ -67,20 +67,45 @@ - (void)sendEventWithName:(NSString *)name body:(id)body {
+@@ -67,27 +67,56 @@ - (void)sendEventWithName:(NSString *)name body:(id)body {
                    diagnosticsEnabled:(BOOL)diagnosticsEnabled
                    automaticDeviceIdentifierCollectionEnabled:(BOOL)automaticDeviceIdentifierCollectionEnabled
                    preferredUILocaleOverride:(nullable NSString *)preferredUILocaleOverride) {
@@ -60,5 +232,417 @@ index eb76986..7a3c2e1 100644
 +        }
 +    });
  }
-
+ 
  RCT_EXPORT_METHOD(setAllowSharingStoreAccount:(BOOL)allowSharingStoreAccount) {
++    @try {
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+-    [RCCommonFunctionality setAllowSharingStoreAccount:allowSharingStoreAccount];
++        [RCCommonFunctionality setAllowSharingStoreAccount:allowSharingStoreAccount];
+ #pragma GCC diagnostic pop
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setAllowSharingStoreAccount suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_REMAP_METHOD(getOfferings,
+@@ -169,7 +198,11 @@ - (void)sendEventWithName:(NSString *)name body:(id)body {
+ }
+ 
+ RCT_EXPORT_METHOD(syncPurchases) {
+-    [RCCommonFunctionality syncPurchasesWithCompletionBlock:nil];
++    @try {
++        [RCCommonFunctionality syncPurchasesWithCompletionBlock:nil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in syncPurchases suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_REMAP_METHOD(syncPurchasesForResult,
+@@ -208,17 +241,29 @@ - (void)sendEventWithName:(NSString *)name body:(id)body {
+ 
+ RCT_REMAP_METHOD(setDebugLogsEnabled,
+                  debugLogsEnabled:(BOOL)enabled) {
+-    [RCCommonFunctionality setDebugLogsEnabled:enabled];
++    @try {
++        [RCCommonFunctionality setDebugLogsEnabled:enabled];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setDebugLogsEnabled suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setLogLevel:(NSString *)level)
+ {
+-    [RCCommonFunctionality setLogLevel:level.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setLogLevel:level.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setLogLevel suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setSimulatesAskToBuyInSandbox:(BOOL)simulatesAskToBuyInSandbox)
+ {
+-    [RCCommonFunctionality setSimulatesAskToBuyInSandbox:simulatesAskToBuyInSandbox];
++    @try {
++        [RCCommonFunctionality setSimulatesAskToBuyInSandbox:simulatesAskToBuyInSandbox];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setSimulatesAskToBuyInSandbox suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_REMAP_METHOD(getCustomerInfo,
+@@ -229,15 +274,19 @@ - (void)sendEventWithName:(NSString *)name body:(id)body {
+ 
+ RCT_EXPORT_METHOD(enableAdServicesAttributionTokenCollection)
+ {
+-    #if !TARGET_OS_TV
+-    if (@available(iOS 14.3, macOS 11.1, macCatalyst 14.3, *)) {
+-        [RCCommonFunctionality enableAdServicesAttributionTokenCollection];
+-    } else {
+-        NSLog(@"[Purchases] Warning: tried to enable AdServices attribution token collection, but it's only available on iOS 14.3 or greater or macOS 11.1 or greater.");
++    @try {
++        #if !TARGET_OS_TV
++        if (@available(iOS 14.3, macOS 11.1, macCatalyst 14.3, *)) {
++            [RCCommonFunctionality enableAdServicesAttributionTokenCollection];
++        } else {
++            NSLog(@"[Purchases] Warning: tried to enable AdServices attribution token collection, but it's only available on iOS 14.3 or greater or macOS 11.1 or greater.");
++        }
++        #else
++        NSLog(@"[Purchases] Warning: AdServices attribution token collection is not available on tvOS.");
++        #endif
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in enableAdServicesAttributionTokenCollection suppressed: %@", exception.reason);
+     }
+-    #else
+-    NSLog(@"[Purchases] Warning: AdServices attribution token collection is not available on tvOS.");
+-    #endif
+ }
+ 
+ RCT_REMAP_METHOD(isAnonymous,
+@@ -264,7 +313,11 @@ - (void)sendEventWithName:(NSString *)name body:(id)body {
+ }
+ 
+ RCT_EXPORT_METHOD(invalidateCustomerInfoCache) {
+-    [RCCommonFunctionality invalidateCustomerInfoCache];
++    @try {
++        [RCCommonFunctionality invalidateCustomerInfoCache];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in invalidateCustomerInfoCache suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_REMAP_METHOD(getPromotionalOffer,
+@@ -278,15 +331,19 @@ - (void)sendEventWithName:(NSString *)name body:(id)body {
+ }
+ 
+ RCT_EXPORT_METHOD(presentCodeRedemptionSheet) {
+-    #if TARGET_OS_IOS && !TARGET_OS_MACCATALYST
+-    if (@available(iOS 14.0, *)) {
+-        [RCCommonFunctionality presentCodeRedemptionSheet];
+-    } else {
++    @try {
++        #if TARGET_OS_IOS && !TARGET_OS_MACCATALYST
++        if (@available(iOS 14.0, *)) {
++            [RCCommonFunctionality presentCodeRedemptionSheet];
++        } else {
++            logUnavailablePresentCodeRedemptionSheet();
++        }
++        #else
+         logUnavailablePresentCodeRedemptionSheet();
++        #endif
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in presentCodeRedemptionSheet suppressed: %@", exception.reason);
+     }
+-    #else
+-    logUnavailablePresentCodeRedemptionSheet();
+-    #endif
+ }
+ 
+ static void logUnavailablePresentCodeRedemptionSheet() {
+@@ -357,103 +414,199 @@ static void logUnavailablePresentCodeRedemptionSheet() {
+ }
+ 
+ RCT_EXPORT_METHOD(setAttributes:(NSDictionary *)attributes) {
+-    [RCCommonFunctionality setAttributes:attributes.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setAttributes:attributes.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setAttributes suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setEmail:(NSString *)email) {
+-    [RCCommonFunctionality setEmail:email.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setEmail:email.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setEmail suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setPhoneNumber:(NSString *)phoneNumber) {
+-    [RCCommonFunctionality setPhoneNumber:phoneNumber.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setPhoneNumber:phoneNumber.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setPhoneNumber suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setDisplayName:(NSString *)displayName) {
+-    [RCCommonFunctionality setDisplayName:displayName.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setDisplayName:displayName.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setDisplayName suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setPushToken:(NSString *)pushToken) {
+-    [RCCommonFunctionality setPushToken:pushToken.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setPushToken:pushToken.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setPushToken suppressed: %@", exception.reason);
++    }
+ }
+ 
+ # pragma mark Attribution IDs
+ 
+ RCT_EXPORT_METHOD(collectDeviceIdentifiers) {
+-    [RCCommonFunctionality collectDeviceIdentifiers];
++    @try {
++        [RCCommonFunctionality collectDeviceIdentifiers];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in collectDeviceIdentifiers suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setAdjustID:(NSString *)adjustID) {
+-    [RCCommonFunctionality setAdjustID:adjustID.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setAdjustID:adjustID.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setAdjustID suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setAppsflyerID:(NSString *)appsflyerID) {
+-    [RCCommonFunctionality setAppsflyerID:appsflyerID.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setAppsflyerID:appsflyerID.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setAppsflyerID suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setFBAnonymousID:(NSString *)fbAnonymousID) {
+-    [RCCommonFunctionality setFBAnonymousID:fbAnonymousID.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setFBAnonymousID:fbAnonymousID.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setFBAnonymousID suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setMparticleID:(NSString *)mparticleID) {
+-    [RCCommonFunctionality setMparticleID:mparticleID.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setMparticleID:mparticleID.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setMparticleID suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setCleverTapID:(NSString *)cleverTapID) {
+-    [RCCommonFunctionality setCleverTapID:cleverTapID.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setCleverTapID:cleverTapID.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setCleverTapID suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setMixpanelDistinctID:(NSString *)mixpanelDistinctID) {
+-    [RCCommonFunctionality setMixpanelDistinctID:mixpanelDistinctID.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setMixpanelDistinctID:mixpanelDistinctID.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setMixpanelDistinctID suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setFirebaseAppInstanceID:(NSString *)firebaseAppInstanceId) {
+-    [RCCommonFunctionality setFirebaseAppInstanceID:firebaseAppInstanceId.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setFirebaseAppInstanceID:firebaseAppInstanceId.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setFirebaseAppInstanceID suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setTenjinAnalyticsInstallationID:(NSString *)tenjinAnalyticsInstallationID) {
+-    [RCCommonFunctionality setTenjinAnalyticsInstallationID:tenjinAnalyticsInstallationID.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setTenjinAnalyticsInstallationID:tenjinAnalyticsInstallationID.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setTenjinAnalyticsInstallationID suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setKochavaDeviceID:(NSString *)kochavaDeviceID) {
+-    [RCCommonFunctionality setKochavaDeviceID:kochavaDeviceID.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setKochavaDeviceID:kochavaDeviceID.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setKochavaDeviceID suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setOnesignalID:(NSString *)onesignalID) {
+-    [RCCommonFunctionality setOnesignalID:onesignalID.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setOnesignalID:onesignalID.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setOnesignalID suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setAirshipChannelID:(NSString *)airshipChannelID) {
+-    [RCCommonFunctionality setAirshipChannelID:airshipChannelID.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setAirshipChannelID:airshipChannelID.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setAirshipChannelID suppressed: %@", exception.reason);
++    }
+ }
+ 
+ # pragma mark Campaign parameters
+ 
+ RCT_EXPORT_METHOD(setMediaSource:(NSString *)mediaSource) {
+-    [RCCommonFunctionality setMediaSource:mediaSource.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setMediaSource:mediaSource.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setMediaSource suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setCampaign:(NSString *)campaign) {
+-    [RCCommonFunctionality setCampaign:campaign.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setCampaign:campaign.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setCampaign suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setAdGroup:(NSString *)adGroup) {
+-    [RCCommonFunctionality setAdGroup:adGroup.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setAdGroup:adGroup.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setAdGroup suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setAd:(NSString *)ad) {
+-    [RCCommonFunctionality setAd:ad.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setAd:ad.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setAd suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setKeyword:(NSString *)keyword) {
+-    [RCCommonFunctionality setKeyword:keyword.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setKeyword:keyword.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setKeyword suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setCreative:(NSString *)creative) {
+-    [RCCommonFunctionality setCreative:creative.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality setCreative:creative.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setCreative suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(overridePreferredLocale:(nullable NSString *)locale) {
+-    [RCCommonFunctionality overridePreferredLocale:locale.mappingNSNullToNil];
++    @try {
++        [RCCommonFunctionality overridePreferredLocale:locale.mappingNSNullToNil];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in overridePreferredLocale suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_REMAP_METHOD(canMakePayments,
+@@ -569,15 +722,23 @@ static void logUnavailablePresentCodeRedemptionSheet() {
+ }
+ 
+ RCT_EXPORT_METHOD(setLogHandler) {
+-    [RCCommonFunctionality setLogHanderOnLogReceived:^(NSDictionary<NSString *,NSString *> * _Nonnull logDetails) {
+-        [self sendEventWithName:RNPurchasesLogHandlerEvent body:logDetails];
+-    }];
++    @try {
++        [RCCommonFunctionality setLogHanderOnLogReceived:^(NSDictionary<NSString *,NSString *> * _Nonnull logDetails) {
++            [self sendEventWithName:RNPurchasesLogHandlerEvent body:logDetails];
++        }];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setLogHandler suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(setTrackedEventListener) {
+-    [RCCommonFunctionality setTrackedEventListenerOnEventReceived:^(NSDictionary<NSString *, id> * _Nonnull eventDetails) {
+-        [self sendEventWithName:RNPurchasesTrackedEvent body:eventDetails];
+-    }];
++    @try {
++        [RCCommonFunctionality setTrackedEventListenerOnEventReceived:^(NSDictionary<NSString *, id> * _Nonnull eventDetails) {
++            [self sendEventWithName:RNPurchasesTrackedEvent body:eventDetails];
++        }];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in setTrackedEventListener suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(isWebPurchaseRedemptionURL:(NSString *)urlString
+@@ -603,7 +764,11 @@ static void logUnavailablePresentCodeRedemptionSheet() {
+ }
+ 
+ RCT_EXPORT_METHOD(invalidateVirtualCurrenciesCache) {
+-    [RCCommonFunctionality invalidateVirtualCurrenciesCache];
++    @try {
++        [RCCommonFunctionality invalidateVirtualCurrenciesCache];
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in invalidateVirtualCurrenciesCache suppressed: %@", exception.reason);
++    }
+ }
+ 
+ RCT_EXPORT_METHOD(getCachedVirtualCurrencies:
+@@ -628,10 +793,14 @@ static void logUnavailablePresentCodeRedemptionSheet() {
+ }
+ 
+ RCT_EXPORT_METHOD(trackCustomPaywallImpression:(NSDictionary *)data) {
+-    if (@available(iOS 15.0, tvOS 15.0, macOS 12.0, watchOS 8.0, *)) {
+-        [RCCommonFunctionality trackCustomPaywallImpression:data];
+-    } else {
+-        NSLog(@"[Purchases] Warning: tried to call trackCustomPaywallImpression, but it's only available on iOS 15.0 or greater.");
++    @try {
++        if (@available(iOS 15.0, tvOS 15.0, macOS 12.0, watchOS 8.0, *)) {
++            [RCCommonFunctionality trackCustomPaywallImpression:data];
++        } else {
++            NSLog(@"[Purchases] Warning: tried to call trackCustomPaywallImpression, but it's only available on iOS 15.0 or greater.");
++        }
++    } @catch (NSException *exception) {
++        NSLog(@"[RNPurchases] NSException in trackCustomPaywallImpression suppressed: %@", exception.reason);
+     }
+ }
+ 

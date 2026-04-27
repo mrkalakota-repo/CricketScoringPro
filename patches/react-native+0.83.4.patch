@@ -1,0 +1,23 @@
+diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+index 6646570..f1ab969 100644
+--- a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
++++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+@@ -470,7 +470,17 @@ TraceSection s(
+     @try {
+       [inv invokeWithTarget:strongModule];
+     } @catch (NSException *exception) {
+-      throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++      if (shouldVoidMethodsExecuteSync_) {
++        // Sync path: JS thread is waiting, safe to propagate to JSI runtime.
++        throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++      } else {
++        // Async path: this block runs on a background workqueue thread while the
++        // JS thread concurrently accesses the Hermes runtime. Calling
++        // convertNSExceptionToJSError(runtime, ...) from here races with Hermes
++        // and causes heap corruption -> SIGSEGV. Log and suppress instead.
++        NSLog(@"[RCTTurboModule] NSException in async void method %s.%s suppressed to prevent Hermes data race: %@",
++              moduleName, methodName, exception.reason);
++      }
+     } @finally {
+       [retainedObjectsForInvocation removeAllObjects];
+     }
