@@ -25,6 +25,7 @@ import Purchases, {
   type PurchasesOffering,
   type PurchasesPackage,
   LOG_LEVEL,
+  STOREKIT_VERSION,
 } from 'react-native-purchases';
 import type { UserPlan } from '../engine/types';
 
@@ -49,7 +50,13 @@ export function configurePurchases(userId?: string): void {
     return;
   }
   try {
-    Purchases.configure({ apiKey, appUserID: userId ?? null });
+    Purchases.configure({
+      apiKey,
+      appUserID: userId ?? null,
+      // Force SK1 to avoid iOS 26 SKPaymentQueue.delegate threading restriction
+      // that crashes on New Architecture background threads (PaymentQueueWrapper SK2 path).
+      storeKitVersion: STOREKIT_VERSION.STOREKIT_1,
+    });
   } catch (err) {
     console.error('[RC] configure failed:', err);
   }

@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "12",
+      "buildNumber": "13",
       "bundleIdentifier": "com.gullycricket.scorer",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Used to show nearby cricket teams first.",

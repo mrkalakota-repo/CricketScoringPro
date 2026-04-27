@@ -1,8 +1,8 @@
 diff --git a/node_modules/react-native-purchases/ios/RNPurchases.m b/node_modules/react-native-purchases/ios/RNPurchases.m
-index eb76986..5945808 100644
+index eb76986..7a3c2e1 100644
 --- a/node_modules/react-native-purchases/ios/RNPurchases.m
 +++ b/node_modules/react-native-purchases/ios/RNPurchases.m
-@@ -67,20 +67,46 @@ - (void)sendEventWithName:(NSString *)name body:(id)body {
+@@ -67,20 +67,45 @@ - (void)sendEventWithName:(NSString *)name body:(id)body {
                    diagnosticsEnabled:(BOOL)diagnosticsEnabled
                    automaticDeviceIdentifierCollectionEnabled:(BOOL)automaticDeviceIdentifierCollectionEnabled
                    preferredUILocaleOverride:(nullable NSString *)preferredUILocaleOverride) {
@@ -20,10 +20,11 @@ index eb76986..5945808 100644
 -                   automaticDeviceIdentifierCollectionEnabled:automaticDeviceIdentifierCollectionEnabled
 -                                              preferredLocale:preferredUILocaleOverride.mappingNSNullToNil];
 -    purchases.delegate = self;
-+    // iOS 26: SKPaymentQueue APIs require the main thread. The New Architecture
-+    // TurboModule bridge dispatches void methods on a background workqueue, ignoring
-+    // methodQueue = dispatch_get_main_queue(). Force main-thread execution here to
-+    // prevent an NSException from propagating through the bridge and crashing (SIGABRT).
++    // iOS 26 + New Architecture: SKPaymentQueue APIs require the main thread but
++    // the TurboModule bridge dispatches void methods on a background workqueue,
++    // ignoring methodQueue = dispatch_get_main_queue(). Always dispatch asynchronously
++    // so this method returns before configure() runs — no NSException can propagate
++    // to the bridge regardless of which thread calls this method.
 +    __weak RNPurchases *weakSelf = self;
 +    NSString *capturedApiKey = apiKey;
 +    NSString *capturedAppUserID = appUserID;
@@ -36,30 +37,28 @@ index eb76986..5945808 100644
 +    BOOL capturedDiagnostics = diagnosticsEnabled;
 +    BOOL capturedAutoDeviceId = automaticDeviceIdentifierCollectionEnabled;
 +
-+    void (^configureBlock)(void) = ^{
++    dispatch_async(dispatch_get_main_queue(), ^{
 +        RNPurchases *strongSelf = weakSelf;
 +        if (!strongSelf) return;
-+        RCPurchases *purchases = [RCPurchases configureWithAPIKey:capturedApiKey.mappingNSNullToNil
-+                                                        appUserID:capturedAppUserID.mappingNSNullToNil
-+                                          purchasesAreCompletedBy:capturedPurchasesAreCompletedBy.mappingNSNullToNil
-+                                            userDefaultsSuiteName:capturedUserDefaultsSuiteName.mappingNSNullToNil
-+                                                   platformFlavor:strongSelf.platformFlavor
-+                                            platformFlavorVersion:strongSelf.platformFlavorVersion
-+                                                  storeKitVersion:capturedStoreKitVersion.mappingNSNullToNil
-+                                                dangerousSettings:nil
-+                             shouldShowInAppMessagesAutomatically:capturedShowMessages
-+                                                 verificationMode:capturedVerificationMode.mappingNSNullToNil
-+                                               diagnosticsEnabled:capturedDiagnostics
-+                       automaticDeviceIdentifierCollectionEnabled:capturedAutoDeviceId
-+                                                  preferredLocale:capturedPreferredLocale.mappingNSNullToNil];
-+        purchases.delegate = strongSelf;
-+    };
-+
-+    if ([NSThread isMainThread]) {
-+        configureBlock();
-+    } else {
-+        dispatch_async(dispatch_get_main_queue(), configureBlock);
-+    }
++        @try {
++            RCPurchases *purchases = [RCPurchases configureWithAPIKey:capturedApiKey.mappingNSNullToNil
++                                                            appUserID:capturedAppUserID.mappingNSNullToNil
++                                              purchasesAreCompletedBy:capturedPurchasesAreCompletedBy.mappingNSNullToNil
++                                                userDefaultsSuiteName:capturedUserDefaultsSuiteName.mappingNSNullToNil
++                                                       platformFlavor:strongSelf.platformFlavor
++                                                platformFlavorVersion:strongSelf.platformFlavorVersion
++                                                      storeKitVersion:capturedStoreKitVersion.mappingNSNullToNil
++                                                    dangerousSettings:nil
++                                 shouldShowInAppMessagesAutomatically:capturedShowMessages
++                                                     verificationMode:capturedVerificationMode.mappingNSNullToNil
++                                                   diagnosticsEnabled:capturedDiagnostics
++                           automaticDeviceIdentifierCollectionEnabled:capturedAutoDeviceId
++                                                      preferredLocale:capturedPreferredLocale.mappingNSNullToNil];
++            purchases.delegate = strongSelf;
++        } @catch (NSException *exception) {
++            NSLog(@"[RNPurchases] configure exception (iOS 26 compat): %@", exception.reason);
++        }
++    });
  }
 
  RCT_EXPORT_METHOD(setAllowSharingStoreAccount:(BOOL)allowSharingStoreAccount) {
