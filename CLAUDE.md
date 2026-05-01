@@ -465,6 +465,42 @@ npx expo prebuild --clean
 
 **iOS source build (required for iOS 26 / Xcode 17 and for the RN patch)** — React Native must be compiled from source so `patches/react-native+0.83.4.patch` takes effect. This is controlled by `"ios.buildReactNativeFromSource": "true"` in `ios/Podfile.properties.json`. **CRITICAL**: `.easignore` excludes the entire `ios/` directory, so EAS never receives a committed `Podfile.properties.json` — it always regenerates it via `expo prebuild`. The key is injected via the `plugins/with-rn-from-source.js` config plugin registered in `app.json`, which runs during every `expo prebuild` (local and EAS) and writes the key to the generated file. Two reasons this is mandatory: (1) pre-built binaries have hardcoded paths incompatible with iOS 26; (2) `patches/react-native+0.83.4.patch` only applies to source-compiled builds. The `post_install` hook in `ios/Podfile` sets `CLANG_CXX_LANGUAGE_STANDARD = 'c++20'` for all pod targets (required because RN bridging headers use C++20 `requires` concept syntax). After any `pod install` you may see `Removing React-Core-prebuilt / Removing ReactNativeDependencies` — this is expected and correct. When running from Xcode directly (not `npx expo run:ios`), Metro must already be running; launch `npx expo start` first. If `npx expo prebuild --clean` fails with `ENOTEMPTY`, run `rm -rf ios android` first then `npx expo prebuild`.
 
+**Local xcodebuild (use when EAS quota is exhausted)** — To iterate on iOS build errors locally without Xcode Archive GUI, run:
+```bash
+cd ios && xcodebuild -workspace Inningsly.xcworkspace -scheme Inningsly \
+  -destination "generic/platform=iOS" -configuration Release -sdk iphoneos build \
+  > /tmp/xcode_build.log 2>&1; echo "EXIT: $?"
+grep -E "error:|BUILD SUCCEEDED|BUILD FAILED" /tmp/xcode_build.log | grep -v "^note:" | tail -30
+```
+This gives all errors at once — far faster than running a full Xcode Archive per attempt. Once `BUILD SUCCEEDED`, do `Product → Archive` in Xcode to produce the `.ipa` for TestFlight.
+
+**libwebp and libdav1d are CocoaPods aggregate targets** — Both pods are `PBXAggregateTarget` (no compiled output). Their C source files are never compiled by CocoaPods, so the linker will fail with undefined `_WebPDecode`, `_dav1d_open`, etc. after a fresh `pod install`. Fix by pre-compiling from the CocoaPods cache:
+```bash
+# libwebp (run once after pod install)
+CACHE=$(find ~/Library/Caches/CocoaPods/Pods/Release/libwebp -maxdepth 1 -type d | tail -1)
+PODS="ios/Pods/libwebp"; mkdir -p "$PODS/build_arm64"
+SDK=$(xcrun --sdk iphoneos --show-sdk-path); CLANG=$(xcrun --sdk iphoneos -f clang)
+for f in $(find "$CACHE/src/dec" "$CACHE/src/enc" "$CACHE/src/utils" "$CACHE/src/demux" "$CACHE/src/mux" "$CACHE/sharpyuv" "$CACHE/src/dsp" -name "*.c"); do
+  "$CLANG" -arch arm64 -isysroot "$SDK" -miphoneos-version-min=15.1 -O2 -I"$CACHE/src" -I"$CACHE" -c "$f" -o "$PODS/build_arm64/$(basename ${f%.c}).o" 2>/dev/null; done
+xcrun --sdk iphoneos -f ar rcs "$PODS/libwebp.a" "$PODS/build_arm64/"*.o
+
+# libdav1d (run once after pod install)
+CACHE=$(find ~/Library/Caches/CocoaPods/Pods/Release/libdav1d -maxdepth 1 -type d | tail -1)/dav1d
+GENDIR=$(dirname "$CACHE")/generate; PODS="ios/Pods/libdav1d"; mkdir -p "$PODS/build_arm64"
+for f in $(find "$CACHE/src" -name "*.c" -not -path "*/ppc/*" -not -path "*/win32/*" -not -path "*/x86/*" -not -path "*/tests/*" -not -path "*/tools/*" -not -path "*/examples/*"); do
+  base=$(basename "${f%.c}"); [ "$base" = "cpu" ] && base="arm_cpu"  # avoid collision with src/cpu.c
+  "$CLANG" -arch arm64 -isysroot "$SDK" -miphoneos-version-min=15.1 -O2 -I"$GENDIR" -I"$CACHE/include" -I"$CACHE/src" -I"$CACHE" -c "$f" -o "$PODS/build_arm64/${base}.o" 2>/dev/null; done
+for f in $(find "$CACHE/src/arm/64" "$GENDIR/tmpl_16" "$GENDIR/tmpl_arm" -name "*.c" -o -name "*.S" 2>/dev/null); do
+  "$CLANG" -arch arm64 -isysroot "$SDK" -miphoneos-version-min=15.1 -O2 -I"$GENDIR" -I"$CACHE/include" -I"$CACHE/src" -I"$CACHE" -c "$f" -o "$PODS/build_arm64/extra_$(basename ${f%.*}).o" 2>/dev/null; done
+"$CLANG" -arch arm64 -isysroot "$SDK" -miphoneos-version-min=15.1 -O2 -I"$GENDIR" -I"$CACHE/include" -I"$CACHE/src" -I"$CACHE" -c "$CACHE/src/cpu.c" -o "$PODS/build_arm64/src_cpu.o" 2>/dev/null
+xcrun --sdk iphoneos -f ar rcs "$PODS/libdav1d.a" "$PODS/build_arm64/"*.o
+```
+Then add to `ios/Pods/Target Support Files/Pods-Inningsly/Pods-Inningsly.release.xcconfig` (and `.debug.xcconfig`) at the end of `OTHER_LDFLAGS`:
+```
+-L"${PODS_ROOT}/libwebp" -lwebp -L"${PODS_ROOT}/libdav1d" -ldav1d
+```
+These `.a` files and xcconfig edits are local-only — they do NOT survive `pod install` or `npx expo prebuild --clean`. Re-run after any Pods reset.
+
 **Android 15/16 compliance** — `react-native-edge-to-edge` is installed as a config plugin (replaces deprecated `setDecorFitsSystemWindows` API). `orientation` in `app.json` is `"default"` (not `"portrait"`) so Android 16 large-screen orientation override is handled gracefully. Do not change it back to `"portrait"`.
 
 ---

@@ -109,8 +109,8 @@ export default function RootLayout() {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <PaperProvider theme={theme}>
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.primary }}>
+            <ActivityIndicator size="large" color="#FFFFFF" />
           </View>
         </PaperProvider>
       </GestureHandlerRootView>

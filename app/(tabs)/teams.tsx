@@ -9,7 +9,7 @@ import { useRole } from '../../src/hooks/useRole';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Team } from '../../src/engine/types';
 import * as Location from 'expo-location';
-import Device from 'expo-device';
+import * as Device from 'expo-device';
 
 // Xcode default simulated location — used when running on iOS simulator with no GPS fix
 const SIMULATOR_DEFAULT_LOC = { lat: 37.3318, lng: -122.0312 };

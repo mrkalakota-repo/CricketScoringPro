@@ -16,7 +16,7 @@ import { useRole } from '../../src/hooks/useRole';
 import { LIVE_RED } from '../../src/components/NearbyLiveCard';
 import { formatOvers } from '../../src/utils/formatters';
 import * as Location from 'expo-location';
-import Device from 'expo-device';
+import * as Device from 'expo-device';
 
 const SIMULATOR_DEFAULT_LOC = { lat: 37.3318, lng: -122.0312 };
 const RADIUS_KM = 80.47; // 50 miles

@@ -10,12 +10,18 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 
   // Prevent concurrent initialization — reuse the in-flight promise
   if (!initPromise) {
-    initPromise = (async () => {
-      const connection = await SQLite.openDatabaseAsync('gullycricket.db');
-      await initializeDatabase(connection);
-      db = connection;
-      return db;
-    })().catch(err => {
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('SQLite init timeout')), 15_000)
+    );
+    initPromise = Promise.race([
+      (async () => {
+        const connection = await SQLite.openDatabaseAsync('gullycricket.db');
+        await initializeDatabase(connection);
+        db = connection;
+        return db;
+      })(),
+      timeout,
+    ]).catch(err => {
       // Reset so the next call retries
       initPromise = null;
       throw err;

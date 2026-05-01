@@ -10,7 +10,7 @@ import {
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getLocales } from 'expo-localization';
-import Device from 'expo-device';
+import * as Device from 'expo-device';
 import { useUserAuth } from '../src/hooks/useUserAuth';
 import type { UserRole } from '../src/engine/types';
 import { TurnstileWidget } from '../src/components/TurnstileWidget';
