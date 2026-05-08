@@ -192,6 +192,28 @@ export default function ScoringScreen() {
   // Current over balls
   const currentOverBalls = innings?.allBalls.filter(b => b.overNumber === innings.totalOvers) ?? [];
 
+  // Completed overs log — newest first, with per-over summary and cumulative score
+  const completedOverLog = (() => {
+    if (!innings || innings.allBalls.length === 0) return [];
+    const byOver = new Map<number, typeof innings.allBalls>();
+    for (const ball of innings.allBalls) {
+      if (!byOver.has(ball.overNumber)) byOver.set(ball.overNumber, []);
+      byOver.get(ball.overNumber)!.push(ball);
+    }
+    let cumRuns = 0, cumWickets = 0;
+    const sorted = [...byOver.entries()]
+      .filter(([ov]) => ov < innings.totalOvers)
+      .sort((a, b) => a[0] - b[0]);
+    const entries = sorted.map(([overNum, balls]) => {
+      const overRuns = balls.reduce((s, b) => s + b.runs + b.extras.reduce((x, e) => x + e.runs, 0), 0);
+      const overWickets = balls.filter(b => !!b.dismissal).length;
+      cumRuns += overRuns;
+      cumWickets += overWickets;
+      return { overNum, balls, overRuns, overWickets, cumRuns, cumWickets };
+    });
+    return entries.reverse();
+  })();
+
   const clearExtras = () => {
     setIsWide(false);
     setIsNoBall(false);
@@ -626,6 +648,42 @@ export default function ScoringScreen() {
             )
           )}
         </View>
+      )}
+
+      {/* Completed Overs Log — reverse chronological, summary + ball-by-ball */}
+      {completedOverLog.length > 0 && (
+        <ScrollView style={[styles.overLog, { backgroundColor: theme.colors.background }]} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+          {completedOverLog.map(({ overNum, balls, overRuns, overWickets, cumRuns, cumWickets }) => (
+            <View key={overNum} style={styles.overLogEntry}>
+              <View style={[styles.overLogHeader, { backgroundColor: theme.colors.primaryContainer }]}>
+                <Text style={[styles.overLogHeaderText, { color: theme.colors.onPrimaryContainer }]}>
+                  Over {overNum + 1}: {overRuns} run{overRuns !== 1 ? 's' : ''},{' '}
+                  {overWickets} wkt{overWickets !== 1 ? 's' : ''}{' '}
+                  <Text style={styles.overLogTotal}>| {cumRuns}/{cumWickets}</Text>
+                </Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.overLogBalls}>
+                {balls.map((ball, i) => (
+                  <View key={ball.id} style={styles.overLogBallItem}>
+                    <View style={[styles.ballBubble, {
+                      backgroundColor: ball.dismissal ? colors.wicket
+                        : !ball.isLegal ? colors.wide
+                        : ball.runs === 4 ? colors.four
+                        : ball.runs === 6 ? colors.six
+                        : ball.runs === 0 ? colors.dot
+                        : colors.single,
+                    }]}>
+                      <Text style={styles.ballText}>{formatBallOutcome(ball)}</Text>
+                    </View>
+                    <Text style={[styles.overLogBallNum, { color: theme.colors.onSurfaceVariant }]}>
+                      {overNum + 1}.{i + 1}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          ))}
+        </ScrollView>
       )}
 
       {/* Observer banner — team2 admin watching live */}
@@ -1422,6 +1480,16 @@ const styles = StyleSheet.create({
   dismissalText: { fontSize: 13, fontWeight: '600' },
 
   combinedDivider: { borderTopWidth: 1, marginVertical: 12 },
+
+  // Completed Overs Log
+  overLog: { maxHeight: 180, marginHorizontal: 12, marginTop: 4 },
+  overLogEntry: { marginBottom: 6 },
+  overLogHeader: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8 },
+  overLogHeaderText: { fontSize: 12, fontWeight: '700' },
+  overLogTotal: { fontWeight: '400' },
+  overLogBalls: { paddingHorizontal: 4, paddingVertical: 6 },
+  overLogBallItem: { alignItems: 'center', marginRight: 8 },
+  overLogBallNum: { fontSize: 9, marginTop: 2 },
 
   // Live Commentary Feed
   liveFeed: { paddingHorizontal: 14, paddingVertical: 8, gap: 4 },
