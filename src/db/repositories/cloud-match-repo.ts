@@ -654,7 +654,7 @@ export function subscribeToInvitations(
 ): () => void {
   if (!isCloudEnabled || !supabase) return () => {};
   const channel = supabase
-    .channel(`match_invitations_${myPhone}`)
+    .channel(`match_invitations_${myPhone}_${Date.now()}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'match_invitations' }, async () => {
       const invitations = await fetchPendingInvitations(myPhone);
       onUpdate(invitations);
@@ -673,7 +673,7 @@ export function subscribeToLiveMatch(
 ): () => void {
   if (!isCloudEnabled || !supabase) return () => {};
   const channel = supabase
-    .channel(`live_match_${matchId}`)
+    .channel(`live_match_${matchId}_${Date.now()}`)
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'live_matches', filter: `id=eq.${matchId}` },
       (payload) => {
@@ -694,7 +694,7 @@ export function subscribeToMatchInvitation(
 ): () => void {
   if (!isCloudEnabled || !supabase) return () => {};
   const channel = supabase
-    .channel(`match_invitation_${matchId}`)
+    .channel(`match_invitation_${matchId}_${Date.now()}`)
     .on('postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'match_invitations', filter: `match_id=eq.${matchId}` },
       async () => {
