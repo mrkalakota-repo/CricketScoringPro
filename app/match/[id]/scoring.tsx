@@ -43,7 +43,8 @@ export default function ScoringScreen() {
 
   const { canScore } = useRole();
   const syncStatus = useSyncStatus();
-  const { isSmallPhone, isTablet, height: screenHeight, modalMaxWidth } = useResponsive();
+  const { isSmallPhone, isTablet, height: screenHeight, modalMaxWidth, scale, sp, icon, vs } = useResponsive();
+  const styles = makeStyles(scale, sp, icon, vs);
 
   const [isWide, setIsWide] = useState(false);
   const [isNoBall, setIsNoBall] = useState(false);
@@ -467,12 +468,12 @@ export default function ScoringScreen() {
         )}
         {innings?.isSuperOver && (
           <View style={{ alignItems: 'center', marginBottom: 2 }}>
-            <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 11, letterSpacing: 1.5 }}>⚡ SUPER OVER</Text>
+            <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: sp(11), letterSpacing: 1.5 }}>⚡ SUPER OVER</Text>
           </View>
         )}
         <View style={styles.scoreRow}>
           <Text style={styles.teamLabel}>{battingTeamName}</Text>
-          <Text style={[styles.scoreText, isSmallPhone && { fontSize: 26 }]}>
+          <Text style={[styles.scoreText, isSmallPhone && { fontSize: sp(26) }]}>
             {innings?.totalRuns ?? 0}/{innings?.totalWickets ?? 0}
           </Text>
           <Text style={styles.oversText}>
@@ -712,7 +713,7 @@ export default function ScoringScreen() {
               onPress={handleRefresh}
               disabled={isRefreshing}
               style={{ marginLeft: 4, borderRadius: 8 }}
-              labelStyle={{ fontSize: 11 }}
+              labelStyle={{ fontSize: sp(11) }}
               buttonColor="rgba(255,255,255,0.25)"
               textColor="#FFFFFF"
             >
@@ -725,7 +726,7 @@ export default function ScoringScreen() {
             icon="arrow-left"
             onPress={() => router.replace('/(tabs)/matches')}
             style={{ marginLeft: 4, borderRadius: 8 }}
-            labelStyle={{ fontSize: 11 }}
+            labelStyle={{ fontSize: sp(11) }}
             buttonColor="rgba(255,255,255,0.25)"
             textColor="#FFFFFF"
           >
@@ -748,7 +749,7 @@ export default function ScoringScreen() {
               onPress={handleRefresh}
               disabled={isRefreshing}
               style={{ marginLeft: 4, borderRadius: 8 }}
-              labelStyle={{ fontSize: 11 }}
+              labelStyle={{ fontSize: sp(11) }}
               buttonColor="rgba(255,255,255,0.25)"
               textColor="#FFFFFF"
             >
@@ -761,7 +762,7 @@ export default function ScoringScreen() {
             icon="arrow-left"
             onPress={() => router.replace('/(tabs)/matches')}
             style={{ marginLeft: 4, borderRadius: 8 }}
-            labelStyle={{ fontSize: 11 }}
+            labelStyle={{ fontSize: sp(11) }}
             buttonColor="rgba(255,255,255,0.25)"
             textColor="#FFFFFF"
           >
@@ -1026,14 +1027,14 @@ export default function ScoringScreen() {
               style={[styles.selectionRow, { flex: 1 }, dismissedBatsmanId === innings?.currentStrikerId && { backgroundColor: theme.colors.primaryContainer }]}
               onPress={() => setDismissedBatsmanId(innings?.currentStrikerId ?? null)}
             >
-              <Text style={[styles.modalName, { color: theme.colors.onSurface }]}>{getPlayerName(innings?.currentStrikerId ?? null)}{'\n'}<Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant, fontWeight: '400' }}>Striker</Text></Text>
+              <Text style={[styles.modalName, { color: theme.colors.onSurface }]}>{getPlayerName(innings?.currentStrikerId ?? null)}{'\n'}<Text style={{ fontSize: sp(11), color: theme.colors.onSurfaceVariant, fontWeight: '400' }}>Striker</Text></Text>
             </Pressable>
             <Pressable
               testID="scoring-dismissed-nonstriker"
               style={[styles.selectionRow, { flex: 1 }, dismissedBatsmanId === innings?.currentNonStrikerId && { backgroundColor: theme.colors.primaryContainer }]}
               onPress={() => setDismissedBatsmanId(innings?.currentNonStrikerId ?? null)}
             >
-              <Text style={[styles.modalName, { color: theme.colors.onSurface }]}>{getPlayerName(innings?.currentNonStrikerId ?? null)}{'\n'}<Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant, fontWeight: '400' }}>Non-striker</Text></Text>
+              <Text style={[styles.modalName, { color: theme.colors.onSurface }]}>{getPlayerName(innings?.currentNonStrikerId ?? null)}{'\n'}<Text style={{ fontSize: sp(11), color: theme.colors.onSurfaceVariant, fontWeight: '400' }}>Non-striker</Text></Text>
             </Pressable>
           </View>
 
@@ -1208,7 +1209,7 @@ export default function ScoringScreen() {
               >
                 <Text style={[styles.modalName, { color: theme.colors.onSurface }]}>
                   {getPlayerName(innings?.currentStrikerId ?? null)}
-                  {'\n'}<Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant, fontWeight: '400' }}>Striker</Text>
+                  {'\n'}<Text style={{ fontSize: sp(11), color: theme.colors.onSurfaceVariant, fontWeight: '400' }}>Striker</Text>
                 </Text>
               </Pressable>
             )}
@@ -1219,7 +1220,7 @@ export default function ScoringScreen() {
               >
                 <Text style={[styles.modalName, { color: theme.colors.onSurface }]}>
                   {getPlayerName(innings?.currentNonStrikerId ?? null)}
-                  {'\n'}<Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant, fontWeight: '400' }}>Non-striker</Text>
+                  {'\n'}<Text style={{ fontSize: sp(11), color: theme.colors.onSurfaceVariant, fontWeight: '400' }}>Non-striker</Text>
                 </Text>
               </Pressable>
             )}
@@ -1395,140 +1396,148 @@ export default function ScoringScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  center: { justifyContent: 'center', alignItems: 'center' },
+function makeStyles(
+  scale: (n: number) => number,
+  sp: (n: number) => number,
+  icon: (n: number) => number,
+  vs: (n: number) => number,
+) {
+  return StyleSheet.create({
+    container: { flex: 1 },
+    center: { justifyContent: 'center', alignItems: 'center' },
 
-  // Scorecard
-  scorecard: { padding: 16, borderBottomLeftRadius: 16, borderBottomRightRadius: 16 },
-  scoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  teamLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: '600' },
-  scoreText: { color: '#FFFFFF', fontSize: 32, fontWeight: 'bold' },
-  oversText: { color: 'rgba(255,255,255,0.7)', fontSize: 14 },
-  rateRow: { flexDirection: 'row', gap: 16, marginTop: 4 },
-  rateText: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
-  freeHitBadge: {
-    position: 'absolute', top: 8, right: 8,
-    backgroundColor: '#FF9800', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4,
-  },
-  freeHitText: { color: '#FFF', fontSize: 11, fontWeight: 'bold' },
+    // Scorecard
+    scorecard: { padding: scale(16), borderBottomLeftRadius: scale(16), borderBottomRightRadius: scale(16) },
+    scoreRow: { flexDirection: 'row', alignItems: 'baseline', gap: scale(8) },
+    teamLabel: { color: 'rgba(255,255,255,0.8)', fontSize: sp(14), fontWeight: '600' },
+    scoreText: { color: '#FFFFFF', fontSize: sp(32), fontWeight: 'bold' },
+    oversText: { color: 'rgba(255,255,255,0.7)', fontSize: sp(14) },
+    rateRow: { flexDirection: 'row', gap: scale(16), marginTop: vs(4) },
+    rateText: { color: 'rgba(255,255,255,0.7)', fontSize: sp(12) },
+    freeHitBadge: {
+      position: 'absolute', top: vs(8), right: scale(8),
+      backgroundColor: '#FF9800', borderRadius: scale(12),
+      paddingHorizontal: scale(10), paddingVertical: vs(4),
+    },
+    freeHitText: { color: '#FFF', fontSize: sp(11), fontWeight: 'bold' },
 
-  // Player Info
-  playerInfo: { margin: 12, padding: 12, borderRadius: 12 },
-  batterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  batterInfo: { flex: 1 },
-  swapButton: { padding: 6, borderRadius: 20, borderWidth: 1, marginHorizontal: 8 },
-  playerName: { fontSize: 14, fontWeight: '600' },
-  playerStats: { fontSize: 12 },
-  bowlerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  bowlerLabel: { fontSize: 12 },
-  partnershipText: { fontSize: 11, marginTop: 4 },
+    // Player Info
+    playerInfo: { margin: scale(12), padding: scale(12), borderRadius: scale(12) },
+    batterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    batterInfo: { flex: 1 },
+    swapButton: { padding: scale(6), borderRadius: scale(20), borderWidth: 1, marginHorizontal: scale(8) },
+    playerName: { fontSize: sp(14), fontWeight: '600' },
+    playerStats: { fontSize: sp(12) },
+    bowlerRow: { flexDirection: 'row', alignItems: 'center', marginTop: vs(8) },
+    bowlerLabel: { fontSize: sp(12) },
+    partnershipText: { fontSize: sp(11), marginTop: vs(4) },
 
-  // This Over
-  thisOver: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 8,
-  },
-  thisOverLabel: { fontSize: 12, marginRight: 8 },
-  ballBubble: {
-    width: 32, height: 32, borderRadius: 16,
-    justifyContent: 'center', alignItems: 'center', marginRight: 6,
-  },
-  ballText: { color: '#FFF', fontSize: 11, fontWeight: 'bold' },
+    // This Over
+    thisOver: {
+      flexDirection: 'row', alignItems: 'center',
+      paddingHorizontal: scale(16), paddingVertical: vs(8),
+    },
+    thisOverLabel: { fontSize: sp(12), marginRight: scale(8) },
+    ballBubble: {
+      width: scale(32), height: scale(32), borderRadius: scale(16),
+      justifyContent: 'center', alignItems: 'center', marginRight: scale(6),
+    },
+    ballText: { color: '#FFF', fontSize: sp(11), fontWeight: 'bold' },
 
-  // Controls
-  controls: { flex: 1, justifyContent: 'flex-end' },
-  viewOnlyBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 12, padding: 12, borderRadius: 10 },
-  syncChip: { position: 'absolute', top: 8, right: 10, flexDirection: 'row', alignItems: 'center', gap: 3 },
-  syncText: { fontSize: 10, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
-  extrasRow: {
-    flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 8,
-    paddingHorizontal: 16, marginBottom: 12,
-  },
-  extraButton: {
-    paddingHorizontal: 20, paddingVertical: 10,
-    borderRadius: 20, borderWidth: 1,
-  },
-  extraActive: { backgroundColor: '#7B1FA2', borderColor: '#7B1FA2' },
-  extraText: { fontSize: 13, fontWeight: '600' },
-  extraTextActive: { color: '#FFF' },
-  runsGrid: {
-    flexDirection: 'row', justifyContent: 'center', gap: 10,
-    paddingHorizontal: 16, marginBottom: 10,
-  },
-  runButton: {
-    flex: 1, maxWidth: 80, height: 56, borderRadius: 16,
-    justifyContent: 'center', alignItems: 'center',
-    elevation: 2,
-  },
-  runText: { fontSize: 22, fontWeight: 'bold' },
-  bottomActions: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    paddingHorizontal: 16, marginTop: 8,
-  },
+    // Controls
+    controls: { flex: 1, justifyContent: 'flex-end' },
+    viewOnlyBanner: { flexDirection: 'row', alignItems: 'center', gap: scale(8), margin: scale(12), padding: scale(12), borderRadius: scale(10) },
+    syncChip: { position: 'absolute', top: vs(8), right: scale(10), flexDirection: 'row', alignItems: 'center', gap: scale(3) },
+    syncText: { fontSize: sp(10), fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
+    extrasRow: {
+      flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: scale(8),
+      paddingHorizontal: scale(16), marginBottom: vs(12),
+    },
+    extraButton: {
+      paddingHorizontal: scale(20), paddingVertical: vs(10),
+      borderRadius: scale(20), borderWidth: 1,
+    },
+    extraActive: { backgroundColor: '#7B1FA2', borderColor: '#7B1FA2' },
+    extraText: { fontSize: sp(13), fontWeight: '600' },
+    extraTextActive: { color: '#FFF' },
+    runsGrid: {
+      flexDirection: 'row', justifyContent: 'center', gap: scale(10),
+      paddingHorizontal: scale(16), marginBottom: vs(10),
+    },
+    runButton: {
+      flex: 1, maxWidth: scale(80), height: vs(56), borderRadius: scale(16),
+      justifyContent: 'center', alignItems: 'center',
+      elevation: 2,
+    },
+    runText: { fontSize: sp(22), fontWeight: 'bold' },
+    bottomActions: {
+      flexDirection: 'row', justifyContent: 'space-between',
+      paddingHorizontal: scale(16), marginTop: vs(8),
+    },
 
-  // Match Complete
-  matchComplete: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+    // Match Complete
+    matchComplete: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: scale(32) },
 
-  // Modals
-  modal: {
-    margin: 24, padding: 24, borderRadius: 16,
-    maxHeight: '80%',
-  },
-  selectionRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    padding: 8, borderRadius: 8,
-  },
-  modalName: { fontSize: 14, fontWeight: '600' },
-  dismissedRow: { flexDirection: 'row', gap: 8 },
-  dismissalGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
-  },
-  dismissalButton: {
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 20, borderWidth: 1,
-  },
-  dismissalText: { fontSize: 13, fontWeight: '600' },
+    // Modals
+    modal: {
+      margin: scale(24), padding: scale(24), borderRadius: scale(16),
+      maxHeight: '80%',
+    },
+    selectionRow: {
+      flexDirection: 'row', alignItems: 'center', gap: scale(8),
+      padding: scale(8), borderRadius: scale(8),
+    },
+    modalName: { fontSize: sp(14), fontWeight: '600' },
+    dismissedRow: { flexDirection: 'row', gap: scale(8) },
+    dismissalGrid: {
+      flexDirection: 'row', flexWrap: 'wrap', gap: scale(8),
+    },
+    dismissalButton: {
+      paddingHorizontal: scale(16), paddingVertical: vs(10),
+      borderRadius: scale(20), borderWidth: 1,
+    },
+    dismissalText: { fontSize: sp(13), fontWeight: '600' },
 
-  combinedDivider: { borderTopWidth: 1, marginVertical: 12 },
+    combinedDivider: { borderTopWidth: 1, marginVertical: vs(12) },
 
-  // Completed Overs Log
-  overLog: { maxHeight: 220, marginHorizontal: 12, marginTop: 4 },
-  overLogEntry: { marginBottom: 8 },
-  overLogHeader: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, marginBottom: 2 },
-  overLogHeaderText: { fontSize: 12, fontWeight: '700' },
-  overLogBallRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 4, borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  overLogBallLabel: { fontSize: 11, fontWeight: '600', width: 32 },
-  overLogOutcome: { fontSize: 12, fontWeight: '600', width: 68 },
-  overLogCommentary: { fontSize: 11, flex: 1 },
+    // Completed Overs Log
+    overLog: { maxHeight: vs(220), marginHorizontal: scale(12), marginTop: vs(4) },
+    overLogEntry: { marginBottom: vs(8) },
+    overLogHeader: { paddingHorizontal: scale(12), paddingVertical: vs(6), borderRadius: scale(8), marginBottom: vs(2) },
+    overLogHeaderText: { fontSize: sp(12), fontWeight: '700' },
+    overLogBallRow: {
+      flexDirection: 'row', alignItems: 'center', gap: scale(6),
+      paddingHorizontal: scale(12), paddingVertical: vs(4), borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    overLogBallLabel: { fontSize: sp(11), fontWeight: '600', width: scale(32) },
+    overLogOutcome: { fontSize: sp(12), fontWeight: '600', width: scale(68) },
+    overLogCommentary: { fontSize: sp(11), flex: 1 },
 
-  // Live Commentary Feed
-  liveFeed: { paddingHorizontal: 14, paddingVertical: 8, gap: 4 },
-  liveFeedLine: { fontSize: 12, lineHeight: 18 },
+    // Live Commentary Feed
+    liveFeed: { paddingHorizontal: scale(14), paddingVertical: vs(8), gap: vs(4) },
+    liveFeedLine: { fontSize: sp(12), lineHeight: sp(18) },
 
-  // External Ball-by-Ball Feed
-  externalFeed: { marginHorizontal: 12, marginTop: 8, borderWidth: 1, borderRadius: 10, overflow: 'hidden' },
-  externalFeedLabel: { fontSize: 11, fontWeight: '700', paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  externalBallRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 6 },
-  externalBallBubble: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  externalBallMeta: { fontSize: 12, flex: 1 },
-  overSummaryRow: { paddingHorizontal: 12, paddingVertical: 6 },
-  overSummaryText: { fontSize: 12, fontWeight: '600' },
+    // External Ball-by-Ball Feed
+    externalFeed: { marginHorizontal: scale(12), marginTop: vs(8), borderWidth: 1, borderRadius: scale(10), overflow: 'hidden' },
+    externalFeedLabel: { fontSize: sp(11), fontWeight: '700', paddingHorizontal: scale(12), paddingTop: vs(8), paddingBottom: vs(4), textTransform: 'uppercase', letterSpacing: 0.5 },
+    externalBallRow: { flexDirection: 'row', alignItems: 'center', gap: scale(10), paddingHorizontal: scale(12), paddingVertical: vs(6) },
+    externalBallBubble: { width: scale(28), height: scale(28), borderRadius: scale(14), alignItems: 'center', justifyContent: 'center' },
+    externalBallMeta: { fontSize: sp(12), flex: 1 },
+    overSummaryRow: { paddingHorizontal: scale(12), paddingVertical: vs(6) },
+    overSummaryText: { fontSize: sp(12), fontWeight: '600' },
 
-  // Zone selector
-  zoneGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
-  zoneButton: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, borderWidth: 1,
-  },
-  zoneText: { fontSize: 12, fontWeight: '600' },
+    // Zone selector
+    zoneGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: scale(8), justifyContent: 'center' },
+    zoneButton: {
+      flexDirection: 'row', alignItems: 'center', gap: scale(4),
+      paddingHorizontal: scale(14), paddingVertical: vs(10), borderRadius: scale(20), borderWidth: 1,
+    },
+    zoneText: { fontSize: sp(12), fontWeight: '600' },
 
-  // DLS input
-  dlsInput: {
-    borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8,
-    fontSize: 16,
-  },
-});
+    // DLS input
+    dlsInput: {
+      borderWidth: 1, borderRadius: scale(8), paddingHorizontal: scale(12), paddingVertical: vs(8),
+      fontSize: sp(16),
+    },
+  });
+}

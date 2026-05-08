@@ -3,6 +3,7 @@ import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMatchStore } from '../../src/store/match-store';
+import { useResponsive } from '../../src/hooks/useResponsive';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -16,22 +17,23 @@ export default function TabsLayout() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const pendingInvitationCount = useMatchStore(s => s.pendingInvitationCount);
+  const { scale, sp, icon } = useResponsive();
 
-  const tabBarHeight = 60 + Math.max(insets.bottom, 4);
+  const tabBarHeight = scale(60) + Math.max(insets.bottom, 4);
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
+        tabBarLabelStyle: { fontSize: sp(11), fontWeight: '700', letterSpacing: 0.3 },
         headerStyle: { backgroundColor: theme.colors.primary },
         headerTintColor: '#FFFFFF',
-        headerTitleStyle: { fontWeight: '800', fontSize: 17, letterSpacing: 0.3 },
+        headerTitleStyle: { fontWeight: '800', fontSize: sp(17), letterSpacing: 0.3 },
         tabBarStyle: {
           borderTopWidth: 0,
-          paddingTop: 6,
-          paddingBottom: Math.max(insets.bottom, 6),
+          paddingTop: scale(6),
+          paddingBottom: Math.max(insets.bottom, scale(6)),
           height: tabBarHeight,
           backgroundColor: theme.colors.surface,
           elevation: 16,
@@ -40,7 +42,8 @@ export default function TabsLayout() {
           shadowOpacity: 0.10,
           shadowRadius: 8,
         },
-        tabBarItemStyle: { paddingTop: 2 },
+        tabBarItemStyle: { paddingTop: scale(2) },
+        tabBarIconStyle: { marginBottom: -scale(2) },
       }}
     >
       <Tabs.Screen
@@ -79,10 +82,7 @@ export default function TabsLayout() {
         name="chat"
         options={{
           title: 'Chat',
-          tabBarButtonTestID: 'tab-chat',
-          tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon name="chat-outline" activeName="chat" color={color} size={size} focused={focused} />
-          ),
+          href: null, // Chat disabled — hidden from bottom nav
         }}
       />
       <Tabs.Screen

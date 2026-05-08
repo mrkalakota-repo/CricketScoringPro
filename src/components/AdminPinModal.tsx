@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Modal, Portal, Text, TextInput, Button, useTheme } from 'react-native-paper';
 import { useAdminAuth } from '../hooks/useAdminAuth';
+import { useResponsive } from '../hooks/useResponsive';
 
 interface Props {
   visible: boolean;
@@ -16,6 +17,7 @@ interface Props {
 
 export function AdminPinModal({ visible, teamId, adminPinHash, onSuccess, onDismiss }: Props) {
   const theme = useTheme();
+  const { scale, sp } = useResponsive();
   const authenticate = useAdminAuth(s => s.authenticate);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -49,13 +51,13 @@ export function AdminPinModal({ visible, teamId, adminPinHash, onSuccess, onDism
         contentContainerStyle={[styles.container, { backgroundColor: theme.colors.surface }]}
       >
         <View testID="admin-pin-modal">
-        <View style={[styles.iconRow, { backgroundColor: theme.colors.primary + '18' }]}>
-          <Text style={[styles.lockIcon]}>🔒</Text>
+        <View style={[styles.iconRow, { backgroundColor: theme.colors.primary + '18', width: scale(52), height: scale(52), marginBottom: scale(14) }]}>
+          <Text style={[styles.lockIcon, { fontSize: sp(24) }]}>🔒</Text>
         </View>
-        <Text variant="titleMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
+        <Text variant="titleMedium" style={[styles.title, { color: theme.colors.onSurface, marginBottom: scale(6) }]}>
           Admin Access Required
         </Text>
-        <Text variant="bodySmall" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
+        <Text variant="bodySmall" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant, marginBottom: scale(20), lineHeight: sp(18) }]}>
           Enter the team admin PIN to continue.
         </Text>
 
@@ -68,18 +70,18 @@ export function AdminPinModal({ visible, teamId, adminPinHash, onSuccess, onDism
           secureTextEntry
           keyboardType="number-pad"
           maxLength={12}
-          style={styles.input}
+          style={[styles.input, { marginBottom: scale(8) }]}
           autoFocus
           onSubmitEditing={handleSubmit}
         />
 
         {!!error && (
-          <Text variant="bodySmall" style={[styles.error, { color: theme.colors.error }]}>
+          <Text variant="bodySmall" style={[styles.error, { color: theme.colors.error, marginBottom: scale(8) }]}>
             {error}
           </Text>
         )}
 
-        <View style={styles.actions}>
+        <View style={[styles.actions, { gap: scale(8), marginTop: scale(8) }]}>
           <Button mode="text" onPress={handleDismiss} textColor={theme.colors.onSurfaceVariant}>
             Cancel
           </Button>
@@ -101,11 +103,11 @@ export function AdminPinModal({ visible, teamId, adminPinHash, onSuccess, onDism
 
 const styles = StyleSheet.create({
   container: { margin: 24, borderRadius: 20, padding: 24 },
-  iconRow: { width: 52, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 14, alignSelf: 'center' },
-  lockIcon: { fontSize: 24 },
-  title: { fontWeight: '700', marginBottom: 6, textAlign: 'center' },
-  subtitle: { marginBottom: 20, textAlign: 'center', lineHeight: 18 },
-  input: { marginBottom: 8 },
-  error: { marginBottom: 8 },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
+  iconRow: { borderRadius: 14, justifyContent: 'center', alignItems: 'center', alignSelf: 'center' },
+  lockIcon: {},
+  title: { fontWeight: '700', textAlign: 'center' },
+  subtitle: { textAlign: 'center' },
+  input: {},
+  error: {},
+  actions: { flexDirection: 'row', justifyContent: 'flex-end' },
 });

@@ -2,12 +2,14 @@ import { View, StyleSheet } from 'react-native';
 import { Text, Card, useTheme } from 'react-native-paper';
 import type { LiveMatchSummary } from '../db/repositories/cloud-match-repo';
 import { formatOvers } from '../utils/formatters';
+import { useResponsive } from '../hooks/useResponsive';
 
 export const LIVE_RED = '#D32F2F';
 const TOSS_ORANGE = '#F57C00';
 
 export function NearbyLiveCard({ match, onPress }: { match: LiveMatchSummary; onPress?: () => void }) {
   const theme = useTheme();
+  const { scale, sp } = useResponsive();
   const isLive = match.status === 'in_progress';
   const isToss = match.status === 'toss';
   const isCompleted = match.status === 'completed';
@@ -15,51 +17,49 @@ export function NearbyLiveCard({ match, onPress }: { match: LiveMatchSummary; on
   const badgeBg = isCompleted ? theme.colors.primaryContainer : isToss ? '#FFF3E0' : '#FFEBEE';
   const badgeColor = isCompleted ? theme.colors.onPrimaryContainer : isToss ? TOSS_ORANGE : LIVE_RED;
 
-  // Derive bowling team from batting team
   const bowlingShort = match.battingShort === match.team1Short ? match.team2Short : match.team1Short;
   const has2ndInnings = match.inningsNum >= 2 && match.target != null;
 
   return (
     <Card style={[styles.matchCard, (isLive || isToss) && styles.liveMatchCard]} onPress={onPress}>
       <View style={[styles.liveStripe, { backgroundColor: stripeColor }]} />
-      <Card.Content style={styles.liveCardContent}>
+      <Card.Content style={[styles.liveCardContent, { paddingTop: scale(10), gap: scale(2) }]}>
         {/* Badge + format row */}
-        <View style={styles.liveTop}>
-          <View style={[styles.liveBadge, { backgroundColor: badgeBg }]}>
-            {(isLive || isToss) && <View style={[styles.liveDot, { backgroundColor: stripeColor }]} />}
-            <Text style={[styles.liveBadgeText, { color: badgeColor }]}>
+        <View style={[styles.liveTop, { marginBottom: scale(6) }]}>
+          <View style={[styles.liveBadge, { backgroundColor: badgeBg, paddingHorizontal: scale(10), paddingVertical: scale(4), gap: scale(5) }]}>
+            {(isLive || isToss) && <View style={[styles.liveDot, { backgroundColor: stripeColor, width: scale(7), height: scale(7) }]} />}
+            <Text style={[styles.liveBadgeText, { color: badgeColor, fontSize: sp(10) }]}>
               {isToss ? 'TOSS' : isLive ? 'LIVE' : 'RESULT'}
             </Text>
           </View>
-          <Text style={[styles.formatChip, { color: theme.colors.onSurfaceVariant }]}>
+          <Text style={[styles.formatChip, { color: theme.colors.onSurfaceVariant, fontSize: sp(10) }]}>
             {match.format.toUpperCase()}{match.venue ? ` · ${match.venue}` : ''}
           </Text>
         </View>
 
         {/* Teams title */}
-        <Text variant="titleMedium" style={[styles.liveTeams, { color: theme.colors.onSurface }]}>
+        <Text variant="titleMedium" style={[styles.liveTeams, { color: theme.colors.onSurface, fontSize: sp(16), marginBottom: scale(6) }]}>
           {match.team1Short} vs {match.team2Short}
         </Text>
 
-        {/* Team-level scores — shown for both in-progress and completed */}
         {(isLive || isCompleted) && match.battingShort ? (
           <View style={styles.scoreBlock}>
             {has2ndInnings ? (
               <>
                 <View style={styles.scoreLine}>
-                  <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant }]}>{bowlingShort}</Text>
-                  <Text style={[styles.scoreValue, { color: theme.colors.onSurfaceVariant }]}>{match.target! - 1}</Text>
+                  <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant, fontSize: sp(13) }]}>{bowlingShort}</Text>
+                  <Text style={[styles.scoreValue, { color: theme.colors.onSurfaceVariant, fontSize: sp(13) }]}>{match.target! - 1}</Text>
                 </View>
                 <View style={styles.scoreLine}>
-                  <Text style={[styles.scoreTeam, { color: isLive ? LIVE_RED : theme.colors.onSurface }]}>
+                  <Text style={[styles.scoreTeam, { color: isLive ? LIVE_RED : theme.colors.onSurface, fontSize: sp(13) }]}>
                     {match.battingShort}{isLive ? ' *' : ''}
                   </Text>
-                  <Text style={[styles.scoreValue, { color: isLive ? LIVE_RED : theme.colors.onSurface }]}>
+                  <Text style={[styles.scoreValue, { color: isLive ? LIVE_RED : theme.colors.onSurface, fontSize: sp(13) }]}>
                     {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
                   </Text>
                 </View>
                 {isLive && (
-                  <Text style={[styles.chaseText, { color: theme.colors.onSurfaceVariant }]}>
+                  <Text style={[styles.chaseText, { color: theme.colors.onSurfaceVariant, fontSize: sp(11) }]}>
                     Need {match.target! - match.score} more
                   </Text>
                 )}
@@ -67,29 +67,29 @@ export function NearbyLiveCard({ match, onPress }: { match: LiveMatchSummary; on
             ) : (
               <>
                 <View style={styles.scoreLine}>
-                  <Text style={[styles.scoreTeam, { color: isLive ? LIVE_RED : theme.colors.onSurface }]}>
+                  <Text style={[styles.scoreTeam, { color: isLive ? LIVE_RED : theme.colors.onSurface, fontSize: sp(13) }]}>
                     {match.battingShort}{isLive ? ' *' : ''}
                   </Text>
-                  <Text style={[styles.scoreValue, { color: isLive ? LIVE_RED : theme.colors.onSurface }]}>
+                  <Text style={[styles.scoreValue, { color: isLive ? LIVE_RED : theme.colors.onSurface, fontSize: sp(13) }]}>
                     {match.score}/{match.wickets} ({formatOvers(match.overs, match.balls)} ov)
                   </Text>
                 </View>
                 {isLive && (
                   <View style={styles.scoreLine}>
-                    <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant }]}>{bowlingShort}</Text>
-                    <Text style={[styles.scoreValue, { color: theme.colors.onSurfaceVariant }]}>Yet to bat</Text>
+                    <Text style={[styles.scoreTeam, { color: theme.colors.onSurfaceVariant, fontSize: sp(13) }]}>{bowlingShort}</Text>
+                    <Text style={[styles.scoreValue, { color: theme.colors.onSurfaceVariant, fontSize: sp(13) }]}>Yet to bat</Text>
                   </View>
                 )}
               </>
             )}
             {isCompleted && match.result && (
-              <Text style={[styles.resultText, { color: theme.colors.primary }]}>{match.result}</Text>
+              <Text style={[styles.resultText, { color: theme.colors.primary, fontSize: sp(13) }]}>{match.result}</Text>
             )}
           </View>
         ) : isToss ? (
-          <Text style={[styles.chaseText, { color: TOSS_ORANGE }]}>Toss in progress</Text>
+          <Text style={[styles.chaseText, { color: TOSS_ORANGE, fontSize: sp(11) }]}>Toss in progress</Text>
         ) : isCompleted && match.result ? (
-          <Text style={[styles.resultText, { color: theme.colors.primary }]}>{match.result}</Text>
+          <Text style={[styles.resultText, { color: theme.colors.primary, fontSize: sp(13) }]}>{match.result}</Text>
         ) : null}
       </Card.Content>
     </Card>
