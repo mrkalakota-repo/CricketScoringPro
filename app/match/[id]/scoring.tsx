@@ -12,7 +12,7 @@ import { useRole } from '../../../src/hooks/useRole';
 import { useSyncStatus } from '../../../src/hooks/useSyncStatus';
 import { isCloudEnabled } from '../../../src/config/supabase';
 import { formatOvers, formatBallOutcome } from '../../../src/utils/formatters';
-import { getLiveFeed } from '../../../src/utils/commentary';
+import { getLiveFeed, getBallCommentary } from '../../../src/utils/commentary';
 import { parseBallFeedPayload, type RawFeedItem, type ParsedFeedItem } from '../../../src/utils/ball-feed-parser';
 import { currentRunRate, requiredRunRate } from '../../../src/utils/cricket-math';
 import { calculateDLSParScore, calculateDLSTarget, calculateGullyTarget } from '../../../src/utils/dls-calculator';
@@ -650,37 +650,48 @@ export default function ScoringScreen() {
         </View>
       )}
 
-      {/* Completed Overs Log — reverse chronological, summary + ball-by-ball */}
+      {/* Completed Overs Log — reverse chronological, text format */}
       {completedOverLog.length > 0 && (
         <ScrollView style={[styles.overLog, { backgroundColor: theme.colors.background }]} nestedScrollEnabled showsVerticalScrollIndicator={false}>
           {completedOverLog.map(({ overNum, balls, overRuns, overWickets, cumRuns, cumWickets }) => (
             <View key={overNum} style={styles.overLogEntry}>
+              {/* Over summary header */}
               <View style={[styles.overLogHeader, { backgroundColor: theme.colors.primaryContainer }]}>
                 <Text style={[styles.overLogHeaderText, { color: theme.colors.onPrimaryContainer }]}>
                   Over {overNum + 1}: {overRuns} run{overRuns !== 1 ? 's' : ''},{' '}
-                  {overWickets} wkt{overWickets !== 1 ? 's' : ''}{' '}
-                  <Text style={styles.overLogTotal}>| {cumRuns}/{cumWickets}</Text>
+                  {overWickets} wicket{overWickets !== 1 ? 's' : ''}{' '}
+                  | {cumRuns}/{cumWickets}
                 </Text>
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.overLogBalls}>
-                {balls.map((ball, i) => (
-                  <View key={ball.id} style={styles.overLogBallItem}>
-                    <View style={[styles.ballBubble, {
-                      backgroundColor: ball.dismissal ? colors.wicket
-                        : !ball.isLegal ? colors.wide
-                        : ball.runs === 4 ? colors.four
-                        : ball.runs === 6 ? colors.six
-                        : ball.runs === 0 ? colors.dot
-                        : colors.single,
-                    }]}>
-                      <Text style={styles.ballText}>{formatBallOutcome(ball)}</Text>
-                    </View>
-                    <Text style={[styles.overLogBallNum, { color: theme.colors.onSurfaceVariant }]}>
-                      {overNum + 1}.{i + 1}
+              {/* Ball-by-ball rows — newest ball first */}
+              {[...balls].reverse().map((ball, i) => {
+                const ballSeq = balls.length - i;
+                const label = `${overNum}.${ballSeq}`;
+                const outcome = ball.dismissal
+                  ? 'wicket'
+                  : !ball.isLegal
+                  ? formatBallOutcome(ball)
+                  : ball.runs === 0
+                  ? 'no run'
+                  : ball.runs === 1
+                  ? '1 run'
+                  : `${ball.runs} runs`;
+                const commentary = getBallCommentary(ball, commentaryCtx);
+                return (
+                  <View key={ball.id} style={[styles.overLogBallRow, { borderBottomColor: theme.colors.outlineVariant }]}>
+                    <Text style={[styles.overLogBallLabel, { color: theme.colors.onSurfaceVariant }]}>{label}</Text>
+                    <Text style={[
+                      styles.overLogOutcome,
+                      { color: ball.dismissal ? colors.wicket : theme.colors.onSurface },
+                    ]}>
+                      {outcome}
+                    </Text>
+                    <Text style={[styles.overLogCommentary, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
+                      {commentary}
                     </Text>
                   </View>
-                ))}
-              </ScrollView>
+                );
+              })}
             </View>
           ))}
         </ScrollView>
@@ -1482,14 +1493,17 @@ const styles = StyleSheet.create({
   combinedDivider: { borderTopWidth: 1, marginVertical: 12 },
 
   // Completed Overs Log
-  overLog: { maxHeight: 180, marginHorizontal: 12, marginTop: 4 },
-  overLogEntry: { marginBottom: 6 },
-  overLogHeader: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8 },
+  overLog: { maxHeight: 220, marginHorizontal: 12, marginTop: 4 },
+  overLogEntry: { marginBottom: 8 },
+  overLogHeader: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, marginBottom: 2 },
   overLogHeaderText: { fontSize: 12, fontWeight: '700' },
-  overLogTotal: { fontWeight: '400' },
-  overLogBalls: { paddingHorizontal: 4, paddingVertical: 6 },
-  overLogBallItem: { alignItems: 'center', marginRight: 8 },
-  overLogBallNum: { fontSize: 9, marginTop: 2 },
+  overLogBallRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 4, borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  overLogBallLabel: { fontSize: 11, fontWeight: '600', width: 32 },
+  overLogOutcome: { fontSize: 12, fontWeight: '600', width: 68 },
+  overLogCommentary: { fontSize: 11, flex: 1 },
 
   // Live Commentary Feed
   liveFeed: { paddingHorizontal: 14, paddingVertical: 8, gap: 4 },
