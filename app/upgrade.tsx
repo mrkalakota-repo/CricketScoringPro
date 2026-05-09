@@ -205,12 +205,6 @@ export default function UpgradeScreen() {
             p.product.identifier.startsWith(expectedPrefix)
           ) ?? null
         : null;
-      if (!activeOffering) {
-        console.error('[Upgrade] getOfferings returned null — RC not configured or Play Billing unavailable');
-      } else if (!pkg) {
-        console.error('[Upgrade] No package matching', expectedPrefix, '— available:',
-          activeOffering.availablePackages.map(p => p.product.identifier));
-      }
       if (pkg) {
         // Real RevenueCat purchase
         const result = await purchasePackage(pkg);
@@ -224,11 +218,17 @@ export default function UpgradeScreen() {
         // Dev-only override: no RC package found in development builds
         await applyPlan(targetPlan);
         router.back();
+      } else if (!activeOffering) {
+        setError('Could not load products from Play Store. Please try again.');
       } else {
-        setError('Purchase unavailable. Please check your connection and try again.');
+        // Offering loaded but no matching package — show available IDs to diagnose
+        const available = activeOffering.availablePackages.map(p => p.product.identifier).join(', ');
+        setError(`No matching product for "${expectedPrefix}". Available: ${available || 'none'}`);
       }
     } catch (err) {
-      setError((err as { message?: string })?.message ?? 'Upgrade failed. Please try again.');
+      const msg = (err as { message?: string })?.message ?? '';
+      setError(`Purchase error: ${msg || 'Unknown error. Please try again.'}`);
+      console.error('[Upgrade] handleUpgrade threw:', err);
     } finally {
       setLoading(false);
     }

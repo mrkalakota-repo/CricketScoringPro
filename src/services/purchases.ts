@@ -96,22 +96,14 @@ export async function getCurrentPlan(): Promise<UserPlan> {
  * Returns null if unavailable.
  */
 export async function getOfferings(): Promise<PurchasesOffering | null> {
-  try {
-    const offerings = await Purchases.getOfferings();
-    if (!offerings.current) {
-      console.warn('[RC] getOfferings: no current offering configured in RC dashboard');
-    } else {
-      console.log('[RC] getOfferings: current =', offerings.current.identifier,
-        '| packages:', offerings.current.availablePackages.map(p => p.product.identifier));
-    }
-    return offerings.current ?? null;
-  } catch (err) {
-    const e = err as { message?: string; code?: number };
-    // Android: Play Billing is unavailable for sideloaded APKs (not installed from Play Store).
-    // RC throws "Billing is not available in this device" or code 5 (STORE_PROBLEM).
-    console.error('[RC] getOfferings failed:', e.message ?? err);
-    return null;
+  const offerings = await Purchases.getOfferings();
+  if (!offerings.current) {
+    console.warn('[RC] getOfferings: no current offering configured in RC dashboard');
+  } else {
+    console.log('[RC] getOfferings: current =', offerings.current.identifier,
+      '| packages:', offerings.current.availablePackages.map(p => p.product.identifier));
   }
+  return offerings.current ?? null;
 }
 
 // ── Purchase ──────────────────────────────────────────────────────────────────
