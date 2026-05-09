@@ -337,10 +337,10 @@ export default function UpgradeScreen() {
           variant="bodySmall"
           style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 8, paddingHorizontal: 16, lineHeight: 18 }}
         >
-          Payment will be charged to your Apple Account at confirmation of purchase. Subscriptions automatically
-          renew unless cancelled at least 24 hours before the end of the current period. Your account will be
-          charged for renewal within 24 hours prior to the end of the current period. Manage or cancel
-          subscriptions in your device&apos;s Account Settings after purchase.
+          {Platform.OS === 'android'
+            ? 'Payment will be charged to your Google Play account at confirmation of purchase. Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period. Manage or cancel subscriptions in Google Play after purchase.'
+            : 'Payment will be charged to your Apple Account at confirmation of purchase. Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. Manage or cancel subscriptions in your device’s Account Settings after purchase.'
+          }
         </Text>
         <View style={styles.legalLinks}>
           <Text
