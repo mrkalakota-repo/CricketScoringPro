@@ -53,9 +53,11 @@ export function configurePurchases(userId?: string): void {
     Purchases.configure({
       apiKey,
       appUserID: userId ?? null,
-      // Force SK1 to avoid iOS 26 SKPaymentQueue.delegate threading restriction
-      // that crashes on New Architecture background threads (PaymentQueueWrapper SK2 path).
-      storeKitVersion: STOREKIT_VERSION.STOREKIT_1,
+      // iOS only: force SK1 to avoid iOS 26 SKPaymentQueue.delegate threading
+      // restriction that crashes on New Architecture background threads.
+      // Do NOT pass storeKitVersion on Android — it causes RC to fail to
+      // initialise (setupPurchases receives an unrecognised iOS-specific string).
+      ...(Platform.OS === 'ios' ? { storeKitVersion: STOREKIT_VERSION.STOREKIT_1 } : {}),
     });
   } catch (err) {
     console.error('[RC] configure failed:', err);
@@ -104,7 +106,10 @@ export async function getOfferings(): Promise<PurchasesOffering | null> {
     }
     return offerings.current ?? null;
   } catch (err) {
-    console.error('[RC] getOfferings failed:', err);
+    const e = err as { message?: string; code?: number };
+    // Android: Play Billing is unavailable for sideloaded APKs (not installed from Play Store).
+    // RC throws "Billing is not available in this device" or code 5 (STORE_PROBLEM).
+    console.error('[RC] getOfferings failed:', e.message ?? err);
     return null;
   }
 }

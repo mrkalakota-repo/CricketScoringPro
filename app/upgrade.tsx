@@ -198,12 +198,19 @@ export default function UpgradeScreen() {
         activeOffering = await getOfferings();
         if (activeOffering) setOffering(activeOffering);
       }
+      const suffix = annual ? 'annual' : 'monthly';
+      const expectedPrefix = `inningsly_${targetPlan}_${suffix}`;
       const pkg = activeOffering
-        ? activeOffering.availablePackages.find(p => {
-            const suffix = annual ? 'annual' : 'monthly';
-            return p.product.identifier.startsWith(`inningsly_${targetPlan}_${suffix}`);
-          }) ?? null
+        ? activeOffering.availablePackages.find(p =>
+            p.product.identifier.startsWith(expectedPrefix)
+          ) ?? null
         : null;
+      if (!activeOffering) {
+        console.error('[Upgrade] getOfferings returned null — RC not configured or Play Billing unavailable');
+      } else if (!pkg) {
+        console.error('[Upgrade] No package matching', expectedPrefix, '— available:',
+          activeOffering.availablePackages.map(p => p.product.identifier));
+      }
       if (pkg) {
         // Real RevenueCat purchase
         const result = await purchasePackage(pkg);
